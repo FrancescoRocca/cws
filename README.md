@@ -1,5 +1,5 @@
 # cws
-A Web Server written in C (educational purposes)
+A simple Web Server written in C (learning purposes)
 
 ## Requirements
 - [meson](https://mesonbuild.com/index.html)
@@ -26,3 +26,5 @@ And then run `cws`!
 
 ## Resources
 - [Beej's Guide to Network Programming](https://beej.us/guide/bgnet/)
+
+You can find my journey inside the `notes` directory!

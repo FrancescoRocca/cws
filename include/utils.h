@@ -1,5 +1,5 @@
-#ifndef __SERVER_H__
-#define __SERVER_H__
+#ifndef __UTILS_H__
+#define __UTILS_H__
 
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -11,10 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define PORT 3030
-// how many pending connections the queue will hold
-#define BACKLOG 10
-
-int start_server(void);
+// Print every IPs of a hostname
+void print_ips(const char *hostname, const char *port);
 
 #endif
