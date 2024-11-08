@@ -15,6 +15,6 @@
 // how many pending connections the queue will hold
 #define BACKLOG 10
 
-int start_server(void);
+int start_server(const char *hostname, const char *service);
 
 #endif

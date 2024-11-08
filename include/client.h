@@ -1,5 +1,5 @@
-#ifndef __UTILS_H__
-#define __UTILS_H__
+#ifndef __CLIENT_H__
+#define __CLIENT_H__
 
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// print every IPs of a hostname
-void print_ips(const char *hostname, const char *port);
+int test_client_connection(const char *hostname, const char *port);
 
 #endif

@@ -12,6 +12,12 @@ Before reading, this document could contain errors, please check everything you 
       - [struct sockaddr\_storage](#struct-sockaddr_storage)
     - [IP Addresses](#ip-addresses)
     - [getaddrinfo()](#getaddrinfo)
+    - [socket()](#socket-1)
+    - [bind()](#bind)
+    - [connect()](#connect)
+    - [listen()](#listen)
+    - [accept()](#accept)
+    - [send() and recv()](#send-and-recv)
 
 
 ### Socket
@@ -116,3 +122,43 @@ int getaddrinfo(const char *node,     // e.g. "www.example.com" or IP
 
 The `node` could be a host name or IP address. `service` could be a port number or a service found in `/etc/services` (e.g. "http" or "ftp" or "telnet").
 `hints` points to a struct you already filled and `res` contains a linked list of results.
+
+### socket()
+```c
+int socket(int domain, int type, int protocol); 
+```
+
+`domain` could be `PF_INET` or `PF_INET6`, `type` instead TCP or UDP and `protocol` to 0. `PF_INET` is very close to `AF_INET`! However, we can avoid to put the stuff manually and use the results from `getaddrinfo()`.
+
+### bind()
+Do this if you're going to listen on a port. The port is used by the kernel to match an incoming packet to a socket descriptor.
+
+```c
+int bind(int sockfd, struct sockaddr *my_addr, int addrlen);
+```
+
+### connect()
+```c
+int connect(int sockfd, struct sockaddr *serv_addr, int addrlen); 
+```
+
+### listen()
+```c
+int listen(int sockfd, int backlog);
+```
+
+`backlog` is the amount of max clients allowed on the incoming queue. A client will wait in the queue until you accept it.
+
+### accept()
+```c
+int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+```
+
+After you accept a client, the function will return a new socket file descriptor used to communicate.
+
+### send() and recv()
+```c
+int send(int sockfd, const void *msg, int len, int flags); 
+```
+
+Just put `flags` to 0. It will return the bytes sent.

@@ -1,6 +1,7 @@
-project('tutorial', 'c')
+project('cws', 'c')
 
 subdir('src')
 incdir = include_directories('include')
 
-executable('cws', sources, include_directories: incdir)
+executable('server', server, include_directories: incdir)
+executable('client', client, include_directories: incdir)
