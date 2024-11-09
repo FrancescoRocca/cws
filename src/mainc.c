@@ -3,7 +3,7 @@
 #include "main.h"
 
 int main(int argc, char **argv) {
-	fprintf(stdout, BOLD GREEN "[client] Running cws...\n" RESET);
+	fprintf(stdout, BOLD GREEN "[client] Running client...\n" RESET);
 
 	int ret = test_client_connection(argv[1], argv[2]);
 	if (ret < 0) {

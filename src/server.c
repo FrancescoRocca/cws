@@ -1,6 +1,8 @@
 #include "server.h"
 
 #include "colors.h"
+#include "hashmap.h"
+#include "utils.h"
 
 int start_server(const char *hostname, const char *service) {
 	struct addrinfo hints;
@@ -50,6 +52,9 @@ void handle_clients(int sockfd) {
 	struct sockaddr_storage their_sa;
 	socklen_t theirsa_size = sizeof their_sa;
 
+	struct hashmap clients[HASHMAP_MAX_CLIENTS];
+	hm_init(clients);
+
 	int epfd = epoll_create1(0);
 	setnonblocking(sockfd);
 	epoll_ctl_add(epfd, sockfd, EPOLLIN | EPOLLET);
@@ -70,28 +75,31 @@ void handle_clients(int sockfd) {
 			if (revents[i].data.fd == sockfd) {
 				// new client
 				client_fd = handle_new_client(sockfd, &their_sa, &theirsa_size);
+
 				setnonblocking(client_fd);
 				epoll_ctl_add(epfd, client_fd, EPOLLIN);
-
-				print_client_ip((struct sockaddr_in *)&their_sa);
+				hm_insert(clients, client_fd, &their_sa);
 
 				int bytes_sent = send(client_fd, msg, msg_len, 0);
-				fprintf(stdout, BLUE "[server] Sent %d bytes\n" RESET, bytes_sent);
+				fprintf(stdout, "[server] Sent %d bytes\n", bytes_sent);
 			} else {
 				// incoming data
 				client_fd = revents[i].data.fd;
-				// fprintf(stdout, "[%d] EPOLLIN\n", client_fd);
 				int bytes_read = recv(client_fd, data, sizeof data, 0);
 
 				if (bytes_read == 0) {
-					// client disconnect
-					fprintf(stdout, BLUE "[server] Client disconnection\n");
+					// client disconnected
+					char ip[INET_ADDRSTRLEN];
+					struct hashmap *client = hm_lookup(clients, client_fd);
+					get_client_ip(&client->sas, ip);
+
+					fprintf(stdout, BLUE "[server] Client (%s) disconnected\n" RESET, ip);
 					epoll_ctl_del(epfd, client_fd);
 					close(client_fd);
 					continue;
 				}
 
-				data[strlen(data) - 1] = '\0';
+				data[strcspn(data, "\n")] = '\0';
 				fprintf(stdout, "[server] Bytes read (%d): %s\n", bytes_read, data);
 				if (strcmp(data, "stop") == 0) {
 					fprintf(stdout, GREEN BOLD "[server] Stopping...\n" RESET);
@@ -104,6 +112,10 @@ void handle_clients(int sockfd) {
 
 	free(revents);
 	close(epfd);
+
+	for (size_t i = 0; i < HASHMAP_MAX_CLIENTS; ++i) {
+		close(clients[i].sockfd);
+	}
 }
 
 void epoll_ctl_add(int epfd, int sockfd, uint32_t events) {
@@ -138,25 +150,10 @@ int handle_new_client(int sockfd, struct sockaddr_storage *their_sa, socklen_t *
 
 	if (client_fd == -1) {
 		if (errno != EWOULDBLOCK) {
-			fprintf(stderr,
-				RED BOLD
-				"[server] "
-				"accept(): "
-				"%s\n" RESET,
-				strerror(errno));
+			fprintf(stderr, RED BOLD "[server] accept(): %s\n" RESET, strerror(errno));
 		}
 		return -1;
 	}
 
 	return client_fd;
-}
-
-void print_client_ip(struct sockaddr_in *sin) {
-	char ip[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, &sin->sin_addr, ip, INET_ADDRSTRLEN);
-	fprintf(stdout,
-		BLUE
-		"[server] Incoming "
-		"client, IP: %s\n" RESET,
-		ip);
 }

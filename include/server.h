@@ -26,6 +26,5 @@ void epoll_ctl_add(int epfd, int sockfd, uint32_t events);
 void epoll_ctl_del(int epfd, int sockfd);
 void setnonblocking(int sockfd);
 int handle_new_client(int sockfd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size);
-void print_client_ip(struct sockaddr_in *sin);
 
 #endif

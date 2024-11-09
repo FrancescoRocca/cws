@@ -34,3 +34,9 @@ void print_ips(const char *hostname, const char *port) {
 
 	freeaddrinfo(res);
 }
+
+void get_client_ip(struct sockaddr_storage *sa, char *ip) {
+	struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+
+	inet_ntop(AF_INET, &sin->sin_addr, ip, INET_ADDRSTRLEN);
+}

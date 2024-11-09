@@ -12,5 +12,6 @@
 
 // print every IPs of a hostname
 void print_ips(const char *hostname, const char *port);
+void get_client_ip(struct sockaddr_storage *sa, char *ip);
 
 #endif
