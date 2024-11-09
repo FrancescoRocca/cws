@@ -1,7 +1,7 @@
-# Basic concepts
+# Basic Concepts
 Before reading, this document could contain errors, please check everything you read.
 
-- [Basic concepts](#basic-concepts)
+- [Basic Concepts](#basic-concepts)
     - [Socket](#socket)
     - [Internet sockets](#internet-sockets)
     - [Byte Order](#byte-order)
@@ -18,6 +18,10 @@ Before reading, this document could contain errors, please check everything you 
     - [listen()](#listen)
     - [accept()](#accept)
     - [send() and recv()](#send-and-recv)
+    - [sendto() and recvfrom()](#sendto-and-recvfrom)
+    - [close() and shutdown()](#close-and-shutdown)
+    - [getpeername()](#getpeername)
+    - [gethostname()](#gethostname)
 
 
 ### Socket
@@ -114,6 +118,10 @@ There is a very easy function called `inet_pton()`, *pton* stands for **Presenta
 
 ### getaddrinfo()
 ```c
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+
 int getaddrinfo(const char *node,     // e.g. "www.example.com" or IP
                 const char *service,  // e.g. "http" or port number
                 const struct addrinfo *hints,
@@ -125,6 +133,9 @@ The `node` could be a host name or IP address. `service` could be a port number 
 
 ### socket()
 ```c
+#include <sys/types.h>
+#include <sys/socket.h>
+
 int socket(int domain, int type, int protocol); 
 ```
 
@@ -134,11 +145,17 @@ int socket(int domain, int type, int protocol);
 Do this if you're going to listen on a port. The port is used by the kernel to match an incoming packet to a socket descriptor.
 
 ```c
+#include <sys/types.h>
+#include <sys/socket.h>
+
 int bind(int sockfd, struct sockaddr *my_addr, int addrlen);
 ```
 
 ### connect()
 ```c
+#include <sys/types.h>
+#include <sys/socket.h>
+
 int connect(int sockfd, struct sockaddr *serv_addr, int addrlen); 
 ```
 
@@ -151,6 +168,9 @@ int listen(int sockfd, int backlog);
 
 ### accept()
 ```c
+#include <sys/types.h>
+#include <sys/socket.h>
+
 int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
 ```
 
@@ -161,4 +181,63 @@ After you accept a client, the function will return a new socket file descriptor
 int send(int sockfd, const void *msg, int len, int flags); 
 ```
 
-Just put `flags` to 0. It will return the bytes sent.
+Just put `flags` to 0. It will return the bytes sent, but sometimes it could not match the len of the data sent, it's up to you to send the rest of the string (it should sent 1K of data without splitting).
+
+```c
+int recv(int sockfd, void *buf, int len, int flags);
+```
+Put 0 at `flags` (see the man page for more info). The `sockfd` is the file descriptor to read from. The function could return 0 (this means the remote side has closed the connection).
+
+### sendto() and recvfrom()
+It's the DGRAM equivalent of STREAM. Marked as *TODO*.
+
+### close() and shutdown()
+To close the connection just use the regular Unix file descriptor `close()` function:
+
+```c
+close(sockfd);
+```
+
+If you want more control over how the socket closes there is `shutdown()`:
+
+```c
+int shutdown(int sockfd, int how);
+```
+
+`how` is one of the following:
+| how | Effect                   |
+| --- | ------------------------ |
+| 0   | No future receives       |
+| 1   | No future sends          |
+| 2   | No future receives/sends |
+The 2 is like `close()`, use `close()`.
+
+### getpeername()
+This function is quite simple. It will tell you who is in the other side of the connection.
+
+```c
+#include <sys/socket.h>
+
+int getpeername(int sockfd, struct sockaddr *addr, int *addrlen);
+```
+
+Example of getting client's IP:
+```c
+struct sockaddr_storage their;
+socklen_t their_len = sizeof their;
+
+int clientfd = accept(sockfd, (struct sockaddr *)&their, &their_len);
+getpeername(clientfd, (struct sockaddr *)&their, &their_len);
+struct sockaddr_in *client = (struct sockaddr_in *)&their;
+char client_ip[INET_ADDRSTRLEN];
+inet_ntop(AF_INET, &client->sin_addr, client_ip, INET_ADDRSTRLEN);
+```
+
+### gethostname()
+```c
+#include <unistd.h>
+
+int gethostname(char *hostname, size_t size);
+```
+
+Returns the name of the computer that your program is running on.

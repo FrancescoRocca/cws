@@ -10,11 +10,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/epoll.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #define PORT 3030
-// how many pending connections the queue will hold
 #define BACKLOG 10
+#define EPOLL_MAXEVENTS 10
+#define EPOLL_TIMEOUT -1
 
 int start_server(const char *hostname, const char *service);
+void setup_hints(struct addrinfo *hints, size_t len, const char *hostname);
+void handle_clients(int sockfd);
+void epoll_ctl_add(int epfd, int sockfd, uint32_t events);
+void setnonblocking(int sockfd);
+void handle_new_client(int sockfd);
 
 #endif

@@ -1,5 +1,5 @@
 # cws
-A simple Web Server written in C (learning purposes)
+A simple Web Server written in C (learning purposes), it works only on Linux systems
 
 ## Requirements
 - [meson](https://mesonbuild.com/index.html)
@@ -13,9 +13,10 @@ $ meson compile
 And then run `cws`!
 
 ## Roadmap
-- [ ] Understading basic web server concepts
+- [x] Understading basic web server concepts
 - [ ] Basic server
 - [ ] Enhance web server
+    - [ ] IPv6 compatible
     - [ ] Request parser (methods and headers)
     - [ ] Serve static files
     - [ ] Multithreading (non blocking I/O with `epoll`)

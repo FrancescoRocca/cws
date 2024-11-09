@@ -33,6 +33,7 @@ int test_client_connection(const char *hostname, const char *port) {
 		buf);
 
 	freeaddrinfo(res);
+	close(sockfd);
 
 	return 0;
 }
