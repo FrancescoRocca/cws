@@ -51,7 +51,7 @@ It is similar to `poll()` but more efficient when dealing with lots of fds. The 
 int epoll_create1(int flags);
 ```
 
-Just pass 0 for the `flags`, it is an improved version of the `epoll_create()`. It creates a new epoll instance nad returns the fd of that instance.
+Just pass 0 for the `flags`, it is an improved version of the `epoll_create()`. It creates a new epoll instance and returns the fd of that instance.
 
 ```c
 #include <sys/epoll.h>

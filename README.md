@@ -1,5 +1,5 @@
 # cws
-A simple Web Server written in C (learning purposes), it works only on Linux systems
+A simple Web Server written in C (learning purposes), it works only on Linux systems.
 
 ## Requirements
 - [meson](https://mesonbuild.com/index.html)

@@ -5,7 +5,7 @@
 int main(int argc, char **argv) {
 	fprintf(stdout, BOLD GREEN "[client] Running cws...\n" RESET);
 
-	int ret = test_client_connection("localhost", "3030");
+	int ret = test_client_connection(argv[1], argv[2]);
 	if (ret < 0) {
 		fprintf(stderr, BOLD RED "Unable to start client\n");
 	}

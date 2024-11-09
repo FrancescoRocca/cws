@@ -1,4 +1,5 @@
 #include "server.h"
+
 #include "colors.h"
 
 int start_server(const char *hostname, const char *service) {
@@ -9,25 +10,22 @@ int start_server(const char *hostname, const char *service) {
 
 	int status = getaddrinfo(hostname, service, &hints, &res);
 	if (status != 0) {
-		fprintf(stderr,
-			RED BOLD "[server] getaddrinfo() error: %s\n" RESET,
-			gai_strerror(status));
+		fprintf(stderr, RED BOLD "[server] getaddrinfo() error: %s\n" RESET, gai_strerror(status));
 		exit(EXIT_FAILURE);
 	}
 
 	int sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	fprintf(stdout, YELLOW "[server] sockfd: %d\n" RESET, sockfd);
 
 	status = bind(sockfd, res->ai_addr, res->ai_addrlen);
 	if (status != 0) {
-		fprintf(stderr, RED BOLD "[server] bind(): %s\n" RESET,
-			gai_strerror(status));
+		fprintf(stderr, RED BOLD "[server] bind(): %s\n" RESET, gai_strerror(status));
 		exit(EXIT_FAILURE);
 	}
 
 	status = listen(sockfd, BACKLOG);
 	if (status != 0) {
-		fprintf(stderr, RED BOLD "[server] listen(): %s\n" RESET,
-			gai_strerror(status));
+		fprintf(stderr, RED BOLD "[server] listen(): %s\n" RESET, gai_strerror(status));
 		exit(EXIT_FAILURE);
 	}
 
@@ -41,10 +39,10 @@ int start_server(const char *hostname, const char *service) {
 
 void setup_hints(struct addrinfo *hints, size_t len, const char *hostname) {
 	memset(hints, 0, len);
-	hints->ai_family = AF_UNSPEC;	  // IPv4 or IPv6
-	hints->ai_socktype = SOCK_STREAM; // TCP
+	hints->ai_family = AF_UNSPEC;	   // IPv4 or IPv6
+	hints->ai_socktype = SOCK_STREAM;  // TCP
 	if (hostname == NULL) {
-		hints->ai_flags = AI_PASSIVE; // fill in IP for me
+		hints->ai_flags = AI_PASSIVE;  // fill in IP for me
 	}
 }
 
@@ -56,55 +54,56 @@ void handle_clients(int sockfd) {
 	setnonblocking(sockfd);
 	epoll_ctl_add(epfd, sockfd, EPOLLIN | EPOLLET);
 
-	struct epoll_event *revents =
-	    malloc(EPOLL_MAXEVENTS * sizeof(struct epoll_event));
+	struct epoll_event *revents = malloc(EPOLL_MAXEVENTS * sizeof(struct epoll_event));
 	int nfds;
 
 	char *msg = "Hello there!";
 	size_t msg_len = strlen(msg);
+	char data[4096];
+	int client_fd;
+	int run = 1;
 
-	for (;;) {
-		nfds =
-		    epoll_wait(epfd, revents, EPOLL_MAXEVENTS, EPOLL_TIMEOUT);
+	while (run) {
+		nfds = epoll_wait(epfd, revents, EPOLL_MAXEVENTS, EPOLL_TIMEOUT);
 
 		for (int i = 0; i < nfds; ++i) {
 			if (revents[i].data.fd == sockfd) {
-				int client_fd =
-				    accept(sockfd, (struct sockaddr *)&their_sa,
-					   &theirsa_size);
+				// new client
+				client_fd = handle_new_client(sockfd, &their_sa, &theirsa_size);
+				setnonblocking(client_fd);
+				epoll_ctl_add(epfd, client_fd, EPOLLIN);
 
-				if (client_fd == -1) {
-					if (errno != EWOULDBLOCK) {
-						fprintf(stderr,
-							RED BOLD "[server] "
-								 "accept(): "
-								 "%s\n" RESET,
-							strerror(errno));
-					}
+				print_client_ip((struct sockaddr_in *)&their_sa);
+
+				int bytes_sent = send(client_fd, msg, msg_len, 0);
+				fprintf(stdout, BLUE "[server] Sent %d bytes\n" RESET, bytes_sent);
+			} else {
+				// incoming data
+				client_fd = revents[i].data.fd;
+				// fprintf(stdout, "[%d] EPOLLIN\n", client_fd);
+				int bytes_read = recv(client_fd, data, sizeof data, 0);
+
+				if (bytes_read == 0) {
+					// client disconnect
+					fprintf(stdout, BLUE "[server] Client disconnection\n");
+					epoll_ctl_del(epfd, client_fd);
+					close(client_fd);
 					continue;
 				}
 
-				setnonblocking(client_fd);
-
-				struct sockaddr_in *client =
-				    (struct sockaddr_in *)&their_sa;
-				char client_ip[INET_ADDRSTRLEN];
-				inet_ntop(AF_INET, &client->sin_addr, client_ip,
-					  INET_ADDRSTRLEN);
-				fprintf(stdout,
-					BLUE "[server] Incoming "
-					     "client, ip: %s\n" RESET,
-					client_ip);
-
-				int bytes_sent =
-				    send(client_fd, msg, msg_len, 0);
-				fprintf(stdout,
-					BLUE "[server] Sent %d bytes\n" RESET,
-					bytes_sent);
-				close(client_fd);
+				data[strlen(data) - 1] = '\0';
+				fprintf(stdout, "[server] Bytes read (%d): %s\n", bytes_read, data);
+				if (strcmp(data, "stop") == 0) {
+					fprintf(stdout, GREEN BOLD "[server] Stopping...\n" RESET);
+					run = 0;
+					break;
+				}
 			}
 		}
 	}
+
+	free(revents);
+	close(epfd);
 }
 
 void epoll_ctl_add(int epfd, int sockfd, uint32_t events) {
@@ -113,8 +112,15 @@ void epoll_ctl_add(int epfd, int sockfd, uint32_t events) {
 	event.data.fd = sockfd;
 	int status = epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &event);
 	if (status != 0) {
-		fprintf(stderr, RED BOLD "[server] epoll_ctl(): %s\n" RESET,
-			gai_strerror(status));
+		fprintf(stderr, RED BOLD "[server] epoll_ctl_add(): %s\n" RESET, strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+}
+
+void epoll_ctl_del(int epfd, int sockfd) {
+	int status = epoll_ctl(epfd, EPOLL_CTL_DEL, sockfd, NULL);
+	if (status != 0) {
+		fprintf(stdout, RED BOLD "[server] epoll_ctl_del(): %s\n" RESET, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 }
@@ -122,12 +128,35 @@ void epoll_ctl_add(int epfd, int sockfd, uint32_t events) {
 void setnonblocking(int sockfd) {
 	int status = fcntl(sockfd, F_SETFL, O_NONBLOCK);
 	if (status == -1) {
-		fprintf(stderr, RED BOLD "[server] fcntl(): %s\n" RESET,
-			gai_strerror(status));
+		fprintf(stderr, RED BOLD "[server] fcntl(): %s\n" RESET, gai_strerror(status));
 		exit(EXIT_FAILURE);
 	}
 }
 
-void handle_new_client(int sockfd) {
-	// handle here new clients
+int handle_new_client(int sockfd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size) {
+	int client_fd = accept(sockfd, (struct sockaddr *)their_sa, theirsa_size);
+
+	if (client_fd == -1) {
+		if (errno != EWOULDBLOCK) {
+			fprintf(stderr,
+				RED BOLD
+				"[server] "
+				"accept(): "
+				"%s\n" RESET,
+				strerror(errno));
+		}
+		return -1;
+	}
+
+	return client_fd;
+}
+
+void print_client_ip(struct sockaddr_in *sin) {
+	char ip[INET_ADDRSTRLEN];
+	inet_ntop(AF_INET, &sin->sin_addr, ip, INET_ADDRSTRLEN);
+	fprintf(stdout,
+		BLUE
+		"[server] Incoming "
+		"client, IP: %s\n" RESET,
+		ip);
 }

@@ -1,4 +1,4 @@
 {
     "clangd.path": "/usr/bin/clangd",
-    "clangd.arguments": [ "--header-insertion=never" ]
+    "clangd.arguments": [ "--header-insertion=never" ],
 }

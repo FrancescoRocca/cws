@@ -1,3 +1,5 @@
+BasedOnStyle: Google
+ColumnLimit: 120
 UseTab: Always
 IndentWidth: 8
 TabWidth: 8
