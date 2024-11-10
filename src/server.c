@@ -41,10 +41,13 @@ int start_server(const char *hostname, const char *service) {
 
 void setup_hints(struct addrinfo *hints, size_t len, const char *hostname) {
 	memset(hints, 0, len);
-	hints->ai_family = AF_UNSPEC;	   // IPv4 or IPv6
-	hints->ai_socktype = SOCK_STREAM;  // TCP
+	/* IPv4 or IPv6 */
+	hints->ai_family = AF_UNSPEC;
+	/* TCP */
+	hints->ai_socktype = SOCK_STREAM;
 	if (hostname == NULL) {
-		hints->ai_flags = AI_PASSIVE;  // fill in IP for me
+		/* Fill in IP for me */
+		hints->ai_flags = AI_PASSIVE;
 	}
 }
 
@@ -52,7 +55,7 @@ void handle_clients(int sockfd) {
 	struct sockaddr_storage their_sa;
 	socklen_t theirsa_size = sizeof their_sa;
 
-	struct hashmap clients[HASHMAP_MAX_CLIENTS];
+	bucket_t clients[HASHMAP_MAX_CLIENTS];
 	hm_init(clients);
 
 	int epfd = epoll_create1(0);
@@ -73,7 +76,7 @@ void handle_clients(int sockfd) {
 
 		for (int i = 0; i < nfds; ++i) {
 			if (revents[i].data.fd == sockfd) {
-				// new client
+				/* New client */
 				client_fd = handle_new_client(sockfd, &their_sa, &theirsa_size);
 
 				setnonblocking(client_fd);
@@ -83,14 +86,14 @@ void handle_clients(int sockfd) {
 				int bytes_sent = send(client_fd, msg, msg_len, 0);
 				fprintf(stdout, "[server] Sent %d bytes\n", bytes_sent);
 			} else {
-				// incoming data
+				/* Incoming data */
 				client_fd = revents[i].data.fd;
 				int bytes_read = recv(client_fd, data, sizeof data, 0);
 
 				if (bytes_read == 0) {
-					// client disconnected
+					/* Client disconnected */
 					char ip[INET_ADDRSTRLEN];
-					struct hashmap *client = hm_lookup(clients, client_fd);
+					bucket_t *client = hm_lookup(clients, client_fd);
 					get_client_ip(&client->sas, ip);
 
 					fprintf(stdout, BLUE "[server] Client (%s) disconnected\n" RESET, ip);
@@ -112,13 +115,7 @@ void handle_clients(int sockfd) {
 
 	free(revents);
 	close(epfd);
-
-	/* Close all the file descriptors */
-	for (size_t i = 0; i < HASHMAP_MAX_CLIENTS; ++i) {
-		close(clients[i].sockfd);
-		/* TODO: close collisions */
-	}
-
+	close_fds(clients);
 	hm_free(clients);
 }
 
@@ -127,6 +124,7 @@ void epoll_ctl_add(int epfd, int sockfd, uint32_t events) {
 	event.events = events;
 	event.data.fd = sockfd;
 	int status = epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &event);
+
 	if (status != 0) {
 		fprintf(stderr, RED BOLD "[server] epoll_ctl_add(): %s\n" RESET, strerror(errno));
 		exit(EXIT_FAILURE);
@@ -135,6 +133,7 @@ void epoll_ctl_add(int epfd, int sockfd, uint32_t events) {
 
 void epoll_ctl_del(int epfd, int sockfd) {
 	int status = epoll_ctl(epfd, EPOLL_CTL_DEL, sockfd, NULL);
+
 	if (status != 0) {
 		fprintf(stdout, RED BOLD "[server] epoll_ctl_del(): %s\n" RESET, strerror(errno));
 		exit(EXIT_FAILURE);
@@ -143,6 +142,7 @@ void epoll_ctl_del(int epfd, int sockfd) {
 
 void setnonblocking(int sockfd) {
 	int status = fcntl(sockfd, F_SETFL, O_NONBLOCK);
+
 	if (status == -1) {
 		fprintf(stderr, RED BOLD "[server] fcntl(): %s\n" RESET, gai_strerror(status));
 		exit(EXIT_FAILURE);
@@ -160,4 +160,22 @@ int handle_new_client(int sockfd, struct sockaddr_storage *their_sa, socklen_t *
 	}
 
 	return client_fd;
+}
+
+void close_fds(bucket_t *bucket) {
+	bucket_t *p, *next;
+
+	for (size_t i = 0; i < HASHMAP_MAX_CLIENTS; ++i) {
+		close(bucket[i].sockfd);
+		if (bucket[i].next != NULL) {
+			/* Close the fds */
+			p = bucket[i].next;
+			next = p->next;
+			do {
+				close(p->sockfd);
+				p = next;
+				next = p != NULL ? p->next : NULL;
+			} while (p != NULL);
+		}
+	}
 }

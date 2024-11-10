@@ -14,6 +14,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "hashmap.h"
+
 /* On which port the server will run */
 #define PORT 3030
 
@@ -85,5 +87,12 @@ void setnonblocking(int sockfd);
  * @return int Returns -1 on error or the file descriptor on success
  */
 int handle_new_client(int sockfd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size);
+
+/**
+ * @brief Closes all the file descriptors opened
+ *
+ * @param map[in] The hash map
+ */
+void close_fds(bucket_t *bucket);
 
 #endif
