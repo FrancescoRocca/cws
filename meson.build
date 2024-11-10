@@ -1,4 +1,4 @@
-project('cws', 'c')
+project('cws', 'c', version: '1.0.0')
 
 subdir('src')
 incdir = include_directories('include')
