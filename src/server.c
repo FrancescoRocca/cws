@@ -78,7 +78,7 @@ void handle_clients(int sockfd) {
 
 				setnonblocking(client_fd);
 				epoll_ctl_add(epfd, client_fd, EPOLLIN);
-				hm_insert(clients, client_fd, &their_sa);
+				hm_push(clients, client_fd, &their_sa);
 
 				int bytes_sent = send(client_fd, msg, msg_len, 0);
 				fprintf(stdout, "[server] Sent %d bytes\n", bytes_sent);
@@ -113,9 +113,13 @@ void handle_clients(int sockfd) {
 	free(revents);
 	close(epfd);
 
+	/* Close all the file descriptors */
 	for (size_t i = 0; i < HASHMAP_MAX_CLIENTS; ++i) {
 		close(clients[i].sockfd);
+		/* TODO: close collisions */
 	}
+
+	hm_free(clients);
 }
 
 void epoll_ctl_add(int epfd, int sockfd, uint32_t events) {
