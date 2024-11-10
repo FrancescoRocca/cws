@@ -9,3 +9,18 @@ Accept-Language: en-us
 Accept-Encoding: gzip, deflate
 Connection: Keep-Alive
 ```
+
+The first line is a *request line*. It has:
+- Method (GET, POST, HEAD, ...)
+- Location (the request resource, file)
+- HTTP version
+
+# HTTP Response
+```bash
+HTTP/1.1 200 OK\r\n
+Content-Type: text/html\r\n
+Content-Length: 88\r\n
+Connection: Closed\r\n
+\r\n
+<HTML>
+```

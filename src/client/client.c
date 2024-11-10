@@ -1,8 +1,6 @@
-// THIS FILE IS ONLY A TEST FOR THE BASIC STUFF
+#include "client/client.h"
 
-#include "client.h"
-
-#include "colors.h"
+#include "utils/colors.h"
 
 int test_client_connection(const char *hostname, const char *service) {
 	struct addrinfo hints;
@@ -32,6 +30,7 @@ int test_client_connection(const char *hostname, const char *service) {
 
 	fprintf(stdout, "[client] => ");
 	fgets(buf, sizeof buf, stdin);
+	buf[strcspn(buf, "\n")] = '\0';
 	send(sockfd, buf, strlen(buf), 0);
 
 	freeaddrinfo(res);

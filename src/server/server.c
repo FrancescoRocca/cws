@@ -1,8 +1,9 @@
-#include "server.h"
+#include "server/server.h"
 
-#include "colors.h"
-#include "hashmap.h"
-#include "utils.h"
+#include "http/http.h"
+#include "utils/colors.h"
+#include "utils/hashmap.h"
+#include "utils/utils.h"
 
 int start_server(const char *hostname, const char *service) {
 	struct addrinfo hints;
@@ -19,9 +20,16 @@ int start_server(const char *hostname, const char *service) {
 	int sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	fprintf(stdout, YELLOW "[server] sockfd: %d\n" RESET, sockfd);
 
+	int opt = 1;
+	status = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
+	if (status != 0) {
+		fprintf(stderr, RED BOLD "[server] setsockopt(): %s\n" RESET, strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+
 	status = bind(sockfd, res->ai_addr, res->ai_addrlen);
 	if (status != 0) {
-		fprintf(stderr, RED BOLD "[server] bind(): %s\n" RESET, gai_strerror(status));
+		fprintf(stderr, RED BOLD "[server] bind(): %s\n" RESET, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
@@ -77,7 +85,10 @@ void handle_clients(int sockfd) {
 		for (int i = 0; i < nfds; ++i) {
 			if (revents[i].data.fd == sockfd) {
 				/* New client */
+				char ip[INET_ADDRSTRLEN];
 				client_fd = handle_new_client(sockfd, &their_sa, &theirsa_size);
+				get_client_ip(&their_sa, ip);
+				fprintf(stdout, BLUE "[server] Client (%s) connected\n" RESET, ip);
 
 				setnonblocking(client_fd);
 				epoll_ctl_add(epfd, client_fd, EPOLLIN);
@@ -102,17 +113,26 @@ void handle_clients(int sockfd) {
 					continue;
 				}
 
-				data[strcspn(data, "\n")] = '\0';
-				fprintf(stdout, "[server] Bytes read (%d): %s\n", bytes_read, data);
+				// fprintf(stdout, "[server] Bytes read (%d):\n%s\n", bytes_read, data);
 				if (strcmp(data, "stop") == 0) {
 					fprintf(stdout, GREEN BOLD "[server] Stopping...\n" RESET);
 					run = 0;
 					break;
 				}
+
+				/* Parse HTTP request */
+				http_t *request = http_parse(data);
+				fprintf(stdout, "[server] request location: %s\n", request->location);
+				http_send_response(request);
+				http_free(request);
+
+				/* Clear str */
+				memset(data, 0, sizeof data);
 			}
 		}
 	}
 
+	/* Clean up everything */
 	free(revents);
 	close(epfd);
 	close_fds(clients);

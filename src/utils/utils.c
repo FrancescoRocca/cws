@@ -1,6 +1,6 @@
-#include "utils.h"
+#include "utils/utils.h"
 
-#include "colors.h"
+#include "utils/colors.h"
 
 void print_ips(const char *hostname, const char *port) {
 	struct addrinfo ai;

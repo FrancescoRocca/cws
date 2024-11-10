@@ -9,18 +9,22 @@
 /* Each process on Linux can have a maximum of 1024 open file descriptors */
 #define HASHMAP_MAX_CLIENTS 1024
 
+/**
+ * @brief Hash map struct
+ * 
+ */
 typedef struct bucket {
-	int sockfd;		     /**< Client socket descriptor */
+	int sockfd;					 /**< Client socket descriptor */
 	struct sockaddr_storage sas; /**< Associated socket address */
-	struct bucket *next;	     /**< Next node in case of collision */
-	struct bucket *prev;	     /**< Previous node in case of collision */
+	struct bucket *next;		 /**< Next node in case of collision */
+	struct bucket *prev;		 /**< Previous node in case of collision */
 } bucket_t;
 
 /**
  * @brief Calculates the hash code of a given file descriptor
  *
  * @param sockfd[in] The file descriptor
- * @return int Returns the hash code
+ * @return Returns the hash code
  */
 int hash(int sockfd);
 
@@ -53,7 +57,7 @@ void hm_remove(bucket_t *bucket, int sockfd);
  *
  * @param bucket[in] The hash map
  * @param sockfd[in] The file descriptor (key)
- * @return struct hashmap* Returns NULL or the key pointer
+ * @return Returns NULL or the key pointer
  */
 bucket_t *hm_lookup(bucket_t *bucket, int sockfd);
 

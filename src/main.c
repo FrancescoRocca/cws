@@ -1,7 +1,8 @@
 #include "main.h"
 
-#include "colors.h"
-#include "server.h"
+#include "server/server.h"
+#include "utils/colors.h"
+
 
 int main(int argc, char **argv) {
 	fprintf(stdout, BOLD GREEN "[server] Running cws...\n" RESET);

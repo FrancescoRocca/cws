@@ -1,6 +1,7 @@
-#include "client.h"
-#include "colors.h"
 #include "main.h"
+
+#include "client/client.h"
+#include "utils/colors.h"
 
 int main(int argc, char **argv) {
 	fprintf(stdout, BOLD GREEN "[client] Running client...\n" RESET);
