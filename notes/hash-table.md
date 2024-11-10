@@ -17,5 +17,3 @@ $$ hash(\text{key}) = \text{key} \mod \text{table\_dim} $$
 
 - String keys:
 $$ hash(key) = \sum_{i=0}^{len(key) - 1} ascii\_value(key[i]) * prime\_number$$
-
-**TODO**

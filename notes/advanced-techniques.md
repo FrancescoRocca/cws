@@ -85,5 +85,3 @@ union epoll_data {
     uint64_t  u64;
 };
 ```
-
-**TODO: improve the notes for epoll()**

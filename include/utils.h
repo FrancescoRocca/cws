@@ -10,8 +10,20 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-// print every IPs of a hostname
+/**
+ * @brief Prints each IP address associated with a host
+ *
+ * @param hostname[in] Hostname
+ * @param port[in] Port
+ */
 void print_ips(const char *hostname, const char *port);
+
+/**
+ * @brief Retrieves the client ip from the sockaddr_storage and put it in the ip str
+ *
+ * @param sa[in] The sockaddr_storage of the client
+ * @param ip[out] The IP of the client
+ */
 void get_client_ip(struct sockaddr_storage *sa, char *ip);
 
 #endif
