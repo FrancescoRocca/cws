@@ -1,5 +1,5 @@
-#ifndef __COLORS_H__
-#define __COLORS_H__
+#ifndef CWS_COLORS_H
+#define CWS_COLORS_H
 
 /* ANSI color escape sequences */
 #define RED "\033[31m"

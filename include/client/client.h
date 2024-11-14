@@ -1,5 +1,5 @@
-#ifndef __CLIENT_H__
-#define __CLIENT_H__
+#ifndef CWS_CLIENT_H
+#define CWS_CLIENT_H
 
 #include <arpa/inet.h>
 #include <errno.h>

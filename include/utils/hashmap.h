@@ -1,5 +1,5 @@
-#ifndef __HASHMAP_C__
-#define __HASHMAP_C__
+#ifndef CWS_HASHMAP_H
+#define CWS_HASHMAP_H
 
 #include <stdbool.h>
 #include <stdlib.h>

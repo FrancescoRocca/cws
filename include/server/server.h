@@ -1,5 +1,5 @@
-#ifndef __SERVER_H__
-#define __SERVER_H__
+#ifndef CWS_SERVER_H
+#define CWS_SERVER_H
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -93,5 +93,7 @@ int handle_new_client(int sockfd, struct sockaddr_storage *their_sa, socklen_t *
  * @param map[in] The hash map
  */
 void close_fds(bucket_t *bucket);
+
+void send_html_test(int sockfd);
 
 #endif

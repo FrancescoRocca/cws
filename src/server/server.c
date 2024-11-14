@@ -73,8 +73,8 @@ void handle_clients(int sockfd) {
 	struct epoll_event *revents = malloc(EPOLL_MAXEVENTS * sizeof(struct epoll_event));
 	int nfds;
 
-	char *msg = "Hello there!";
-	size_t msg_len = strlen(msg);
+	// char *msg = "Hello there!";
+	// size_t msg_len = strlen(msg);
 	char data[4096];
 	int client_fd;
 	int run = 1;
@@ -94,8 +94,8 @@ void handle_clients(int sockfd) {
 				epoll_ctl_add(epfd, client_fd, EPOLLIN);
 				hm_push(clients, client_fd, &their_sa);
 
-				int bytes_sent = send(client_fd, msg, msg_len, 0);
-				fprintf(stdout, "[server] Sent %d bytes\n", bytes_sent);
+				// int bytes_sent = send(client_fd, msg, msg_len, 0);
+				// fprintf(stdout, "[server] Sent %d bytes\n", bytes_sent);
 			} else {
 				/* Incoming data */
 				client_fd = revents[i].data.fd;
@@ -112,6 +112,8 @@ void handle_clients(int sockfd) {
 					close(client_fd);
 					continue;
 				}
+
+				send_html_test(client_fd);
 
 				// fprintf(stdout, "[server] Bytes read (%d):\n%s\n", bytes_read, data);
 				if (strcmp(data, "stop") == 0) {
@@ -198,4 +200,35 @@ void close_fds(bucket_t *bucket) {
 			} while (p != NULL);
 		}
 	}
+}
+
+void send_html_test(int sockfd) {
+	char html[] =
+		"<!DOCTYPE html>\n"
+		"<html lang=\"en\">\n"
+		"\n"
+		"<head>\n"
+		"    <meta charset=\"UTF-8\">\n"
+		"    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+		"    <title>cws</title>\n"
+		"</head>\n"
+		"\n"
+		"<body>\n"
+		"    <h1>Hello from cws!</h1>\n"
+		"</body>\n"
+		"\n"
+		"</html>";
+	char len[4096];
+	size_t content_length = strlen(html);
+	sprintf(len, "Content-Length: %zu\r\n", content_length);
+	fprintf(stdout, "Content-length: %zu\n", content_length);
+	char response[65535];
+	strcat(response, "HTTP/1.1 200 OK\r\n");
+	strcat(response, "Content-Type: text/html\r\n");
+	strcat(response, len);
+	strcat(response, "Connection: closed\r\n");
+	strcat(response, "\r\n");
+	strcat(response, html);
+
+	send(sockfd, response, strlen(response), 0);
 }

@@ -1,5 +1,5 @@
-#ifndef __UTILS_H__
-#define __UTILS_H__
+#ifndef CWS_UTILS_H
+#define CWS_UTILS_H
 
 #include <arpa/inet.h>
 #include <netdb.h>

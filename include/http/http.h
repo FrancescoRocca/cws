@@ -1,5 +1,5 @@
-#ifndef __HTTP_H__
-#define __HTTP_H__
+#ifndef CWS_HTTP_H
+#define CWS_HTTP_H
 
 #include <stdio.h> /* Debug */
 #include <stdlib.h>

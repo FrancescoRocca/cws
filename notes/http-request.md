@@ -24,3 +24,5 @@ Connection: Closed\r\n
 \r\n
 <HTML>
 ```
+
+`Content-Length` is the length of the body (in the response case is the length of html page)
