@@ -8,17 +8,17 @@ http_t *http_parse(char *request_str) {
 
 	/* Parse HTTP method */
 	char *pch = strtok(request_str, " ");
-	printf("%s\n", pch);
+	printf("[http] method: %s\n", pch);
 	http_parse_method(request, pch);
 
 	/* Parse location */
 	pch = strtok(NULL, " ");
-	printf("%s\n", pch);
+	printf("[http] location: %s\n", pch);
 	strncpy(request->location, pch, LOCATION_LEN);
 
 	/* Parse HTTP version */
 	pch = strtok(NULL, " \r\n");
-	printf("%s\n", pch);
+	printf("[http] version: %s\n", pch);
 	strncpy(request->http_version, pch, HTTP_VERSION_LEN);
 
 	/* Parse other stuff... */
@@ -27,6 +27,10 @@ http_t *http_parse(char *request_str) {
 }
 
 void http_parse_method(http_t *request, const char *method) {
+	if (request == NULL) {
+		return;
+	}
+
 	if (strcmp(method, "GET") == 0) {
 		request->method = GET;
 	}

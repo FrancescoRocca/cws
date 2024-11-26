@@ -1,4 +1,5 @@
 # HTTP Request
+
 This is an example of a basic HTTP request made from the browser:
 
 ```bash
@@ -10,12 +11,16 @@ Accept-Encoding: gzip, deflate
 Connection: Keep-Alive
 ```
 
+> Thanks tutorialspoint
+
 The first line is a *request line*. It has:
+
 - Method (GET, POST, HEAD, ...)
 - Location (the request resource, file)
 - HTTP version
 
 # HTTP Response
+
 ```bash
 HTTP/1.1 200 OK\r\n
 Content-Type: text/html\r\n

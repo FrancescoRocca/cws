@@ -3,9 +3,8 @@
 #include "server/server.h"
 #include "utils/colors.h"
 
-
 int main(int argc, char **argv) {
-	fprintf(stdout, BOLD GREEN "[server] Running cws...\n" RESET);
+	fprintf(stdout, BOLD GREEN "[server] Running cws on http://localhost:%s...\n" RESET, "3030");
 
 	int ret = start_server(NULL, "3030");
 	if (ret < 0) {

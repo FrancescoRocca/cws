@@ -6,7 +6,10 @@
     - [epoll() - I/O Event Notification (Async)](#epoll---io-event-notification-async)
 
 ### Blocking
-All the Unix networking functions are **blocking**. What does it mean? It means that if you write `accept()` or `recv()` it will wait until some data appears. So how we can avoid this? Making the socket non blocking so we can poll the socket for info:
+
+All the Unix networking functions are **blocking**. What does it mean? It means that if you write `accept()` or `recv()`
+it will wait until some data appears. So how we can avoid this? Making the socket non blocking so we can poll the socket
+for info:
 
 ```c
 fcntl(sockfd, F_SETFL, O_NONBLOCK);
@@ -16,7 +19,9 @@ fcntl(sockfd, F_SETFL, O_NONBLOCK);
 `O_NONBLOCK`: make the fd non blocking
 
 ### poll() - Synchronous I/O Multiplexing
-The plan is to have a `struct pollfd` with the info about which sockets fd we want to monitor. The Operating System will block on the `poll()` call until one event occurs (e.g. "socket ready to write/read").
+
+The plan is to have a `struct pollfd` with the info about which sockets fd we want to monitor. The Operating System will
+block on the `poll()` call until one event occurs (e.g. "socket ready to write/read").
 
 ```c
 #include <poll.h>
@@ -37,13 +42,16 @@ struct pollfd {
 ```
 
 `events` is a bitmap of the following values:
+
 - `POLLIN` (alert when I can read data)
 - `POLLOUT` (alert when I can send data)
 
 **I won't continue this section, read below**
 
 ### epoll() - I/O Event Notification (Async)
-It is similar to `poll()` but more efficient when dealing with lots of fds. The array is in the kernel space, no further copies. Nice explaination [here](https://copyconstruct.medium.com/the-method-to-epolls-madness-d9d2d6378642).
+
+It is similar to `poll()` but more efficient when dealing with lots of fds. The array is in the kernel space, no further
+copies. Nice explaination [here](https://copyconstruct.medium.com/the-method-to-epolls-madness-d9d2d6378642).
 
 ```c
 #include <sys/epoll.h>
@@ -51,7 +59,8 @@ It is similar to `poll()` but more efficient when dealing with lots of fds. The 
 int epoll_create1(int flags);
 ```
 
-Just pass 0 for the `flags`, it is an improved version of the `epoll_create()`. It creates a new epoll instance and returns the fd of that instance.
+Just pass 0 for the `flags`, it is an improved version of the `epoll_create()`. It creates a new epoll instance and
+returns the fd of that instance.
 
 ```c
 #include <sys/epoll.h>

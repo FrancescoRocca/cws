@@ -20,7 +20,7 @@ int start_server(const char *hostname, const char *service) {
 	int sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	fprintf(stdout, YELLOW "[server] sockfd: %d\n" RESET, sockfd);
 
-	int opt = 1;
+	const int opt = 1;
 	status = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
 	if (status != 0) {
 		fprintf(stderr, RED BOLD "[server] setsockopt(): %s\n" RESET, strerror(errno));
@@ -71,16 +71,10 @@ void handle_clients(int sockfd) {
 	epoll_ctl_add(epfd, sockfd, EPOLLIN | EPOLLET);
 
 	struct epoll_event *revents = malloc(EPOLL_MAXEVENTS * sizeof(struct epoll_event));
-	int nfds;
-
-	// char *msg = "Hello there!";
-	// size_t msg_len = strlen(msg);
-	char data[4096];
 	int client_fd;
-	int run = 1;
 
-	while (run) {
-		nfds = epoll_wait(epfd, revents, EPOLL_MAXEVENTS, EPOLL_TIMEOUT);
+	while (1) {
+		int nfds = epoll_wait(epfd, revents, EPOLL_MAXEVENTS, EPOLL_TIMEOUT);
 
 		for (int i = 0; i < nfds; ++i) {
 			if (revents[i].data.fd == sockfd) {
@@ -93,13 +87,11 @@ void handle_clients(int sockfd) {
 				setnonblocking(client_fd);
 				epoll_ctl_add(epfd, client_fd, EPOLLIN);
 				hm_push(clients, client_fd, &their_sa);
-
-				// int bytes_sent = send(client_fd, msg, msg_len, 0);
-				// fprintf(stdout, "[server] Sent %d bytes\n", bytes_sent);
 			} else {
+				char data[4096] = {0};
 				/* Incoming data */
 				client_fd = revents[i].data.fd;
-				int bytes_read = recv(client_fd, data, sizeof data, 0);
+				const ssize_t bytes_read = recv(client_fd, data, sizeof data, 0);
 
 				if (bytes_read == 0) {
 					/* Client disconnected */
@@ -113,19 +105,16 @@ void handle_clients(int sockfd) {
 					continue;
 				}
 
-				send_html_test(client_fd);
-
-				// fprintf(stdout, "[server] Bytes read (%d):\n%s\n", bytes_read, data);
-				if (strcmp(data, "stop") == 0) {
-					fprintf(stdout, GREEN BOLD "[server] Stopping...\n" RESET);
-					run = 0;
-					break;
-				}
+				/* Data len is correctly printed, but not data */
+				fprintf(stdout, "data len: %zu\n", bytes_read);
+				data[bytes_read] = '\0';
 
 				/* Parse HTTP request */
+				fprintf(stdout, "[server] data: %s\n", data);
 				http_t *request = http_parse(data);
 				fprintf(stdout, "[server] request location: %s\n", request->location);
-				http_send_response(request);
+				send_html_test(client_fd);
+				// http_send_response(request);
 				http_free(request);
 
 				/* Clear str */
@@ -135,6 +124,7 @@ void handle_clients(int sockfd) {
 	}
 
 	/* Clean up everything */
+	/* TODO: fix endless loop using cli args */
 	free(revents);
 	close(epfd);
 	close_fds(clients);
@@ -214,21 +204,25 @@ void send_html_test(int sockfd) {
 		"</head>\n"
 		"\n"
 		"<body>\n"
-		"    <h1>Hello from cws!</h1>\n"
+		"<h1>Hello from cws!</h1>\n"
 		"</body>\n"
 		"\n"
 		"</html>";
-	char len[4096];
-	size_t content_length = strlen(html);
-	sprintf(len, "Content-Length: %zu\r\n", content_length);
-	fprintf(stdout, "Content-length: %zu\n", content_length);
-	char response[65535];
-	strcat(response, "HTTP/1.1 200 OK\r\n");
-	strcat(response, "Content-Type: text/html\r\n");
-	strcat(response, len);
-	strcat(response, "Connection: closed\r\n");
-	strcat(response, "\r\n");
-	strcat(response, html);
 
+	const size_t content_length = strlen(html);
+	char len[256];
+	snprintf(len, sizeof len, "Content-Length: %zu\r\n", content_length);
+
+	char response[65535] = {0};
+	snprintf(response, sizeof response,
+			 "HTTP/1.1 200 OK\r\n"
+			 "Content-Type: text/html\r\n"
+			 "%s"
+			 "Connection: close\r\n"
+			 "\r\n"
+			 "%s",
+			 len, html);
+
+	// fprintf(stdout, "[http] response: %s\n", response);
 	send(sockfd, response, strlen(response), 0);
 }
