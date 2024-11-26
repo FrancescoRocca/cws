@@ -18,7 +18,6 @@ int start_server(const char *hostname, const char *service) {
 	}
 
 	int sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-	fprintf(stdout, YELLOW "[server] sockfd: %d\n" RESET, sockfd);
 
 	const int opt = 1;
 	status = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
@@ -105,14 +104,10 @@ void handle_clients(int sockfd) {
 					continue;
 				}
 
-				/* Data len is correctly printed, but not data */
-				fprintf(stdout, "data len: %zu\n", bytes_read);
 				data[bytes_read] = '\0';
 
 				/* Parse HTTP request */
-				fprintf(stdout, "[server] data: %s\n", data);
 				http_t *request = http_parse(data);
-				fprintf(stdout, "[server] request location: %s\n", request->location);
 				send_html_test(client_fd);
 				// http_send_response(request);
 				http_free(request);
@@ -210,19 +205,15 @@ void send_html_test(int sockfd) {
 		"</html>";
 
 	const size_t content_length = strlen(html);
-	char len[256];
-	snprintf(len, sizeof len, "Content-Length: %zu\r\n", content_length);
-
 	char response[65535] = {0};
 	snprintf(response, sizeof response,
 			 "HTTP/1.1 200 OK\r\n"
 			 "Content-Type: text/html\r\n"
-			 "%s"
+			 "Content-Length: %zu\r\n"
 			 "Connection: close\r\n"
 			 "\r\n"
 			 "%s",
-			 len, html);
+			 content_length, html);
 
-	// fprintf(stdout, "[http] response: %s\n", response);
 	send(sockfd, response, strlen(response), 0);
 }
