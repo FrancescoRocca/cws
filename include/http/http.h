@@ -19,6 +19,7 @@ enum http_method {
  *
  */
 typedef struct http {
+	int sockfd;							 /**< Socket file descriptor */
 	enum http_method method;			 /**< HTTP request method */
 	char location[LOCATION_LEN];		 /**< Resource requested */
 	char location_path[LOCATION_LEN];	 /**< Resource path */
@@ -33,14 +34,18 @@ typedef struct http {
 /**
  * @brief Parses a HTTP request
  *
- * @param request[in] The http request sent to the server
+ * @param request_str[in] The http request sent to the server
  * @return Returns a http_t pointer to the request
  */
-http_t *http_parse(char *request_str);
+http_t *http_parse(char *request_str, int sockfd);
 
 void http_parse_method(http_t *request, const char *method);
-void http_send_response(http_t *request, int sockfd);
 void http_get_content_type(http_t *request, char *content_type);
+
+void http_send_response(http_t *request);
+void http_send_not_found(http_t *request);
+void http_send_not_implemented(http_t *request);
+
 void http_free(http_t *request);
 
 #endif

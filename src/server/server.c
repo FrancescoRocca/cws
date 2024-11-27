@@ -1,5 +1,16 @@
 #include "server/server.h"
 
+#include <arpa/inet.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <netinet/in.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/epoll.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #include "http/http.h"
 #include "utils/colors.h"
 #include "utils/hashmap.h"
@@ -91,24 +102,32 @@ void handle_clients(int sockfd) {
 				/* Incoming data */
 				client_fd = revents[i].data.fd;
 				const ssize_t bytes_read = recv(client_fd, data, sizeof data, 0);
+				char ip[INET_ADDRSTRLEN];
+				bucket_t *client = hm_lookup(clients, client_fd);
+				get_client_ip(&client->sas, ip);
 
 				if (bytes_read == 0) {
 					/* Client disconnected */
-					char ip[INET_ADDRSTRLEN];
-					bucket_t *client = hm_lookup(clients, client_fd);
-					get_client_ip(&client->sas, ip);
-
 					fprintf(stdout, BLUE "[server] Client (%s) disconnected\n" RESET, ip);
-					epoll_ctl_del(epfd, client_fd);
-					close(client_fd);
+					close_client(epfd, client_fd, clients);
+					continue;
+				}
+				if (bytes_read < 0) {
+					if (errno != EAGAIN && errno != EWOULDBLOCK) {
+						/* Error during read, handle it (close client) */
+						epoll_ctl_del(epfd, client_fd);
+						close(client_fd);
+					}
 					continue;
 				}
 
 				data[bytes_read] = '\0';
 
 				/* Parse HTTP request */
-				http_t *request = http_parse(data);
-				http_send_response(request, client_fd);
+				http_t *request = http_parse(data, client_fd);
+				http_send_response(request);
+				fprintf(stdout, BLUE "[server] Client (%s) disconnected\n" RESET, ip);
+				close_client(epfd, client_fd, clients);
 				http_free(request);
 
 				/* Clear str */
@@ -129,7 +148,7 @@ void epoll_ctl_add(int epfd, int sockfd, uint32_t events) {
 	struct epoll_event event;
 	event.events = events;
 	event.data.fd = sockfd;
-	int status = epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &event);
+	const int status = epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &event);
 
 	if (status != 0) {
 		fprintf(stderr, RED BOLD "[server] epoll_ctl_add(): %s\n" RESET, strerror(errno));
@@ -138,7 +157,7 @@ void epoll_ctl_add(int epfd, int sockfd, uint32_t events) {
 }
 
 void epoll_ctl_del(int epfd, int sockfd) {
-	int status = epoll_ctl(epfd, EPOLL_CTL_DEL, sockfd, NULL);
+	const int status = epoll_ctl(epfd, EPOLL_CTL_DEL, sockfd, NULL);
 
 	if (status != 0) {
 		fprintf(stdout, RED BOLD "[server] epoll_ctl_del(): %s\n" RESET, strerror(errno));
@@ -147,7 +166,7 @@ void epoll_ctl_del(int epfd, int sockfd) {
 }
 
 void setnonblocking(int sockfd) {
-	int status = fcntl(sockfd, F_SETFL, O_NONBLOCK);
+	const int status = fcntl(sockfd, F_SETFL, O_NONBLOCK);
 
 	if (status == -1) {
 		fprintf(stderr, RED BOLD "[server] fcntl(): %s\n" RESET, gai_strerror(status));
@@ -156,7 +175,7 @@ void setnonblocking(int sockfd) {
 }
 
 int handle_new_client(int sockfd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size) {
-	int client_fd = accept(sockfd, (struct sockaddr *)their_sa, theirsa_size);
+	const int client_fd = accept(sockfd, (struct sockaddr *)their_sa, theirsa_size);
 
 	if (client_fd == -1) {
 		if (errno != EWOULDBLOCK) {
@@ -169,14 +188,12 @@ int handle_new_client(int sockfd, struct sockaddr_storage *their_sa, socklen_t *
 }
 
 void close_fds(bucket_t *bucket) {
-	bucket_t *p, *next;
-
 	for (size_t i = 0; i < HASHMAP_MAX_CLIENTS; ++i) {
 		close(bucket[i].sockfd);
 		if (bucket[i].next != NULL) {
 			/* Close the fds */
-			p = bucket[i].next;
-			next = p->next;
+			bucket_t *p = bucket[i].next;
+			bucket_t *next = p->next;
 			do {
 				close(p->sockfd);
 				p = next;
@@ -184,4 +201,10 @@ void close_fds(bucket_t *bucket) {
 			} while (p != NULL);
 		}
 	}
+}
+
+void close_client(int epfd, int client_fd, bucket_t *clients) {
+	epoll_ctl_del(epfd, client_fd);
+	hm_remove(clients, client_fd);
+	close(client_fd);
 }

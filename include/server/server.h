@@ -1,18 +1,8 @@
 #ifndef CWS_SERVER_H
 #define CWS_SERVER_H
 
-#include <arpa/inet.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <netdb.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/epoll.h>
 #include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 #include "utils/hashmap.h"
 
@@ -68,9 +58,9 @@ void epoll_ctl_add(int epfd, int sockfd, uint32_t events);
 void epoll_ctl_del(int epfd, int sockfd);
 
 /**
- * @brief Makes a file descriptor non blocking
+ * @brief Makes a file descriptor non-blocking
  *
- * @param sockfd[in] The file descriptor to make non blocking
+ * @param sockfd[in] The file descriptor to make non-blocking
  */
 void setnonblocking(int sockfd);
 
@@ -87,8 +77,17 @@ int handle_new_client(int sockfd, struct sockaddr_storage *their_sa, socklen_t *
 /**
  * @brief Closes all the file descriptors opened
  *
- * @param map[in] The hash map
+ * @param bucket[in] The hash map
  */
 void close_fds(bucket_t *bucket);
+
+/**
+ * @brief Disconnect a client
+ *
+ * @param epfd[in] Epoll file descriptor
+ * @param client_fd[in] Client file descriptor
+ * @param bucket[in] Clients hash map
+ */
+void close_client(int epfd, int client_fd, bucket_t *bucket);
 
 #endif

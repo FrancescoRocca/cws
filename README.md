@@ -36,6 +36,7 @@ And then open the `docs/html/index.html`.
     - [ ] IPv6 compatible
     - [ ] Request parser
     - [x] Serve static files
+    - [ ] Implement Keep-Alive
     - [ ] Multithreading
     - [ ] Logging
 - [ ] Advanced
@@ -46,4 +47,5 @@ And then open the `docs/html/index.html`.
 
 - [Beej's Guide to Network Programming](https://beej.us/guide/bgnet/)
 
-You can find my journey inside the `notes` directory or on my [blog](https://francescorocca.me/building-an-http-server-in-c/).
+You can find my journey inside the `notes` directory or on
+my [blog](https://francescorocca.me/building-an-http-server-in-c/).
