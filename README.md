@@ -30,13 +30,13 @@ And then open the `docs/html/index.html`.
 ## Roadmap
 
 - [x] Understading basic web server concepts
-- [ ] Basic server
+- [x] Basic server
 - [ ] CLI args
 - [ ] Enhance web server
     - [ ] IPv6 compatible
-    - [ ] Request parser (methods and headers)
-    - [ ] Serve static files
-    - [ ] Multithreading (non blocking I/O with `epoll`)
+    - [ ] Request parser
+    - [x] Serve static files
+    - [ ] Multithreading
     - [ ] Logging
 - [ ] Advanced
     - [ ] HTTPS support
@@ -46,4 +46,4 @@ And then open the `docs/html/index.html`.
 
 - [Beej's Guide to Network Programming](https://beej.us/guide/bgnet/)
 
-You can find my journey inside the `notes` directory!
+You can find my journey inside the `notes` directory or on my [blog](https://francescorocca.me/building-an-http-server-in-c/).
