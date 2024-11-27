@@ -16,9 +16,6 @@
 
 #include "utils/hashmap.h"
 
-/* On which port the server will run */
-#define PORT 3030
-
 /* Clients max queue */
 #define BACKLOG 10
 
@@ -93,7 +90,5 @@ int handle_new_client(int sockfd, struct sockaddr_storage *their_sa, socklen_t *
  * @param map[in] The hash map
  */
 void close_fds(bucket_t *bucket);
-
-void send_html_test(int sockfd);
 
 #endif

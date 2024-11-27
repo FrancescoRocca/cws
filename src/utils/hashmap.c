@@ -38,7 +38,8 @@ bucket_t *hm_lookup(bucket_t *bucket, int sockfd) {
 
 	if (bucket[index].sockfd != sockfd) {
 		bucket_t *p;
-		for (p = bucket[index].next; p != NULL && p->sockfd != sockfd; p = p->next);
+		for (p = bucket[index].next; p != NULL && p->sockfd != sockfd; p = p->next)
+			;
 		return p;
 	} else {
 		return &bucket[index];

@@ -25,7 +25,7 @@ The first line is a *request line*. It has:
 HTTP/1.1 200 OK\r\n
 Content-Type: text/html\r\n
 Content-Length: 88\r\n
-Connection: closed\r\n
+Connection: close\r\n
 \r\n
 <HTML>
 ```

@@ -108,8 +108,7 @@ void handle_clients(int sockfd) {
 
 				/* Parse HTTP request */
 				http_t *request = http_parse(data);
-				send_html_test(client_fd);
-				// http_send_response(request);
+				http_send_response(request, client_fd);
 				http_free(request);
 
 				/* Clear str */
@@ -185,35 +184,4 @@ void close_fds(bucket_t *bucket) {
 			} while (p != NULL);
 		}
 	}
-}
-
-void send_html_test(int sockfd) {
-	char html[] =
-		"<!DOCTYPE html>\n"
-		"<html lang=\"en\">\n"
-		"\n"
-		"<head>\n"
-		"    <meta charset=\"UTF-8\">\n"
-		"    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
-		"    <title>cws</title>\n"
-		"</head>\n"
-		"\n"
-		"<body>\n"
-		"<h1>Hello from cws!</h1>\n"
-		"</body>\n"
-		"\n"
-		"</html>";
-
-	const size_t content_length = strlen(html);
-	char response[65535] = {0};
-	snprintf(response, sizeof response,
-			 "HTTP/1.1 200 OK\r\n"
-			 "Content-Type: text/html\r\n"
-			 "Content-Length: %zu\r\n"
-			 "Connection: close\r\n"
-			 "\r\n"
-			 "%s",
-			 content_length, html);
-
-	send(sockfd, response, strlen(response), 0);
 }

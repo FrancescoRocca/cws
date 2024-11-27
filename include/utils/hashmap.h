@@ -11,7 +11,7 @@
 
 /**
  * @brief Hash map struct
- * 
+ *
  */
 typedef struct bucket {
 	int sockfd;					 /**< Client socket descriptor */
