@@ -13,22 +13,27 @@ http_t *http_parse(char *request_str, int sockfd) {
 		return NULL;
 	}
 
-	/* Insert sockfd */
+	/* Insert socket file descriptor */
 	request->sockfd = sockfd;
 
 	/* Parse HTTP method */
 	char *pch = strtok(request_str, " ");
+	if (pch == NULL) {
+		return NULL;
+	}
 	printf("[http] method: %s\n", pch);
 	http_parse_method(request, pch);
 
 	/* Parse location */
 	pch = strtok(NULL, " ");
+	if (pch == NULL) {
+		return NULL;
+	}
 	printf("[http] location: %s\n", pch);
 	strncpy(request->location, pch, LOCATION_LEN);
 
 	/* Parse location path */
 	/* TODO: Prevent Path Traversal  */
-	/* TODO: Fix warnings */
 	if (strcmp(request->location, "/") == 0) {
 		snprintf(request->location_path, LOCATION_LEN, "%s/index.html", WWW);
 	} else {
@@ -38,6 +43,9 @@ http_t *http_parse(char *request_str, int sockfd) {
 
 	/* Parse HTTP version */
 	pch = strtok(NULL, " \r\n");
+	if (pch == NULL) {
+		return NULL;
+	}
 	printf("[http] version: %s\n", pch);
 	strncpy(request->http_version, pch, HTTP_VERSION_LEN);
 

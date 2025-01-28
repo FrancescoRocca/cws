@@ -125,6 +125,13 @@ void handle_clients(int sockfd) {
 
 				/* Parse HTTP request */
 				http_t *request = http_parse(data, client_fd);
+
+				if (request == NULL) {
+					close_client(epfd, client_fd, clients);
+					http_free(request);
+					continue;
+				}
+
 				http_send_response(request);
 				fprintf(stdout, BLUE "[server] Client (%s) disconnected\n" RESET, ip);
 				close_client(epfd, client_fd, clients);
