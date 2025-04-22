@@ -3,7 +3,8 @@
 
 #define WWW "../www" /**< Directory used to get html files */
 /** In the future I'll move conf stuff under a server struct, I can skip just because I want something that works */
-#define LOCATION_LEN 1024
+#define LOCATION_LEN 512
+#define LOCATION_PATH_LEN 1024
 #define HTTP_VERSION_LEN 8
 #define USER_AGENT_LEN 1024
 #define HOST_LEN 1024
@@ -19,13 +20,13 @@ enum http_method {
  *
  */
 typedef struct http {
-	int sockfd;							 /**< Socket file descriptor */
-	enum http_method method;			 /**< HTTP request method */
-	char location[LOCATION_LEN];		 /**< Resource requested */
-	char location_path[LOCATION_LEN];	 /**< Resource path */
-	char http_version[HTTP_VERSION_LEN]; /**< HTTP version */
-	char user_agent[USER_AGENT_LEN];	 /**< User-Agent */
-	char host[HOST_LEN];				 /**< Host */
+	int sockfd;							   /**< Socket file descriptor */
+	enum http_method method;			   /**< HTTP request method */
+	char location[LOCATION_LEN];		   /**< Resource requested */
+	char location_path[LOCATION_PATH_LEN]; /**< Resource path */
+	char http_version[HTTP_VERSION_LEN];   /**< HTTP version */
+	char user_agent[USER_AGENT_LEN];	   /**< User-Agent */
+	char host[HOST_LEN];				   /**< Host */
 } http_t;
 /* Connection */
 /* Accept-Encoding */

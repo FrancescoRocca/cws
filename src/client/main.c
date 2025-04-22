@@ -1,4 +1,4 @@
-#include "main.h"
+#include <stdio.h>
 
 #include "client/client.h"
 #include "utils/colors.h"

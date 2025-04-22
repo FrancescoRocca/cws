@@ -1,11 +1,49 @@
 body {
-    background-color: lightcoral;
-    color: white;
+    margin: 0;
+    height: 100vh;
     font-family: "Montserrat", sans-serif;
-
+    background: linear-gradient(135deg, #ff6a6a, #ff9472);
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    color: white;
+}
+
+h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    font-weight: 800;
+}
+
+.highlight {
+    color: #ffe678;
+}
+
+p {
+    font-size: 1.2rem;
+    font-weight: 400;
     margin: 0;
+}
+
+a {
+    color: #ffffff;
+    font-weight: 600;
+    text-decoration: underline;
+    transition: color 0.3s;
+}
+
+a:hover {
+    color: #ffe678;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

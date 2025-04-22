@@ -17,7 +17,7 @@ $ cd build
 $ meson compile
 ```
 
-And then run `cws`!
+And then run `server`!
 
 ## Docs
 

@@ -21,7 +21,7 @@ http_t *http_parse(char *request_str, int sockfd) {
 	if (pch == NULL) {
 		return NULL;
 	}
-	printf("[http] method: %s\n", pch);
+	printf("[client::http] method: %s\n", pch);
 	http_parse_method(request, pch);
 
 	/* Parse location */
@@ -29,24 +29,24 @@ http_t *http_parse(char *request_str, int sockfd) {
 	if (pch == NULL) {
 		return NULL;
 	}
-	printf("[http] location: %s\n", pch);
+	printf("[client::http] location: %s\n", pch);
 	strncpy(request->location, pch, LOCATION_LEN);
 
 	/* Parse location path */
 	/* TODO: Prevent Path Traversal  */
 	if (strcmp(request->location, "/") == 0) {
-		snprintf(request->location_path, LOCATION_LEN, "%s/index.html", WWW);
+		snprintf(request->location_path, LOCATION_PATH_LEN, "%s/index.html", WWW);
 	} else {
-		snprintf(request->location_path, LOCATION_LEN, "%s%s", WWW, request->location);
+		snprintf(request->location_path, LOCATION_PATH_LEN, "%s%s", WWW, request->location);
 	}
-	fprintf(stdout, "[http] location path: %s\n", request->location_path);
+	fprintf(stdout, "[client::http] location path: %s\n", request->location_path);
 
 	/* Parse HTTP version */
 	pch = strtok(NULL, " \r\n");
 	if (pch == NULL) {
 		return NULL;
 	}
-	printf("[http] version: %s\n", pch);
+	printf("[client::http] version: %s\n", pch);
 	strncpy(request->http_version, pch, HTTP_VERSION_LEN);
 
 	/* Parse other stuff... */
@@ -96,7 +96,7 @@ void http_send_response(http_t *request) {
 	fread(file_data, 1, content_length, file);
 	fclose(file);
 
-	char response_header[1024];
+	char response_header[2048];
 	snprintf(response_header, sizeof response_header,
 			 "%s 200 OK\r\n"
 			 "Content-Type: %s\r\n"
