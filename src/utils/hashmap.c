@@ -1,20 +1,23 @@
 #include "utils/hashmap.h"
 
-int hash(int sockfd) { return sockfd % HASHMAP_MAX_CLIENTS; }
+#include <stdlib.h>
+#include <string.h>
 
-void hm_init(bucket_t *bucket) {
+int cws_hm_hash(int sockfd) { return sockfd % CWS_HASHMAP_MAX_CLIENTS; }
+
+void cws_hm_init(cws_bucket *bucket) {
 	/* Initialize everything to 0 for the struct, then -1 for fd and next to NULL */
-	memset(bucket, 0, sizeof(bucket_t) * HASHMAP_MAX_CLIENTS);
+	memset(bucket, 0, sizeof(cws_bucket) * CWS_HASHMAP_MAX_CLIENTS);
 
-	for (size_t i = 0; i < HASHMAP_MAX_CLIENTS; ++i) {
+	for (size_t i = 0; i < CWS_HASHMAP_MAX_CLIENTS; ++i) {
 		bucket[i].sockfd = -1;
 		bucket[i].next = NULL;
 		bucket[i].prev = NULL;
 	}
 }
 
-void hm_insert(bucket_t *bucket, int sockfd, struct sockaddr_storage *sas) {
-	int index = hash(sockfd);
+void cws_hm_insert(cws_bucket *bucket, int sockfd, struct sockaddr_storage *sas) {
+	int index = cws_hm_hash(sockfd);
 
 	if (bucket[index].sockfd == -1) {
 		/* Current slot is empty */
@@ -23,8 +26,8 @@ void hm_insert(bucket_t *bucket, int sockfd, struct sockaddr_storage *sas) {
 	} else {
 		/* Append the new key to the head (not the first element because it belongs to the array) of the linked
 		 * list */
-		bucket_t *p = &bucket[index];
-		bucket_t *new = malloc(sizeof(bucket_t));
+		cws_bucket *p = &bucket[index];
+		cws_bucket *new = malloc(sizeof(cws_bucket));
 		new->sockfd = sockfd;
 		new->sas = *sas;
 		new->next = p->next;
@@ -33,13 +36,12 @@ void hm_insert(bucket_t *bucket, int sockfd, struct sockaddr_storage *sas) {
 	}
 }
 
-bucket_t *hm_lookup(bucket_t *bucket, int sockfd) {
-	int index = hash(sockfd);
+cws_bucket *cws_hm_lookup(cws_bucket *bucket, int sockfd) {
+	int index = cws_hm_hash(sockfd);
 
 	if (bucket[index].sockfd != sockfd) {
-		bucket_t *p;
-		for (p = bucket[index].next; p != NULL && p->sockfd != sockfd; p = p->next)
-			;
+		cws_bucket *p;
+		for (p = bucket[index].next; p != NULL && p->sockfd != sockfd; p = p->next);
 		return p;
 	} else {
 		return &bucket[index];
@@ -48,23 +50,23 @@ bucket_t *hm_lookup(bucket_t *bucket, int sockfd) {
 	return NULL;
 }
 
-void hm_push(bucket_t *bucket, int sockfd, struct sockaddr_storage *sas) {
-	if (hm_lookup(bucket, sockfd) == NULL) {
-		hm_insert(bucket, sockfd, sas);
+void cws_hm_push(cws_bucket *bucket, int sockfd, struct sockaddr_storage *sas) {
+	if (cws_hm_lookup(bucket, sockfd) == NULL) {
+		cws_hm_insert(bucket, sockfd, sas);
 	}
 }
 
-void hm_remove(bucket_t *bucket, int sockfd) {
-	if (hm_is_in_bucket_array(bucket, sockfd)) {
+void cws_hm_remove(cws_bucket *bucket, int sockfd) {
+	if (cws_hm_is_in_bucket_array(bucket, sockfd)) {
 		/* Instead of doing this I could copy the memory of the next node into the head */
-		int index = hash(sockfd);
+		int index = cws_hm_hash(sockfd);
 		bucket[index].sockfd = -1;
 
 		return;
 	}
 
 	/* Key not in the bucket array, let's search in the linked list */
-	bucket_t *p = hm_lookup(bucket, sockfd);
+	cws_bucket *p = cws_hm_lookup(bucket, sockfd);
 	if (p == NULL) return;
 	p->prev->next = p->next;
 	if (p->next != NULL) {
@@ -74,10 +76,10 @@ void hm_remove(bucket_t *bucket, int sockfd) {
 	free(p);
 }
 
-void hm_free(bucket_t *bucket) {
-	bucket_t *p, *next;
+void cws_hm_free(cws_bucket *bucket) {
+	cws_bucket *p, *next;
 
-	for (size_t i = 0; i < HASHMAP_MAX_CLIENTS; ++i) {
+	for (size_t i = 0; i < CWS_HASHMAP_MAX_CLIENTS; ++i) {
 		if (bucket[i].next != NULL) {
 			/* Free the malloc */
 			p = bucket[i].next;
@@ -91,8 +93,8 @@ void hm_free(bucket_t *bucket) {
 	}
 }
 
-bool hm_is_in_bucket_array(bucket_t *bucket, int sockfd) {
-	int index = hash(sockfd);
+bool cws_hm_is_in_bucket_array(cws_bucket *bucket, int sockfd) {
+	int index = cws_hm_hash(sockfd);
 	if (bucket[index].sockfd == sockfd) return true;
 
 	return false;

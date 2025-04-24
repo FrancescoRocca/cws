@@ -1,0 +1,6 @@
+# Default config file of CWS
+host: "localhost"
+port: 3030
+
+cert: "cert.pem"
+key: "key.pem"

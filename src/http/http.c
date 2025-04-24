@@ -7,8 +7,8 @@
 
 #include "utils/colors.h"
 
-http_t *http_parse(char *request_str, int sockfd) {
-	http_t *request = malloc(sizeof(http_t));
+cws_http *cws_http_parse(char *request_str, int sockfd) {
+	cws_http *request = malloc(sizeof(cws_http));
 	if (request == NULL) {
 		return NULL;
 	}
@@ -22,7 +22,7 @@ http_t *http_parse(char *request_str, int sockfd) {
 		return NULL;
 	}
 	printf("[client::http] method: %s\n", pch);
-	http_parse_method(request, pch);
+	cws_http_parse_method(request, pch);
 
 	/* Parse location */
 	pch = strtok(NULL, " ");
@@ -30,14 +30,14 @@ http_t *http_parse(char *request_str, int sockfd) {
 		return NULL;
 	}
 	printf("[client::http] location: %s\n", pch);
-	strncpy(request->location, pch, LOCATION_LEN);
+	strncpy(request->location, pch, CWS_HTTP_LOCATION_LEN);
 
 	/* Parse location path */
 	/* TODO: Prevent Path Traversal  */
 	if (strcmp(request->location, "/") == 0) {
-		snprintf(request->location_path, LOCATION_PATH_LEN, "%s/index.html", WWW);
+		snprintf(request->location_path, CWS_HTTP_LOCATION_PATH_LEN, "%s/index.html", CWS_WWW);
 	} else {
-		snprintf(request->location_path, LOCATION_PATH_LEN, "%s%s", WWW, request->location);
+		snprintf(request->location_path, CWS_HTTP_LOCATION_PATH_LEN, "%s%s", CWS_WWW, request->location);
 	}
 	fprintf(stdout, "[client::http] location path: %s\n", request->location_path);
 
@@ -47,37 +47,37 @@ http_t *http_parse(char *request_str, int sockfd) {
 		return NULL;
 	}
 	printf("[client::http] version: %s\n", pch);
-	strncpy(request->http_version, pch, HTTP_VERSION_LEN);
+	strncpy(request->http_version, pch, CWS_HTTP_VERSION_LEN);
 
 	/* Parse other stuff... */
 
 	return request;
 }
 
-void http_parse_method(http_t *request, const char *method) {
+void cws_http_parse_method(cws_http *request, const char *method) {
 	if (strcmp(method, "GET") == 0) {
-		request->method = GET;
+		request->method = CWS_HTTP_GET;
 		return;
 	}
 	if (strcmp(method, "POST") == 0) {
-		request->method = POST;
+		request->method = CWS_HTTP_POST;
 		return;
 	}
 
-	http_send_not_implemented(request);
+	cws_http_send_not_implemented(request);
 }
 
-void http_send_response(http_t *request) {
+void cws_http_send_response(cws_http *request) {
 	FILE *file = fopen(request->location_path, "rb");
 	if (file == NULL) {
 		/* 404 */
-		http_send_not_found(request);
+		cws_http_send_not_found(request);
 		return;
 	}
 
 	/* Retrieve correct Content-Type */
 	char content_type[1024];
-	http_get_content_type(request, content_type);
+	cws_http_get_content_type(request, content_type);
 
 	/* Retrieve file size */
 	fseek(file, 0, SEEK_END);
@@ -111,10 +111,10 @@ void http_send_response(http_t *request) {
 	free(file_data);
 }
 
-void http_get_content_type(http_t *request, char *content_type) {
+void cws_http_get_content_type(cws_http *request, char *content_type) {
 	char *ptr = strrchr(request->location_path, '.');
 	if (ptr == NULL) {
-		http_send_not_found(request);
+		cws_http_send_not_found(request);
 		return;
 	}
 	ptr += 1;
@@ -134,7 +134,7 @@ void http_get_content_type(http_t *request, char *content_type) {
 	snprintf(content_type, 1024, "%s/%s", ct, ptr);
 }
 
-void http_send_not_implemented(http_t *request) {
+void cws_http_send_not_implemented(cws_http *request) {
 	const char response[1024] =
 		"HTTP/1.1 501 Not Implemented\r\n"
 		"Content-Type: text/html\r\n"
@@ -152,7 +152,7 @@ void http_send_not_implemented(http_t *request) {
 	send(request->sockfd, response, response_len, 0);
 }
 
-void http_send_not_found(http_t *request) {
+void cws_http_send_not_found(cws_http *request) {
 	const char response[1024] =
 		"HTTP/1.1 404 Not Found\r\n"
 		"Content-Type: text/html\r\n"
@@ -170,4 +170,4 @@ void http_send_not_found(http_t *request) {
 	send(request->sockfd, response, response_len, 0);
 }
 
-void http_free(http_t *request) { free(request); }
+void cws_http_free(cws_http *request) { free(request); }

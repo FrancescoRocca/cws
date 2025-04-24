@@ -2,81 +2,79 @@
 #define CWS_HASHMAP_H
 
 #include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h>
 
 /* Each process on Linux can have a maximum of 1024 open file descriptors */
-#define HASHMAP_MAX_CLIENTS 1024
+#define CWS_HASHMAP_MAX_CLIENTS 1024
 
 /**
  * @brief Hash map struct
  *
  */
-typedef struct bucket {
+typedef struct cws_bucket_t {
 	int sockfd;					 /**< Client socket descriptor */
 	struct sockaddr_storage sas; /**< Associated socket address */
-	struct bucket *next;		 /**< Next node in case of collision */
-	struct bucket *prev;		 /**< Previous node in case of collision */
-} bucket_t;
+	struct cws_bucket_t *next;	 /**< Next node in case of collision */
+	struct cws_bucket_t *prev;	 /**< Previous node in case of collision */
+} cws_bucket;
 
 /**
  * @brief Calculates the hash code of a given file descriptor
  *
- * @param sockfd[in] The file descriptor
+ * @param[in] sockfd The file descriptor
  * @return Returns the hash code
  */
-int hash(int sockfd);
+int cws_hm_hash(int sockfd);
 
 /**
  * @brief Initializes the hash map
  *
- * @param bucket[out] The hash map uninitialized
+ * @param[out] bucket The hash map uninitialized
  */
-void hm_init(bucket_t *bucket);
+void cws_hm_init(cws_bucket *bucket);
 
 /**
  * @brief Inserts a key in the hash map
  *
- * @param bucket[out] The hash map
- * @param sockfd[in] The file descriptor (value)
- * @param sas[in] The sockaddr (value)
+ * @param[out] bucket The hash map
+ * @param[in] sockfd The file descriptor (value)
+ * @param[in] sas The sockaddr (value)
  */
-void hm_push(bucket_t *bucket, int sockfd, struct sockaddr_storage *sas);
+void cws_hm_push(cws_bucket *bucket, int sockfd, struct sockaddr_storage *sas);
 
 /**
  * @brief Removes a key from the hash map
  *
- * @param bucket[out] The hash map
- * @param sockfd[in] The key
+ * @param[out] bucket The hash map
+ * @param[in] sockfd The key
  */
-void hm_remove(bucket_t *bucket, int sockfd);
+void cws_hm_remove(cws_bucket *bucket, int sockfd);
 
 /**
  * @brief Searches for a key in the hash map
  *
- * @param bucket[in] The hash map
- * @param sockfd[in] The file descriptor (key)
+ * @param[in] bucket The hash map
+ * @param[in] sockfd The file descriptor (key)
  * @return Returns NULL or the key pointer
  */
-bucket_t *hm_lookup(bucket_t *bucket, int sockfd);
+cws_bucket *cws_hm_lookup(cws_bucket *bucket, int sockfd);
 
 /**
  * @brief Cleans the hash map
  *
- * @param bucket[out] The hash map
+ * @param[out] bucket The hash map
  */
-void hm_free(bucket_t *bucket);
+void cws_hm_free(cws_bucket *bucket);
 
 /**
  * @brief Checks if a file descriptor is in the bucket array (not linked list)
  *
- * @param bucket[in]
- * @param sockfd[in]
+ * @param[in] bucket
+ * @param[in] sockfd
  * @return true If the file descriptor is in the bucket array
  * @return false If the file descriptor is not in the bucket array (check with hm_lookup())
  */
-bool hm_is_in_bucket_array(bucket_t *bucket, int sockfd);
+bool cws_hm_is_in_bucket_array(cws_bucket *bucket, int sockfd);
 
 /**
  * @brief This function will add a key even if it exists (use hm_push() instead)
@@ -85,6 +83,6 @@ bool hm_is_in_bucket_array(bucket_t *bucket, int sockfd);
  * @param sockfd
  * @param sas
  */
-void hm_insert(bucket_t *bucket, int sockfd, struct sockaddr_storage *sas);
+void cws_hm_insert(cws_bucket *bucket, int sockfd, struct sockaddr_storage *sas);
 
 #endif

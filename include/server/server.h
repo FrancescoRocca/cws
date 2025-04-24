@@ -7,87 +7,87 @@
 #include "utils/hashmap.h"
 
 /* Clients max queue */
-#define BACKLOG 10
+#define CWS_SERVER_BACKLOG 10
 
 /* Size of the epoll_event array */
-#define EPOLL_MAXEVENTS 10
+#define CWS_SERVER_EPOLL_MAXEVENTS 10
 
 /* Wait forever (epoll_wait()) */
-#define EPOLL_TIMEOUT -1
+#define CWS_SERVER_EPOLL_TIMEOUT -1
 
 /**
  * @brief Runs the server
  *
- * @param hostname[in] The hostname of the server (default localhost, it could be NULL)
- * @param service[in] The service (found in /etc/services) or the port where to run
+ * @param[in] hostname The hostname of the server (default localhost, it could be NULL)
+ * @param[in] service The service (found in /etc/services) or the port where to run
  * @return 0 on success, -1 on error
  */
-int start_server(const char *hostname, const char *service);
+int cws_server_start(const char *hostname, const char *service);
 
 /**
  * @brief Setups hints object
  *
- * @param hints[out] The hints addrinfo
- * @param len[in] The length of hints
- * @param hostname[in] The hostname (could be NULL)
+ * @param[out] hints The hints addrinfo
+ * @param[in] len The length of hints
+ * @param[in] hostname The hostname (could be NULL)
  */
-void setup_hints(struct addrinfo *hints, size_t len, const char *hostname);
+void cws_server_setup_hints(struct addrinfo *hints, size_t len, const char *hostname);
 
 /**
  * @brief Main server loop
  *
- * @param sockfd[in,out] Socket of the commincation endpoint
+ * @param[in,out] sockfd Socket of the commincation endpoint
  */
-void handle_clients(int sockfd);
+void cws_server_loop(int sockfd);
 
 /**
  * @brief Adds a file descriptor to the interest list
  *
- * @param epfd[in] epoll file descriptor
- * @param sockfd[in] The file descriptor to watch
- * @param events[in] The events to follow
+ * @param[in] epfd epoll file descriptor
+ * @param[in] sockfd The file descriptor to watch
+ * @param[in] events The events to follow
  */
-void epoll_ctl_add(int epfd, int sockfd, uint32_t events);
+void cws_epoll_add(int epfd, int sockfd, uint32_t events);
 
 /**
  * @brief Removes a file descriptor from the interest list
  *
- * @param epfd[in] epoll file descriptor
- * @param sockfd[in] The file descriptor to remove
+ * @param[in] epfd epoll file descriptor
+ * @param[in] sockfd The file descriptor to remove
  */
-void epoll_ctl_del(int epfd, int sockfd);
+void cws_epoll_del(int epfd, int sockfd);
 
 /**
  * @brief Makes a file descriptor non-blocking
  *
- * @param sockfd[in] The file descriptor to make non-blocking
+ * @param[in] sockfd The file descriptor to make non-blocking
  */
-void setnonblocking(int sockfd);
+void cws_fd_set_nonblocking(int sockfd);
 
 /**
  * @brief Handles the new client
  *
- * @param sockfd[in] Server's file descriptor
- * @param their_sa[out] Populates the struct with client's information
- * @param theirsa_size[in] Size of the struct
+ * @param[in] sockfd Server's file descriptor
+ * @param[out] their_sa Populates the struct with client's information
+ * @param[in] theirsa_size Size of the struct
  * @return Returns -1 on error or the file descriptor on success
  */
-int handle_new_client(int sockfd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size);
+int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size);
 
 /**
  * @brief Closes all the file descriptors opened
  *
- * @param bucket[in] The hash map
+ * @param[in] bucket The hash map
  */
-void close_fds(bucket_t *bucket);
+void cws_server_close_all_fds(cws_bucket *bucket);
 
 /**
  * @brief Disconnect a client
  *
- * @param epfd[in] Epoll file descriptor
- * @param client_fd[in] Client file descriptor
- * @param bucket[in] Clients hash map
+ * @param[in] epfd Epoll file descriptor
+ * @param[in] client_fd Client file descriptor
+ * @param[in] bucket Clients hash map
  */
-void close_client(int epfd, int client_fd, bucket_t *bucket);
+void cws_server_close_client(int epfd, int client_fd, cws_bucket *bucket);
 
 #endif

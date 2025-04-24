@@ -4,5 +4,7 @@ subdir('src')
 
 incdir = include_directories('include')
 
-executable('server', server, include_directories : incdir)
-executable('client', client, include_directories : incdir)
+libyaml = dependency('yaml-0.1')
+libcyaml = dependency('libcyaml')
+
+executable('cws', server, include_directories : incdir, dependencies : [libyaml, libcyaml])

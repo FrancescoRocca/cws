@@ -8,6 +8,8 @@ will it ever be. Use it at your own risk.
 - [meson](https://mesonbuild.com/index.html)
 - [doxygen](https://www.doxygen.nl/)
     - Optional, just to build the docs.
+- libcyaml
+- libyaml-0.1
 
 ## How to build
 
@@ -17,7 +19,7 @@ $ cd build
 $ meson compile
 ```
 
-And then run `server`!
+And then run `cws`!
 
 ## Docs
 
@@ -39,11 +41,12 @@ And then open the `docs/html/index.html`.
     - [ ] Request parser
     - [x] Serve static files
     - [ ] Implement Keep-Alive
-    - [ ] Multithreading
+    - [ ] Multithreading to handle concurrent requests
     - [ ] Logging
-- [ ] Advanced
-    - [ ] HTTPS support
-    - [ ] Caching
+- [ ] Advanced Features
+    - [ ] HTTPS support with TLS
+    - [ ] Compression (Gzip)
+    - [ ] Support for virtual hosting
 
 ## Resources
 
