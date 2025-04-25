@@ -9,7 +9,7 @@ will it ever be. Use it at your own risk.
 - [doxygen](https://www.doxygen.nl/)
     - Optional, just to build the docs.
 - libcyaml
-- libyaml-0.1
+- libyaml
 
 ## How to build
 

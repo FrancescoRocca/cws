@@ -40,6 +40,12 @@ void cws_server_setup_hints(struct addrinfo *hints, size_t len, const char *host
  */
 void cws_server_loop(int sockfd);
 
+// @TODO
+/**
+ * @brief Cleanup server's resources
+ */
+void cws_server_cleanup();
+
 /**
  * @brief Adds a file descriptor to the interest list
  *
