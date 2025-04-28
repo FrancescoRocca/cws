@@ -16,6 +16,8 @@
 #include "utils/hashmap.h"
 #include "utils/utils.h"
 
+volatile bool cws_server_run = 1;
+
 int cws_server_start(const char *hostname, const char *service) {
 	struct addrinfo hints;
 	struct addrinfo *res;
@@ -83,7 +85,7 @@ void cws_server_loop(int sockfd) {
 	struct epoll_event *revents = malloc(CWS_SERVER_EPOLL_MAXEVENTS * sizeof(struct epoll_event));
 	int client_fd;
 
-	while (1) {
+	while (cws_server_run) {
 		int nfds = epoll_wait(epfd, revents, CWS_SERVER_EPOLL_MAXEVENTS, CWS_SERVER_EPOLL_TIMEOUT);
 
 		for (int i = 0; i < nfds; ++i) {
@@ -144,11 +146,11 @@ void cws_server_loop(int sockfd) {
 	}
 
 	/* Clean up everything */
-	/* TODO: fix endless loop using cli args */
 	free(revents);
 	close(epfd);
 	cws_server_close_all_fds(clients);
 	cws_hm_free(clients);
+	fprintf(stdout, BLUE "[server] Closing...\n" RESET);
 }
 
 void cws_epoll_add(int epfd, int sockfd, uint32_t events) {

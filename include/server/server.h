@@ -15,6 +15,9 @@
 /* Wait forever (epoll_wait()) */
 #define CWS_SERVER_EPOLL_TIMEOUT -1
 
+/* Main server loop */
+extern volatile bool cws_server_run;
+
 /**
  * @brief Runs the server
  *
@@ -39,12 +42,6 @@ void cws_server_setup_hints(struct addrinfo *hints, size_t len, const char *host
  * @param[in,out] sockfd Socket of the commincation endpoint
  */
 void cws_server_loop(int sockfd);
-
-// @TODO
-/**
- * @brief Cleanup server's resources
- */
-void cws_server_cleanup();
 
 /**
  * @brief Adds a file descriptor to the interest list

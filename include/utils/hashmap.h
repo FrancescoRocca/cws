@@ -8,7 +8,7 @@
 #define CWS_HASHMAP_MAX_CLIENTS 1024
 
 /**
- * @brief Hash map struct
+ * @brief Client Hashmap struct
  *
  */
 typedef struct cws_bucket_t {

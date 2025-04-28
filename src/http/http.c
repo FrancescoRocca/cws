@@ -33,7 +33,6 @@ cws_http *cws_http_parse(char *request_str, int sockfd) {
 	strncpy(request->location, pch, CWS_HTTP_LOCATION_LEN);
 
 	/* Parse location path */
-	/* TODO: Prevent Path Traversal  */
 	if (strcmp(request->location, "/") == 0) {
 		snprintf(request->location_path, CWS_HTTP_LOCATION_PATH_LEN, "%s/index.html", CWS_WWW);
 	} else {
@@ -50,6 +49,9 @@ cws_http *cws_http_parse(char *request_str, int sockfd) {
 	strncpy(request->http_version, pch, CWS_HTTP_VERSION_LEN);
 
 	/* Parse other stuff... */
+	/* Parse until a \r\n and store the header with its value
+	 * into a hashmap
+	 */
 
 	return request;
 }
@@ -122,7 +124,6 @@ void cws_http_get_content_type(cws_http *request, char *content_type) {
 	char ct[32];
 
 	/* TODO: Improve content_type (used to test) */
-
 	if (strcmp(ptr, "html") == 0 || strcmp(ptr, "css") == 0 || strcmp(ptr, "javascript") == 0) {
 		strncpy(ct, "text", sizeof ct);
 	}
@@ -153,11 +154,7 @@ void cws_http_send_not_implemented(cws_http *request) {
 }
 
 void cws_http_send_not_found(cws_http *request) {
-	const char response[1024] =
-		"HTTP/1.1 404 Not Found\r\n"
-		"Content-Type: text/html\r\n"
-		"Content-Length: 216\r\n"
-		"\r\n"
+	const char html_body[] =
 		"<html>\n"
 		"<head>\n"
 		"  <title>404 Not Found</title>\n"
@@ -166,7 +163,17 @@ void cws_http_send_not_found(cws_http *request) {
 		"<p>404 Not Found.</p>\n"
 		"</body>\n"
 		"</html>";
-	const size_t response_len = strlen(response);
+	int html_body_len = strlen(html_body);
+
+	char response[1024];
+	int response_len = snprintf(response, sizeof(response),
+								"HTTP/1.1 404 Not Found\r\n"
+								"Content-Type: text/html\r\n"
+								"Content-Length: %d\r\n"
+								"\r\n"
+								"%s",
+								html_body_len, html_body);
+
 	send(request->sockfd, response, response_len, 0);
 }
 
