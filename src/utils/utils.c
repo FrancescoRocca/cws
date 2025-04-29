@@ -44,3 +44,26 @@ void cws_utils_get_client_ip(struct sockaddr_storage *sa, char *ip) {
 
 	inet_ntop(AF_INET, &sin->sin_addr, ip, INET_ADDRSTRLEN);
 }
+
+int my_hash_fn(void *key) {
+	char *key_str = (char *)key;
+	size_t key_len = strlen(key_str);
+
+	int total = 0;
+
+	for (size_t i = 0; i < key_len; ++i) {
+		total += (int)key_str[i];
+	}
+
+	return total % 2069;
+}
+
+bool my_equal_fn(void *a, void *b) {
+	if (strcmp((char *)a, (char *)b) == 0) {
+		return true;
+	}
+
+	return false;
+}
+
+void my_free_str_fn(void *value) { free(value); }

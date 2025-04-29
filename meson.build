@@ -11,3 +11,5 @@ add_global_arguments('-DUSE_COLORS', language : 'c')
 add_global_arguments('-DEVELOPER', language : 'c')
 
 executable('cws', server, include_directories : incdir, dependencies : [libyaml, libcyaml])
+
+executable('testbuild', test, include_directories : incdir)

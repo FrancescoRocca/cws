@@ -80,17 +80,17 @@ int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, sock
 /**
  * @brief Closes all the file descriptors opened
  *
- * @param[in] bucket The hash map
+ * @param[in] hashmap Clients hash map
  */
-void cws_server_close_all_fds(cws_bucket *bucket);
+void cws_server_close_all_fds(cws_hashmap *hashmap);
 
 /**
  * @brief Disconnect a client
  *
  * @param[in] epfd Epoll file descriptor
  * @param[in] client_fd Client file descriptor
- * @param[in] bucket Clients hash map
+ * @param[in] hashmap Clients hash map
  */
-void cws_server_close_client(int epfd, int client_fd, cws_bucket *bucket);
+void cws_server_close_client(int epfd, int client_fd, cws_hashmap *hashmap);
 
 #endif

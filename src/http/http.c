@@ -12,6 +12,7 @@ cws_http *cws_http_parse(char *request_str, int sockfd) {
 	if (request == NULL) {
 		return NULL;
 	}
+	memset(request, 0, sizeof(cws_http));
 
 	/* Insert socket file descriptor */
 	request->sockfd = sockfd;

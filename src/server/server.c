@@ -26,7 +26,7 @@ int cws_server_start(const char *hostname, const char *service) {
 
 	int status = getaddrinfo(hostname, service, &hints, &res);
 	if (status != 0) {
-		CWS_LOG_ERROR("[server] getaddrinfo() error: %s", gai_strerror(status));
+		CWS_LOG_ERROR("getaddrinfo() error: %s", gai_strerror(status));
 		exit(EXIT_FAILURE);
 	}
 
@@ -35,19 +35,19 @@ int cws_server_start(const char *hostname, const char *service) {
 	const int opt = 1;
 	status = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
 	if (status != 0) {
-		CWS_LOG_ERROR("[server] setsockopt(): %s", strerror(errno));
+		CWS_LOG_ERROR("setsockopt(): %s", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
 	status = bind(sockfd, res->ai_addr, res->ai_addrlen);
 	if (status != 0) {
-		CWS_LOG_ERROR("[server] bind(): %s", strerror(errno));
+		CWS_LOG_ERROR("bind(): %s", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
 	status = listen(sockfd, CWS_SERVER_BACKLOG);
 	if (status != 0) {
-		CWS_LOG_ERROR("[server] listen(): %s", gai_strerror(status));
+		CWS_LOG_ERROR("listen(): %s", gai_strerror(status));
 		exit(EXIT_FAILURE);
 	}
 
@@ -78,8 +78,7 @@ void cws_server_loop(int sockfd) {
 	struct sockaddr_storage their_sa;
 	socklen_t theirsa_size = sizeof their_sa;
 
-	cws_bucket clients[CWS_HASHMAP_MAX_CLIENTS];
-	cws_hm_init(clients);
+	cws_hashmap *clients = cws_hm_init(my_hash_fn, my_equal_fn, NULL, NULL);
 
 	int epfd = epoll_create1(0);
 	cws_fd_set_nonblocking(sockfd);
@@ -97,24 +96,27 @@ void cws_server_loop(int sockfd) {
 				char ip[INET_ADDRSTRLEN];
 				client_fd = cws_server_accept_client(sockfd, &their_sa, &theirsa_size);
 				cws_utils_get_client_ip(&their_sa, ip);
-				CWS_LOG_INFO("[server] Client (%s) connected", ip);
+				CWS_LOG_INFO("Client (%s) connected", ip);
 
 				cws_fd_set_nonblocking(client_fd);
 				cws_epoll_add(epfd, client_fd, EPOLLIN);
-				cws_hm_push(clients, client_fd, &their_sa);
+				cws_hm_set(clients, &client_fd, &their_sa);
 			} else {
 				char data[4096] = {0};
+				char ip[INET_ADDRSTRLEN] = {0};
 
 				/* Incoming data */
 				client_fd = revents[i].data.fd;
 				const ssize_t bytes_read = recv(client_fd, data, sizeof data, 0);
-				char ip[INET_ADDRSTRLEN];
-				cws_bucket *client = cws_hm_lookup(clients, client_fd);
-				cws_utils_get_client_ip(&client->sas, ip);
+
+				/* Retrieve client ip */
+				cws_bucket *client = cws_hm_get(clients, &client_fd);
+				struct sockaddr_storage client_sas = *(struct sockaddr_storage *)client->value;
+				cws_utils_get_client_ip(&client_sas, ip);
 
 				if (bytes_read == 0) {
 					/* Client disconnected */
-					CWS_LOG_INFO("[server] Client (%s) disconnected", ip);
+					CWS_LOG_INFO("Client (%s) disconnected", ip);
 					cws_server_close_client(epfd, client_fd, clients);
 					continue;
 				}
@@ -139,7 +141,7 @@ void cws_server_loop(int sockfd) {
 				}
 
 				cws_http_send_response(request);
-				CWS_LOG_INFO("[server] Client (%s) disconnected", ip);
+				CWS_LOG_INFO("Client (%s) disconnected", ip);
 				cws_server_close_client(epfd, client_fd, clients);
 				cws_http_free(request);
 
@@ -154,7 +156,7 @@ void cws_server_loop(int sockfd) {
 	close(epfd);
 	cws_server_close_all_fds(clients);
 	cws_hm_free(clients);
-	CWS_LOG_INFO("[server] Closing...");
+	CWS_LOG_INFO("Closing...");
 }
 
 void cws_epoll_add(int epfd, int sockfd, uint32_t events) {
@@ -164,7 +166,7 @@ void cws_epoll_add(int epfd, int sockfd, uint32_t events) {
 	const int status = epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &event);
 
 	if (status != 0) {
-		CWS_LOG_ERROR("[server] epoll_ctl_add(): %s", strerror(errno));
+		CWS_LOG_ERROR("epoll_ctl_add(): %s", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 }
@@ -173,7 +175,7 @@ void cws_epoll_del(int epfd, int sockfd) {
 	const int status = epoll_ctl(epfd, EPOLL_CTL_DEL, sockfd, NULL);
 
 	if (status != 0) {
-		CWS_LOG_ERROR("[server] epoll_ctl_del(): %s", strerror(errno));
+		CWS_LOG_ERROR("epoll_ctl_del(): %s", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 }
@@ -182,7 +184,7 @@ void cws_fd_set_nonblocking(int sockfd) {
 	const int status = fcntl(sockfd, F_SETFL, O_NONBLOCK);
 
 	if (status == -1) {
-		CWS_LOG_ERROR("[server] fcntl(): %s", gai_strerror(status));
+		CWS_LOG_ERROR("fcntl(): %s", gai_strerror(status));
 		exit(EXIT_FAILURE);
 	}
 }
@@ -192,7 +194,7 @@ int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, sock
 
 	if (client_fd == -1) {
 		if (errno != EWOULDBLOCK) {
-			CWS_LOG_ERROR("[server] accept(): %s", strerror(errno));
+			CWS_LOG_ERROR("accept(): %s", strerror(errno));
 		}
 		return -1;
 	}
@@ -200,11 +202,12 @@ int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, sock
 	return client_fd;
 }
 
-void cws_server_close_all_fds(cws_bucket *bucket) {
-	for (size_t i = 0; i < CWS_HASHMAP_MAX_CLIENTS; ++i) {
+void cws_server_close_all_fds(cws_hashmap *hashmap) {
+	/* TODO: fix this */
+
+	/*for (size_t i = 0; i < CWS_HASHMAP_SIZE; ++i) {
 		close(bucket[i].sockfd);
 		if (bucket[i].next != NULL) {
-			/* Close the fds */
 			cws_bucket *p = bucket[i].next;
 			cws_bucket *next = p->next;
 			do {
@@ -213,11 +216,11 @@ void cws_server_close_all_fds(cws_bucket *bucket) {
 				next = p != NULL ? p->next : NULL;
 			} while (p != NULL);
 		}
-	}
+	}*/
 }
 
-void cws_server_close_client(int epfd, int client_fd, cws_bucket *clients) {
+void cws_server_close_client(int epfd, int client_fd, cws_hashmap *hashmap) {
 	cws_epoll_del(epfd, client_fd);
-	cws_hm_remove(clients, client_fd);
+	/* TODO: cws_hm_remove() */
 	close(client_fd);
 }

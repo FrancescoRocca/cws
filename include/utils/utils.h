@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <stdbool.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 
@@ -22,5 +23,11 @@ void cws_utils_print_ips(const char *hostname, const char *port);
  * @param[out] ip The IP of the client
  */
 void cws_utils_get_client_ip(struct sockaddr_storage *sa, char *ip);
+
+/* TODO: add docs */
+/* Functions used for hash maps */
+int my_hash_fn(void *key);
+bool my_equal_fn(void *a, void *b);
+void my_free_value_fn(void *value);
 
 #endif

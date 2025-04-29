@@ -2,87 +2,101 @@
 #define CWS_HASHMAP_H
 
 #include <stdbool.h>
-#include <sys/socket.h>
 
-/* Each process on Linux can have a maximum of 1024 open file descriptors */
-#define CWS_HASHMAP_MAX_CLIENTS 1024
+#define CWS_HASHMAP_SIZE 1024 /**< Number of buckets in the hash map */
 
 /**
- * @brief Client Hashmap struct
- *
+ * @brief A single bucket in the hash map.
  */
 typedef struct cws_bucket_t {
-	int sockfd;					 /**< Client socket descriptor */
-	struct sockaddr_storage sas; /**< Associated socket address */
-	struct cws_bucket_t *next;	 /**< Next node in case of collision */
-	struct cws_bucket_t *prev;	 /**< Previous node in case of collision */
+	void *key;				   /**< Pointer to the key */
+	void *value;			   /**< Pointer to the value */
+	struct cws_bucket_t *next; /**< Pointer to the next bucket in case of collision */
 } cws_bucket;
 
 /**
- * @brief Calculates the hash code of a given file descriptor
+ * @brief Function pointer type for a hash function
  *
- * @param[in] sockfd The file descriptor
- * @return Returns the hash code
+ * @param[in] key Pointer to the key to hash
+ * @return The computed hash as an integer
  */
-int cws_hm_hash(int sockfd);
+typedef int cws_hash_fn(void *key);
 
 /**
- * @brief Initializes the hash map
+ * @brief Function pointer type for a key comparison function
  *
- * @param[out] bucket The hash map uninitialized
+ * @param[in] key_a Pointer to the first key
+ * @param[in] key_b Pointer to the second key
+ * @return true if the keys are considered equal, false otherwise
  */
-void cws_hm_init(cws_bucket *bucket);
+typedef bool cws_equal_fn(void *key_a, void *key_b);
 
 /**
- * @brief Inserts a key in the hash map
+ * @brief Function pointer type for freeing a key
  *
- * @param[out] bucket The hash map
- * @param[in] sockfd The file descriptor (value)
- * @param[in] sas The sockaddr (value)
+ * @param[in] key Pointer to the key to free
  */
-void cws_hm_push(cws_bucket *bucket, int sockfd, struct sockaddr_storage *sas);
+typedef void cws_free_key_fn(void *key);
 
 /**
- * @brief Removes a key from the hash map
+ * @brief Function pointer type for freeing a value
  *
- * @param[out] bucket The hash map
- * @param[in] sockfd The key
+ * @param[in] value Pointer to the value to free
  */
-void cws_hm_remove(cws_bucket *bucket, int sockfd);
+typedef void cws_free_value_fn(void *value);
 
 /**
- * @brief Searches for a key in the hash map
- *
- * @param[in] bucket The hash map
- * @param[in] sockfd The file descriptor (key)
- * @return Returns NULL or the key pointer
+ * @brief Main structure representing the hash map
  */
-cws_bucket *cws_hm_lookup(cws_bucket *bucket, int sockfd);
+typedef struct cws_hashmap_t {
+	cws_hash_fn *hash_fn;			  /**< Hash function */
+	cws_equal_fn *equal_fn;			  /**< Equality comparison function */
+	cws_free_key_fn *free_key_fn;	  /**< Key deallocation function */
+	cws_free_value_fn *free_value_fn; /**< Value deallocation function */
+
+	cws_bucket map[CWS_HASHMAP_SIZE]; /**< Array of bucket chains */
+} cws_hashmap;
 
 /**
- * @brief Cleans the hash map
+ * @brief Initializes a new hash map with user-defined behavior
  *
- * @param[out] bucket The hash map
+ * @param[in] hash_fn Function used to hash keys
+ * @param[in] equal_fn Function used to compare keys
+ * @param[in] free_key_fn Function used to free keys
+ * @param[in] free_value_fn Function used to free values
+ * @return A pointer to the newly initialized hash map
  */
-void cws_hm_free(cws_bucket *bucket);
+cws_hashmap *cws_hm_init(cws_hash_fn *hash_fn, cws_equal_fn *equal_fn, cws_free_key_fn *free_key_fn, cws_free_value_fn *free_value_fn);
 
 /**
- * @brief Checks if a file descriptor is in the bucket array (not linked list)
+ * @brief Frees all resources used by the hash map
  *
- * @param[in] bucket
- * @param[in] sockfd
- * @return true If the file descriptor is in the bucket array
- * @return false If the file descriptor is not in the bucket array (check with hm_lookup())
+ * @param[in] hashmap Pointer to the hash map to free
  */
-bool cws_hm_is_in_bucket_array(cws_bucket *bucket, int sockfd);
+void cws_hm_free(cws_hashmap *hashmap);
 
 /**
- * @brief This function will add a key even if it exists (use hm_push() instead)
+ * @brief Inserts or updates a key-value pair in the hash map
  *
- * @param bucket
- * @param sockfd
- * @param sas
+ * @param[in] hashmap Pointer to the hash map
+ * @param[in] key Pointer to the key to insert
+ * @param[in] value Pointer to the value to insert
+ * @return true if the operation succeeded, false otherwise
  */
-void cws_hm_insert(cws_bucket *bucket, int sockfd, struct sockaddr_storage *sas);
+bool cws_hm_set(cws_hashmap *hashmap, void *key, void *value);
+
+/**
+ * @brief Retrieves a bucket by key
+ *
+ * @param[in] hashmap Pointer to the hash map
+ * @param[in] key Pointer to the key to search for
+ * @return Pointer to the found bucket, or NULL if not found
+ */
+cws_bucket *cws_hm_get(cws_hashmap *hashmap, void *key);
+
+/**
+ * TODO: Implement cws_hm_remove()
+ * @brief Removes a key-value pair from the hash map
+ */
 
 #endif

@@ -14,18 +14,18 @@ int main(int argc, char **argv) {
 
 	cws_config *config = cws_config_init();
 	if (config == NULL) {
-		CWS_LOG_ERROR("[server] Unable to read config file");
+		CWS_LOG_ERROR("Unable to read config file");
 		return 1;
 	}
 
 	struct sigaction act = {.sa_handler = cws_signal_handler};
 	ret = sigaction(SIGINT, &act, NULL);
 
-	CWS_LOG_INFO("[server] Running cws on http://%s:%s...", config->host, config->port);
+	CWS_LOG_INFO("Running cws on http://%s:%s...", config->host, config->port);
 
 	ret = cws_server_start(config->host, config->port);
 	if (ret < 0) {
-		CWS_LOG_ERROR("[server] Unable to start web server");
+		CWS_LOG_ERROR("Unable to start web server");
 	}
 
 	cws_config_free(config);
