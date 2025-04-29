@@ -17,7 +17,7 @@ void cws_utils_print_ips(const char *hostname, const char *port) {
 
 	int status = getaddrinfo(hostname, port, &ai, &res);
 	if (status < 0) {
-		fprintf(stderr, RED "getaddrinfo(): %s\n" RESET, gai_strerror(status));
+		CWS_LOG_ERROR("getaddrinfo(): %s", gai_strerror(status));
 		exit(1);
 	}
 
@@ -28,11 +28,11 @@ void cws_utils_print_ips(const char *hostname, const char *port) {
 		if (p->ai_family == AF_INET) {
 			struct sockaddr_in *sin = (struct sockaddr_in *)p->ai_addr;
 			inet_ntop(AF_INET, &sin->sin_addr, ipv4, INET_ADDRSTRLEN);
-			fprintf(stdout, BLUE "%s\n" RESET, ipv4);
+			CWS_LOG_INFO("%s", ipv4);
 		} else if (p->ai_family == AF_INET6) {
 			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)p->ai_addr;
 			inet_ntop(AF_INET6, &sin6->sin6_addr, ipv6, INET6_ADDRSTRLEN);
-			fprintf(stdout, BLUE "%s\n" RESET, ipv6);
+			CWS_LOG_INFO("%s", ipv6);
 		}
 	}
 

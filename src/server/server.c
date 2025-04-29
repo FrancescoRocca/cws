@@ -26,7 +26,7 @@ int cws_server_start(const char *hostname, const char *service) {
 
 	int status = getaddrinfo(hostname, service, &hints, &res);
 	if (status != 0) {
-		fprintf(stderr, RED BOLD "[server] getaddrinfo() error: %s\n" RESET, gai_strerror(status));
+		CWS_LOG_ERROR("[server] getaddrinfo() error: %s", gai_strerror(status));
 		exit(EXIT_FAILURE);
 	}
 
@@ -35,19 +35,19 @@ int cws_server_start(const char *hostname, const char *service) {
 	const int opt = 1;
 	status = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
 	if (status != 0) {
-		fprintf(stderr, RED BOLD "[server] setsockopt(): %s\n" RESET, strerror(errno));
+		CWS_LOG_ERROR("[server] setsockopt(): %s", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
 	status = bind(sockfd, res->ai_addr, res->ai_addrlen);
 	if (status != 0) {
-		fprintf(stderr, RED BOLD "[server] bind(): %s\n" RESET, strerror(errno));
+		CWS_LOG_ERROR("[server] bind(): %s", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
 	status = listen(sockfd, CWS_SERVER_BACKLOG);
 	if (status != 0) {
-		fprintf(stderr, RED BOLD "[server] listen(): %s\n" RESET, gai_strerror(status));
+		CWS_LOG_ERROR("[server] listen(): %s", gai_strerror(status));
 		exit(EXIT_FAILURE);
 	}
 
@@ -61,10 +61,13 @@ int cws_server_start(const char *hostname, const char *service) {
 
 void cws_server_setup_hints(struct addrinfo *hints, size_t len, const char *hostname) {
 	memset(hints, 0, len);
+
 	/* IPv4 or IPv6 */
 	hints->ai_family = AF_UNSPEC;
+
 	/* TCP */
 	hints->ai_socktype = SOCK_STREAM;
+
 	if (hostname == NULL) {
 		/* Fill in IP for me */
 		hints->ai_flags = AI_PASSIVE;
@@ -94,13 +97,14 @@ void cws_server_loop(int sockfd) {
 				char ip[INET_ADDRSTRLEN];
 				client_fd = cws_server_accept_client(sockfd, &their_sa, &theirsa_size);
 				cws_utils_get_client_ip(&their_sa, ip);
-				fprintf(stdout, BLUE "[server] Client (%s) connected\n" RESET, ip);
+				CWS_LOG_INFO("[server] Client (%s) connected", ip);
 
 				cws_fd_set_nonblocking(client_fd);
 				cws_epoll_add(epfd, client_fd, EPOLLIN);
 				cws_hm_push(clients, client_fd, &their_sa);
 			} else {
 				char data[4096] = {0};
+
 				/* Incoming data */
 				client_fd = revents[i].data.fd;
 				const ssize_t bytes_read = recv(client_fd, data, sizeof data, 0);
@@ -110,7 +114,7 @@ void cws_server_loop(int sockfd) {
 
 				if (bytes_read == 0) {
 					/* Client disconnected */
-					fprintf(stdout, BLUE "[server] Client (%s) disconnected\n" RESET, ip);
+					CWS_LOG_INFO("[server] Client (%s) disconnected", ip);
 					cws_server_close_client(epfd, client_fd, clients);
 					continue;
 				}
@@ -135,7 +139,7 @@ void cws_server_loop(int sockfd) {
 				}
 
 				cws_http_send_response(request);
-				fprintf(stdout, BLUE "[server] Client (%s) disconnected\n" RESET, ip);
+				CWS_LOG_INFO("[server] Client (%s) disconnected", ip);
 				cws_server_close_client(epfd, client_fd, clients);
 				cws_http_free(request);
 
@@ -150,7 +154,7 @@ void cws_server_loop(int sockfd) {
 	close(epfd);
 	cws_server_close_all_fds(clients);
 	cws_hm_free(clients);
-	fprintf(stdout, BLUE "[server] Closing...\n" RESET);
+	CWS_LOG_INFO("[server] Closing...");
 }
 
 void cws_epoll_add(int epfd, int sockfd, uint32_t events) {
@@ -160,7 +164,7 @@ void cws_epoll_add(int epfd, int sockfd, uint32_t events) {
 	const int status = epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &event);
 
 	if (status != 0) {
-		fprintf(stderr, RED BOLD "[server] epoll_ctl_add(): %s\n" RESET, strerror(errno));
+		CWS_LOG_ERROR("[server] epoll_ctl_add(): %s", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 }
@@ -169,7 +173,7 @@ void cws_epoll_del(int epfd, int sockfd) {
 	const int status = epoll_ctl(epfd, EPOLL_CTL_DEL, sockfd, NULL);
 
 	if (status != 0) {
-		fprintf(stdout, RED BOLD "[server] epoll_ctl_del(): %s\n" RESET, strerror(errno));
+		CWS_LOG_ERROR("[server] epoll_ctl_del(): %s", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 }
@@ -178,7 +182,7 @@ void cws_fd_set_nonblocking(int sockfd) {
 	const int status = fcntl(sockfd, F_SETFL, O_NONBLOCK);
 
 	if (status == -1) {
-		fprintf(stderr, RED BOLD "[server] fcntl(): %s\n" RESET, gai_strerror(status));
+		CWS_LOG_ERROR("[server] fcntl(): %s", gai_strerror(status));
 		exit(EXIT_FAILURE);
 	}
 }
@@ -188,7 +192,7 @@ int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, sock
 
 	if (client_fd == -1) {
 		if (errno != EWOULDBLOCK) {
-			fprintf(stderr, RED BOLD "[server] accept(): %s\n" RESET, strerror(errno));
+			CWS_LOG_ERROR("[server] accept(): %s", strerror(errno));
 		}
 		return -1;
 	}

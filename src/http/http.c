@@ -1,6 +1,6 @@
 #include "http/http.h"
 
-#include <stdio.h> /* Debug */
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -21,7 +21,7 @@ cws_http *cws_http_parse(char *request_str, int sockfd) {
 	if (pch == NULL) {
 		return NULL;
 	}
-	printf("[client::http] method: %s\n", pch);
+	CWS_LOG_DEBUG("[client::http] method: %s", pch);
 	cws_http_parse_method(request, pch);
 
 	/* Parse location */
@@ -29,7 +29,7 @@ cws_http *cws_http_parse(char *request_str, int sockfd) {
 	if (pch == NULL) {
 		return NULL;
 	}
-	printf("[client::http] location: %s\n", pch);
+	CWS_LOG_DEBUG("[client::http] location: %s", pch);
 	strncpy(request->location, pch, CWS_HTTP_LOCATION_LEN);
 
 	/* Parse location path */
@@ -38,14 +38,14 @@ cws_http *cws_http_parse(char *request_str, int sockfd) {
 	} else {
 		snprintf(request->location_path, CWS_HTTP_LOCATION_PATH_LEN, "%s%s", CWS_WWW, request->location);
 	}
-	fprintf(stdout, "[client::http] location path: %s\n", request->location_path);
+	CWS_LOG_DEBUG("[client::http] location path: %s", request->location_path);
 
 	/* Parse HTTP version */
 	pch = strtok(NULL, " \r\n");
 	if (pch == NULL) {
 		return NULL;
 	}
-	printf("[client::http] version: %s\n", pch);
+	CWS_LOG_DEBUG("[client::http] version: %s", pch);
 	strncpy(request->http_version, pch, CWS_HTTP_VERSION_LEN);
 
 	/* Parse other stuff... */
@@ -90,7 +90,7 @@ void cws_http_send_response(cws_http *request) {
 	char *file_data = malloc(content_length);
 	if (file_data == NULL) {
 		fclose(file);
-		fprintf(stderr, RED "Unable to allocate file data\n");
+		CWS_LOG_ERROR("Unable to allocate file data");
 		return;
 	}
 
