@@ -1,5 +1,6 @@
 #include "utils/utils.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,7 +46,21 @@ void cws_utils_get_client_ip(struct sockaddr_storage *sa, char *ip) {
 	inet_ntop(AF_INET, &sin->sin_addr, ip, INET_ADDRSTRLEN);
 }
 
-int my_hash_fn(void *key) {
+char *cws_strip(char *str) {
+	char *end;
+
+	while (isspace((int)*str)) str++;
+
+	if (*str == 0) return str;
+
+	end = str + strlen(str) - 1;
+	while (end > str && isspace((int)*end)) end--;
+	*(end + 1) = '\0';
+
+	return str;
+}
+
+int my_str_hash_fn(void *key) {
 	char *key_str = (char *)key;
 	size_t key_len = strlen(key_str);
 
@@ -58,7 +73,7 @@ int my_hash_fn(void *key) {
 	return total % 2069;
 }
 
-bool my_equal_fn(void *a, void *b) {
+bool my_str_equal_fn(void *a, void *b) {
 	if (strcmp((char *)a, (char *)b) == 0) {
 		return true;
 	}
@@ -66,4 +81,4 @@ bool my_equal_fn(void *a, void *b) {
 	return false;
 }
 
-void my_free_str_fn(void *value) { free(value); }
+void my_str_free_fn(void *value) { free(value); }

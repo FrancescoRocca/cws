@@ -25,9 +25,11 @@ void cws_utils_print_ips(const char *hostname, const char *port);
 void cws_utils_get_client_ip(struct sockaddr_storage *sa, char *ip);
 
 /* TODO: add docs */
+char *cws_strip(char *str);
+
 /* Functions used for hash maps */
-int my_hash_fn(void *key);
-bool my_equal_fn(void *a, void *b);
-void my_free_value_fn(void *value);
+int my_str_hash_fn(void *key);
+bool my_str_equal_fn(void *a, void *b);
+void my_str_free_fn(void *value);
 
 #endif

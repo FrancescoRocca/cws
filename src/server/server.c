@@ -78,7 +78,7 @@ void cws_server_loop(int sockfd) {
 	struct sockaddr_storage their_sa;
 	socklen_t theirsa_size = sizeof their_sa;
 
-	cws_hashmap *clients = cws_hm_init(my_hash_fn, my_equal_fn, NULL, NULL);
+	cws_hashmap *clients = cws_hm_init(my_str_hash_fn, my_str_equal_fn, NULL, NULL);
 
 	int epfd = epoll_create1(0);
 	cws_fd_set_nonblocking(sockfd);

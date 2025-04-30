@@ -31,7 +31,6 @@ And then open the `docs/html/index.html`.
 
 ## Roadmap
 
-- Request parser
 - Implement Keep-Alive
 - Support for virtual hosting
 - HTTPS support with TLS

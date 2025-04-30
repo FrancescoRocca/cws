@@ -58,7 +58,7 @@ void cws_hm_free(cws_hashmap *hashmap) {
 
 bool cws_hm_set(cws_hashmap *hashmap, void *key, void *value) {
 	/* Get hash index */
-	int index = hashmap->hash_fn(key);
+	int index = hashmap->hash_fn(key) % CWS_HASHMAP_SIZE;
 	cws_bucket *bucket = &hashmap->map[index];
 
 	/* Check if the key at index is empty */

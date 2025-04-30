@@ -1,13 +1,13 @@
 #ifndef CWS_HTTP_H
 #define CWS_HTTP_H
 
+#include "utils/hashmap.h"
+
 #define CWS_WWW "../www" /**< Directory used to get html files */
 /** In the future I'll move conf stuff under a server struct, I can skip just because I want something that works */
 #define CWS_HTTP_LOCATION_LEN 512
 #define CWS_HTTP_LOCATION_PATH_LEN 1024
 #define CWS_HTTP_VERSION_LEN 8
-#define CWS_HTTP_USER_AGENT_LEN 1024
-#define CWS_HTTP_HOST_LEN 1024
 
 typedef enum cws_http_method_t {
 	CWS_HTTP_GET,  /**< GET method */
@@ -27,8 +27,7 @@ typedef struct cws_http_t {
 	char location[CWS_HTTP_LOCATION_LEN];			/**< Resource requested */
 	char location_path[CWS_HTTP_LOCATION_PATH_LEN]; /**< Full resource path */
 	char http_version[CWS_HTTP_VERSION_LEN];		/**< HTTP version */
-	char user_agent[CWS_HTTP_USER_AGENT_LEN];		/**< User-Agent */
-	char host[CWS_HTTP_HOST_LEN];					/**< Host */
+	cws_hashmap *headers;							/**< Headers hash map */
 } cws_http;
 /* Connection */
 /* Accept-Encoding */

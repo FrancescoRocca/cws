@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 
 #include "utils/colors.h"
+#include "utils/utils.h"
 
 cws_http *cws_http_parse(char *request_str, int sockfd) {
 	cws_http *request = malloc(sizeof(cws_http));
@@ -22,7 +23,7 @@ cws_http *cws_http_parse(char *request_str, int sockfd) {
 	if (pch == NULL) {
 		return NULL;
 	}
-	CWS_LOG_DEBUG("[client::http] method: %s", pch);
+	CWS_LOG_DEBUG("[http] method: %s", pch);
 	cws_http_parse_method(request, pch);
 
 	/* Parse location */
@@ -30,29 +31,53 @@ cws_http *cws_http_parse(char *request_str, int sockfd) {
 	if (pch == NULL) {
 		return NULL;
 	}
-	CWS_LOG_DEBUG("[client::http] location: %s", pch);
+	CWS_LOG_DEBUG("[http] location: %s", pch);
 	strncpy(request->location, pch, CWS_HTTP_LOCATION_LEN);
 
-	/* Parse location path */
+	/* Adjust location path */
 	if (strcmp(request->location, "/") == 0) {
 		snprintf(request->location_path, CWS_HTTP_LOCATION_PATH_LEN, "%s/index.html", CWS_WWW);
 	} else {
 		snprintf(request->location_path, CWS_HTTP_LOCATION_PATH_LEN, "%s%s", CWS_WWW, request->location);
 	}
-	CWS_LOG_DEBUG("[client::http] location path: %s", request->location_path);
+	CWS_LOG_DEBUG("[http] location path: %s", request->location_path);
 
 	/* Parse HTTP version */
 	pch = strtok(NULL, " \r\n");
 	if (pch == NULL) {
 		return NULL;
 	}
-	CWS_LOG_DEBUG("[client::http] version: %s", pch);
+	CWS_LOG_DEBUG("[http] version: %s", pch);
 	strncpy(request->http_version, pch, CWS_HTTP_VERSION_LEN);
 
-	/* Parse other stuff... */
-	/* Parse until a \r\n and store the header with its value
-	 * into a hashmap
-	 */
+	/* Parse headers until a \r\n */
+	request->headers = cws_hm_init(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn);
+	char *header_colon;
+	while (pch) {
+		/* Get header line */
+		pch = strtok(NULL, "\r\n");
+		if (pch == NULL) {
+			break;
+		}
+		/* Find ":" */
+		header_colon = strchr(pch, ':');
+		if (header_colon != NULL) {
+			*header_colon = '\0';
+		} else {
+			break;
+		}
+
+		/* Header key */
+		char *hkey = pch;
+		char *hkey_dup = strdup(hkey);
+		/* Header value (starting from ": ") */
+		char *hvalue = header_colon + 2;
+		char *hvalue_dup = strdup(hvalue);
+
+		cws_hm_set(request->headers, hkey_dup, hvalue_dup);
+	}
+
+	/* Parse body */
 
 	return request;
 }
@@ -178,4 +203,7 @@ void cws_http_send_not_found(cws_http *request) {
 	send(request->sockfd, response, response_len, 0);
 }
 
-void cws_http_free(cws_http *request) { free(request); }
+void cws_http_free(cws_http *request) {
+	cws_hm_free(request->headers);
+	free(request);
+}
