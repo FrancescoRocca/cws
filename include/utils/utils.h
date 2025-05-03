@@ -24,7 +24,12 @@ void cws_utils_print_ips(const char *hostname, const char *port);
  */
 void cws_utils_get_client_ip(struct sockaddr_storage *sa, char *ip);
 
-/* TODO: add docs */
+/**
+ * @brief Remove whitespaces from a string
+ *
+ * @param[in] str The string pointer
+ * @return Returns the new string without whitespaces
+ */
 char *cws_strip(char *str);
 
 /* Functions used for hash maps */

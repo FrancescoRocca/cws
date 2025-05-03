@@ -95,8 +95,12 @@ bool cws_hm_set(cws_hashmap *hashmap, void *key, void *value);
 cws_bucket *cws_hm_get(cws_hashmap *hashmap, void *key);
 
 /**
- * TODO: Implement cws_hm_remove()
  * @brief Removes a key-value pair from the hash map
+ *
+ * @param[in] hashmap Pointer to the hash map
+ * @param[in] key Pointer to the key to remove, this pointer will be freed so pay attention
+ * @return False if the key is not found, otherwise true
  */
+bool cws_hm_remove(cws_hashmap *hashmap, void *key);
 
 #endif

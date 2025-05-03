@@ -42,14 +42,17 @@ int main(void) {
 		return 1;
 	}
 
+	/* Add a new key-value */
 	ret = cws_hm_set(str_hashmap, (void *)key, (void *)value);
 	if (!ret) {
 		CWS_LOG_WARNING("Unable to set %s:%s", key, value);
 	}
 
+	/* Get the added key-value */
 	cws_bucket *bucket = cws_hm_get(str_hashmap, key);
 	CWS_LOG_DEBUG("Set %s:%s", (char *)bucket->key, (char *)bucket->value);
 
+	/* Update the value */
 	char *another_value = strdup("another value1");
 	ret = cws_hm_set(str_hashmap, (void *)key, (void *)another_value);
 	if (!ret) {
@@ -58,6 +61,17 @@ int main(void) {
 
 	bucket = cws_hm_get(str_hashmap, key);
 	CWS_LOG_DEBUG("Set %s:%s", (char *)bucket->key, (char *)bucket->value);
+
+	/* Remove the key-value */
+	ret = cws_hm_remove(str_hashmap, (void *)key);
+	if (ret) {
+		CWS_LOG_DEBUG("test1 removed");
+	}
+	/* Can't use key, it has been freed */
+	bucket = cws_hm_get(str_hashmap, (void *)"test1");
+	if (bucket == NULL) {
+		CWS_LOG_DEBUG("test1 not found");
+	}
 
 	cws_hm_free(str_hashmap);
 

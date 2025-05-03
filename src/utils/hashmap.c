@@ -57,6 +57,10 @@ void cws_hm_free(cws_hashmap *hashmap) {
 }
 
 bool cws_hm_set(cws_hashmap *hashmap, void *key, void *value) {
+	if (hashmap == NULL || key == NULL || value == NULL) {
+		return false;
+	}
+
 	/* Get hash index */
 	int index = hashmap->hash_fn(key) % CWS_HASHMAP_SIZE;
 	cws_bucket *bucket = &hashmap->map[index];
@@ -111,16 +115,16 @@ bool cws_hm_set(cws_hashmap *hashmap, void *key, void *value) {
 }
 
 cws_bucket *cws_hm_get(cws_hashmap *hashmap, void *key) {
-	/* Return if key is null */
-	if (key == NULL) {
+	/* Return if hash map or key is null */
+	if (hashmap == NULL || key == NULL) {
 		return NULL;
 	}
 
-	int index = hashmap->hash_fn(key);
+	int index = hashmap->hash_fn(key) % CWS_HASHMAP_SIZE;
 	cws_bucket *bucket = &hashmap->map[index];
 
 	/* Key is not in the hash map */
-	if (bucket == NULL || bucket->key == NULL) {
+	if (bucket->key == NULL) {
 		return NULL;
 	}
 
@@ -134,4 +138,57 @@ cws_bucket *cws_hm_get(cws_hashmap *hashmap, void *key) {
 
 	/* Key not found */
 	return NULL;
+}
+
+bool cws_hm_remove(cws_hashmap *hashmap, void *key) {
+	if (hashmap == NULL || key == NULL) {
+		return false;
+	}
+
+	int index = hashmap->hash_fn(key) % CWS_HASHMAP_SIZE;
+	cws_bucket *bucket = &hashmap->map[index];
+
+	if (bucket->key == NULL) {
+		return false;
+	}
+
+	if (hashmap->equal_fn(bucket->key, key)) {
+		if (hashmap->free_key_fn != NULL) {
+			hashmap->free_key_fn(bucket->key);
+		}
+		if (hashmap->free_value_fn != NULL) {
+			hashmap->free_value_fn(bucket->value);
+		}
+
+		if (bucket->next != NULL) {
+			bucket->key = bucket->next->key;
+			bucket->value = bucket->next->value;
+			bucket->next = bucket->next->next;
+		} else {
+			bucket->key = NULL;
+		}
+
+		return true;
+	}
+
+	cws_bucket *next = bucket->next;
+
+	while (next) {
+		if (hashmap->equal_fn(next->key, key)) {
+			if (hashmap->free_key_fn != NULL) {
+				hashmap->free_key_fn(next->key);
+			}
+			if (hashmap->free_value_fn != NULL) {
+				hashmap->free_value_fn(next->value);
+			}
+			bucket->next = next->next;
+			free(next);
+
+			return true;
+		}
+		bucket = next;
+		next = next->next;
+	}
+
+	return false;
 }

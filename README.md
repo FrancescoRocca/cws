@@ -32,7 +32,7 @@ And then open the `docs/html/index.html`.
 ## Roadmap
 
 - Implement Keep-Alive
-- Support for virtual hosting
+- Support for virtual hosts
 - HTTPS support with TLS
 
 ## Future
@@ -41,3 +41,4 @@ And then open the `docs/html/index.html`.
 - Multithreading to handle concurrent requests
 - Logging
 - Compression (Gzip)
+- Reverse proxy

@@ -27,8 +27,6 @@
 #define CWS_LOG_DEBUG(msg, ...)
 #endif
 
-#define CWS_LOG(level, msg, ...)
-
 #define CWS_LOG_ERROR(msg, ...) fprintf(stderr, _ERR " " msg "\n", ##__VA_ARGS__)
 #define CWS_LOG_WARNING(msg, ...) fprintf(stdout, _WARNING " " msg "\n", ##__VA_ARGS__)
 #define CWS_LOG_INFO(msg, ...) fprintf(stdout, _INFO " " msg "\n", ##__VA_ARGS__)
