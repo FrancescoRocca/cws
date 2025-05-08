@@ -4,6 +4,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <openssl/err.h>
+#include <openssl/ssl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,6 +32,10 @@ int cws_server_start(cws_config *config) {
 	}
 
 	int sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	if (sockfd < 0) {
+		CWS_LOG_ERROR("socket(): %s", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
 
 	const int opt = 1;
 	status = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
@@ -46,7 +52,7 @@ int cws_server_start(cws_config *config) {
 
 	status = listen(sockfd, CWS_SERVER_BACKLOG);
 	if (status != 0) {
-		CWS_LOG_ERROR("listen(): %s", gai_strerror(status));
+		CWS_LOG_ERROR("listen(): %s", strerror(status));
 		exit(EXIT_FAILURE);
 	}
 
@@ -77,7 +83,7 @@ void cws_server_loop(int sockfd, cws_config *config) {
 	struct sockaddr_storage their_sa;
 	socklen_t theirsa_size = sizeof their_sa;
 
-	cws_hashmap *clients = cws_hm_init(my_str_hash_fn, my_str_equal_fn, NULL, NULL);
+	cws_hashmap *clients = cws_hm_init(my_int_hash_fn, my_int_equal_fn, NULL, my_int_free_fn);
 
 	int epfd = epoll_create1(0);
 	cws_fd_set_nonblocking(sockfd);
@@ -153,7 +159,6 @@ void cws_server_loop(int sockfd, cws_config *config) {
 	/* Clean up everything */
 	free(revents);
 	close(epfd);
-	cws_server_close_all_fds(clients);
 	cws_hm_free(clients);
 	CWS_LOG_INFO("Closing...");
 }
@@ -201,25 +206,42 @@ int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, sock
 	return client_fd;
 }
 
-void cws_server_close_all_fds(cws_hashmap *hashmap) {
-	/* TODO: fix this */
-
-	/*for (size_t i = 0; i < CWS_HASHMAP_SIZE; ++i) {
-		close(bucket[i].sockfd);
-		if (bucket[i].next != NULL) {
-			cws_bucket *p = bucket[i].next;
-			cws_bucket *next = p->next;
-			do {
-				close(p->sockfd);
-				p = next;
-				next = p != NULL ? p->next : NULL;
-			} while (p != NULL);
-		}
-	}*/
-}
-
 void cws_server_close_client(int epfd, int client_fd, cws_hashmap *hashmap) {
 	cws_epoll_del(epfd, client_fd);
-	/* TODO: cws_hm_remove() */
-	close(client_fd);
+	cws_hm_remove(hashmap, &client_fd);
+}
+
+SSL_CTX *cws_ssl_create_context() {
+	const SSL_METHOD *method;
+	SSL_CTX *ctx;
+
+	method = TLS_server_method();
+	ctx = SSL_CTX_new(method);
+
+	if (!ctx) {
+		CWS_LOG_ERROR("SSL_CTX_new()");
+		return NULL;
+	}
+
+	return ctx;
+}
+
+bool cws_ssl_configure(SSL_CTX *context, cws_config *config) {
+	int ret;
+
+	ret = SSL_CTX_use_certificate_file(context, config->cert, SSL_FILETYPE_PEM);
+	if (ret <= 0) {
+		CWS_LOG_ERROR("SSL_CTX_use_certificate_file()");
+
+		return false;
+	}
+
+	ret = SSL_CTX_use_PrivateKey_file(context, config->key, SSL_FILETYPE_PEM);
+	if (ret <= 0) {
+		CWS_LOG_ERROR("SSL_CTX_use_PrivateKey_file()");
+
+		return false;
+	}
+
+	return true;
 }

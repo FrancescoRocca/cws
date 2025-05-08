@@ -14,8 +14,8 @@ int main(int argc, char **argv) {
 
 	struct sigaction act = {.sa_handler = cws_signal_handler};
 	ret = sigaction(SIGINT, &act, NULL);
-	if (!ret) {
-		CWS_LOG_ERROR("sigaction()");
+	if (ret) {
+		CWS_LOG_ERROR("sigaction(): %s", strerror(errno));
 		return 1;
 	}
 

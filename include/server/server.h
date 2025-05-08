@@ -2,6 +2,8 @@
 #define CWS_SERVER_H
 
 #include <netdb.h>
+#include <openssl/err.h>
+#include <openssl/ssl.h>
 #include <sys/socket.h>
 
 #include "utils/config.h"
@@ -78,13 +80,6 @@ void cws_fd_set_nonblocking(int sockfd);
 int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size);
 
 /**
- * @brief Closes all the file descriptors opened
- *
- * @param[in] hashmap Clients hash map
- */
-void cws_server_close_all_fds(cws_hashmap *hashmap);
-
-/**
  * @brief Disconnect a client
  *
  * @param[in] epfd Epoll file descriptor
@@ -92,5 +87,9 @@ void cws_server_close_all_fds(cws_hashmap *hashmap);
  * @param[in] hashmap Clients hash map
  */
 void cws_server_close_client(int epfd, int client_fd, cws_hashmap *hashmap);
+
+/* Undocumented functions */
+SSL_CTX *cws_ssl_create_context();
+bool cws_ssl_configure(SSL_CTX *context, cws_config *config);
 
 #endif

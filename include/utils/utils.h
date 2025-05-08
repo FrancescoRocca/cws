@@ -37,4 +37,8 @@ int my_str_hash_fn(void *key);
 bool my_str_equal_fn(void *a, void *b);
 void my_str_free_fn(void *value);
 
+int my_int_hash_fn(void *key);
+bool my_int_equal_fn(void *a, void *b);
+void my_int_free_fn(void *value);
+
 #endif

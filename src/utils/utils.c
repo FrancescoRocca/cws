@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "utils/colors.h"
 
@@ -82,3 +83,21 @@ bool my_str_equal_fn(void *a, void *b) {
 }
 
 void my_str_free_fn(void *value) { free(value); }
+
+int my_int_hash_fn(void *key) { return *(int *)key; }
+
+bool my_int_equal_fn(void *a, void *b) {
+	int ai = *(int *)a;
+	int bi = *(int *)b;
+
+	if (ai == bi) {
+		return true;
+	}
+
+	return false;
+}
+
+void my_int_free_fn(void *value) {
+	int fd = *(int *)value;
+	close(fd);
+}
