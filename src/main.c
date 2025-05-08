@@ -12,18 +12,21 @@ void cws_signal_handler(int signo) { cws_server_run = false; }
 int main(int argc, char **argv) {
 	int ret;
 
+	struct sigaction act = {.sa_handler = cws_signal_handler};
+	ret = sigaction(SIGINT, &act, NULL);
+	if (!ret) {
+		CWS_LOG_ERROR("sigaction()");
+		return 1;
+	}
+
 	cws_config *config = cws_config_init();
 	if (config == NULL) {
 		CWS_LOG_ERROR("Unable to read config file");
 		return 1;
 	}
 
-	struct sigaction act = {.sa_handler = cws_signal_handler};
-	ret = sigaction(SIGINT, &act, NULL);
-
-	CWS_LOG_INFO("Running cws on http://%s:%s...", config->host, config->port);
-
-	ret = cws_server_start(config->host, config->port);
+	CWS_LOG_INFO("Running cws on http://%s:%s...", config->hostname, config->port);
+	ret = cws_server_start(config);
 	if (ret < 0) {
 		CWS_LOG_ERROR("Unable to start web server");
 	}

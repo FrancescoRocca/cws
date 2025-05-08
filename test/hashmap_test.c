@@ -34,10 +34,16 @@ int main(void) {
 	cws_hashmap *str_hashmap = cws_hm_init(my_hash_fn, my_equal_fn, my_free_fn, my_free_fn);
 
 	char *key = strdup("test1");
-	char *value = strdup("value1");
+	if (key == NULL) {
+		CWS_LOG_ERROR("strdup() key");
 
-	if (key == NULL || value == NULL) {
-		CWS_LOG_ERROR("strdup()");
+		return 1;
+	}
+
+	char *value = strdup("value1");
+	if (value == NULL) {
+		CWS_LOG_ERROR("strdup() value");
+		free(key);
 
 		return 1;
 	}

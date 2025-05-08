@@ -8,7 +8,7 @@ A minimal web server. This is a personal project; it is not intended to be a pro
 - libcyaml
 - libyaml
 - [doxygen](https://www.doxygen.nl/)
-    - Optional, just to build the docs.
+    - Optional, just to build the docs. It requires `dot`.
 
 ## How to build
 

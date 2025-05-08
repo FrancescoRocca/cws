@@ -13,18 +13,17 @@
 
 #include "http/http.h"
 #include "utils/colors.h"
-#include "utils/hashmap.h"
 #include "utils/utils.h"
 
 volatile bool cws_server_run = 1;
 
-int cws_server_start(const char *hostname, const char *service) {
+int cws_server_start(cws_config *config) {
 	struct addrinfo hints;
 	struct addrinfo *res;
 
-	cws_server_setup_hints(&hints, sizeof hints, hostname);
+	cws_server_setup_hints(&hints, sizeof hints, config->hostname);
 
-	int status = getaddrinfo(hostname, service, &hints, &res);
+	int status = getaddrinfo(config->hostname, config->port, &hints, &res);
 	if (status != 0) {
 		CWS_LOG_ERROR("getaddrinfo() error: %s", gai_strerror(status));
 		exit(EXIT_FAILURE);
@@ -51,7 +50,7 @@ int cws_server_start(const char *hostname, const char *service) {
 		exit(EXIT_FAILURE);
 	}
 
-	cws_server_loop(sockfd);
+	cws_server_loop(sockfd, config);
 
 	freeaddrinfo(res);
 	close(sockfd);
@@ -74,7 +73,7 @@ void cws_server_setup_hints(struct addrinfo *hints, size_t len, const char *host
 	}
 }
 
-void cws_server_loop(int sockfd) {
+void cws_server_loop(int sockfd, cws_config *config) {
 	struct sockaddr_storage their_sa;
 	socklen_t theirsa_size = sizeof their_sa;
 
@@ -132,7 +131,7 @@ void cws_server_loop(int sockfd) {
 				data[bytes_read] = '\0';
 
 				/* Parse HTTP request */
-				cws_http *request = cws_http_parse(data, client_fd);
+				cws_http *request = cws_http_parse(data, client_fd, config);
 
 				if (request == NULL) {
 					cws_server_close_client(epfd, client_fd, clients);

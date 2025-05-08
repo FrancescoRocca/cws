@@ -4,6 +4,7 @@
 #include <netdb.h>
 #include <sys/socket.h>
 
+#include "utils/config.h"
 #include "utils/hashmap.h"
 
 /* Clients max queue */
@@ -21,11 +22,10 @@ extern volatile bool cws_server_run;
 /**
  * @brief Runs the server
  *
- * @param[in] hostname The hostname of the server (default localhost, it could be NULL)
- * @param[in] service The service (found in /etc/services) or the port where to run
+ * @param[in] config The server's config
  * @return 0 on success, -1 on error
  */
-int cws_server_start(const char *hostname, const char *service);
+int cws_server_start(cws_config *config);
 
 /**
  * @brief Setups hints object
@@ -41,7 +41,7 @@ void cws_server_setup_hints(struct addrinfo *hints, size_t len, const char *host
  *
  * @param[in,out] sockfd Socket of the commincation endpoint
  */
-void cws_server_loop(int sockfd);
+void cws_server_loop(int sockfd, cws_config *config);
 
 /**
  * @brief Adds a file descriptor to the interest list

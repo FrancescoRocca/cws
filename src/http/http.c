@@ -8,7 +8,7 @@
 #include "utils/colors.h"
 #include "utils/utils.h"
 
-cws_http *cws_http_parse(char *request_str, int sockfd) {
+cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
 	cws_http *request = malloc(sizeof(cws_http));
 	if (request == NULL) {
 		return NULL;
@@ -21,6 +21,8 @@ cws_http *cws_http_parse(char *request_str, int sockfd) {
 	/* Parse HTTP method */
 	char *pch = strtok(request_str, " ");
 	if (pch == NULL) {
+		cws_http_free(request);
+
 		return NULL;
 	}
 	CWS_LOG_DEBUG("[http] method: %s", pch);
@@ -29,6 +31,8 @@ cws_http *cws_http_parse(char *request_str, int sockfd) {
 	/* Parse location */
 	pch = strtok(NULL, " ");
 	if (pch == NULL) {
+		cws_http_free(request);
+
 		return NULL;
 	}
 	CWS_LOG_DEBUG("[http] location: %s", pch);
@@ -36,15 +40,17 @@ cws_http *cws_http_parse(char *request_str, int sockfd) {
 
 	/* Adjust location path */
 	if (strcmp(request->location, "/") == 0) {
-		snprintf(request->location_path, CWS_HTTP_LOCATION_PATH_LEN, "%s/index.html", CWS_WWW);
+		snprintf(request->location_path, CWS_HTTP_LOCATION_PATH_LEN, "%s/index.html", config->www);
 	} else {
-		snprintf(request->location_path, CWS_HTTP_LOCATION_PATH_LEN, "%s%s", CWS_WWW, request->location);
+		snprintf(request->location_path, CWS_HTTP_LOCATION_PATH_LEN, "%s%s", config->www, request->location);
 	}
 	CWS_LOG_DEBUG("[http] location path: %s", request->location_path);
 
 	/* Parse HTTP version */
 	pch = strtok(NULL, " \r\n");
 	if (pch == NULL) {
+		cws_http_free(request);
+
 		return NULL;
 	}
 	CWS_LOG_DEBUG("[http] version: %s", pch);

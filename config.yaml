@@ -1,6 +1,6 @@
 # Default config file of CWS
-host: localhost
+hostname: localhost
 port: 3030
-
+www: "www" # Directory used to retrieve html files
 cert: "cert.pem"
 key: "key.pem"
