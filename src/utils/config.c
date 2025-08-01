@@ -8,14 +8,12 @@ static const cyaml_config_t cyaml_config = {
 	.log_level = CYAML_LOG_WARNING,
 };
 
-static const cyaml_schema_field_t top_mapping_schema[] = {
-	CYAML_FIELD_STRING_PTR("hostname", CYAML_FLAG_POINTER, cws_config, hostname, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_STRING_PTR("port", CYAML_FLAG_POINTER, cws_config, port, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_STRING_PTR("www", CYAML_FLAG_POINTER, cws_config, www, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_STRING_PTR("cert", CYAML_FLAG_POINTER, cws_config, cert, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_STRING_PTR("key", CYAML_FLAG_POINTER, cws_config, key, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END
-};
+static const cyaml_schema_field_t top_mapping_schema[] = {CYAML_FIELD_STRING_PTR("hostname", CYAML_FLAG_POINTER, cws_config, hostname, 0, CYAML_UNLIMITED),
+														  CYAML_FIELD_STRING_PTR("port", CYAML_FLAG_POINTER, cws_config, port, 0, CYAML_UNLIMITED),
+														  CYAML_FIELD_STRING_PTR("www", CYAML_FLAG_POINTER, cws_config, www, 0, CYAML_UNLIMITED),
+														  CYAML_FIELD_STRING_PTR("cert", CYAML_FLAG_POINTER, cws_config, cert, 0, CYAML_UNLIMITED),
+														  CYAML_FIELD_STRING_PTR("key", CYAML_FLAG_POINTER, cws_config, key, 0, CYAML_UNLIMITED),
+														  CYAML_FIELD_END};
 
 static const cyaml_schema_value_t top_schema = {
 	CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER, cws_config, top_mapping_schema),

@@ -22,7 +22,7 @@
 #endif
 
 #ifdef EVELOPER
-#define CWS_LOG_DEBUG(msg, ...) fprintf(stdout, _DEBUG " " msg "\n", ##__VA_ARGS__)
+#define CWS_LOG_DEBUG(msg, ...) fprintf(stdout, _DEBUG " [%s:%d] " msg "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 #else
 #define CWS_LOG_DEBUG(msg, ...)
 #endif

@@ -9,33 +9,52 @@
 #include "utils/utils.h"
 
 cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
-	cws_http *request = malloc(sizeof(cws_http));
+	if (!request_str || !config) {
+		return NULL;
+	}
+
+	cws_http *request = calloc(1, sizeof(cws_http));
 	if (request == NULL) {
 		return NULL;
 	}
-	memset(request, 0, sizeof(cws_http));
-
-	/* Insert socket file descriptor */
 	request->sockfd = sockfd;
 
+	char *request_str_cpy = strdup(request_str);
+	if (!request_str_cpy) {
+		free(request);
+		return NULL;
+	}
+
+	char *saveptr = NULL;
+	char *pch = NULL;
+
 	/* Parse HTTP method */
-	char *pch = strtok(request_str, " ");
+	pch = strtok_r(request_str_cpy, " ", &saveptr);
 	if (pch == NULL) {
 		cws_http_free(request);
+		free(request_str_cpy);
 
 		return NULL;
 	}
-	CWS_LOG_DEBUG("[http] method: %s", pch);
-	cws_http_parse_method(request, pch);
+	CWS_LOG_DEBUG("method: %s", pch);
+	int ret = cws_http_parse_method(request, pch);
+	if (ret < 0) {
+		/* Not implemented */
+		cws_http_free(request);
+		free(request_str_cpy);
+		
+		cws_http_send_error_page(request, CWS_HTTP_NOT_IMPLEMENTED, "501 Not Implemented", "501 Not Implemented");
+	}
 
 	/* Parse location */
-	pch = strtok(NULL, " ");
+	pch = strtok_r(NULL, " ", &saveptr);
 	if (pch == NULL) {
 		cws_http_free(request);
+		free(request_str_cpy);
 
 		return NULL;
 	}
-	CWS_LOG_DEBUG("[http] location: %s", pch);
+	CWS_LOG_DEBUG("location: %s", pch);
 	strncpy(request->location, pch, CWS_HTTP_LOCATION_LEN);
 
 	/* Adjust location path */
@@ -44,16 +63,17 @@ cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
 	} else {
 		snprintf(request->location_path, CWS_HTTP_LOCATION_PATH_LEN, "%s%s", config->www, request->location);
 	}
-	CWS_LOG_DEBUG("[http] location path: %s", request->location_path);
+	CWS_LOG_DEBUG("location path: %s", request->location_path);
 
 	/* Parse HTTP version */
-	pch = strtok(NULL, " \r\n");
+	pch = strtok_r(NULL, " \r\n", &saveptr);
 	if (pch == NULL) {
 		cws_http_free(request);
+		free(request_str_cpy);
 
 		return NULL;
 	}
-	CWS_LOG_DEBUG("[http] version: %s", pch);
+	CWS_LOG_DEBUG("version: %s", pch);
 	strncpy(request->http_version, pch, CWS_HTTP_VERSION_LEN);
 
 	/* Parse headers until a \r\n */
@@ -61,7 +81,7 @@ cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
 	char *header_colon;
 	while (pch) {
 		/* Get header line */
-		pch = strtok(NULL, "\r\n");
+		pch = strtok_r(NULL, "\r\n", &saveptr);
 		if (pch == NULL) {
 			break;
 		}
@@ -83,29 +103,90 @@ cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
 		cws_hm_set(request->headers, hkey_dup, hvalue_dup);
 	}
 
-	/* Parse body */
+	/* TODO: Parse body */
 
 	return request;
 }
 
-void cws_http_parse_method(cws_http *request, const char *method) {
+int cws_http_parse_method(cws_http *request, const char *method) {
 	if (strcmp(method, "GET") == 0) {
 		request->method = CWS_HTTP_GET;
-		return;
+		return 0;
 	}
+
 	if (strcmp(method, "POST") == 0) {
 		request->method = CWS_HTTP_POST;
-		return;
+		return 0;
 	}
 
-	cws_http_send_not_implemented(request);
+	return -1;
 }
 
-void cws_http_send_response(cws_http *request) {
+char *cws_http_status_string(cws_http_status status) {
+	switch (status) {
+		case CWS_HTTP_OK: {
+			return "200 OK";
+			break;
+		}
+		case CWS_HTTP_NOT_FOUND: {
+			return "404 Not Found";
+			break;
+		}
+		case CWS_HTTP_NOT_IMPLEMENTED: {
+			return "501 Not Implemented";
+			break;
+		}
+	}
+
+	return "?";
+}
+
+size_t cws_http_response_builder(char **response, char *http_version, cws_http_status status, char *content_type, char *connection, char *body,
+								 size_t body_len_bytes) {
+	char *status_code = cws_http_status_string(status);
+
+	size_t header_len = snprintf(NULL, 0,
+								 "%s %s\r\n"
+								 "Content-Type: %s\r\n"
+								 "Content-Length: %ld\r\n"
+								 "Connection: %s\r\n"
+								 "\r\n",
+								 http_version, status_code, content_type, body_len_bytes, connection);
+
+	size_t total_len = header_len + body_len_bytes;
+
+	*response = (char *)malloc(total_len);
+	if (*response == NULL) {
+		return 0;
+	}
+
+	snprintf(*response, header_len + 1, "%s %s\r\nContent-Type: %s\r\nContent-Length: %ld\r\nConnection: %s\r\n\r\n", http_version, status_code, content_type,
+			 body_len_bytes, connection);
+
+	memcpy(*response + header_len, body, body_len_bytes);
+
+	return total_len;
+}
+
+void cws_http_send_response(cws_http *request, cws_http_status status) {
+	switch (status) {
+		case CWS_HTTP_OK:
+			break;
+		case CWS_HTTP_NOT_FOUND: {
+			cws_http_send_error_page(request, CWS_HTTP_NOT_FOUND, "404 Not Found", "Resource not found, 404.");
+			break;
+		}
+		case CWS_HTTP_NOT_IMPLEMENTED: {
+			cws_http_send_error_page(request, CWS_HTTP_NOT_IMPLEMENTED, "501 Not Implemented", "Method not implemented, 501.");
+			break;
+		}
+	}
+}
+
+void cws_http_send_resource(cws_http *request) {
 	FILE *file = fopen(request->location_path, "rb");
 	if (file == NULL) {
-		/* 404 */
-		cws_http_send_not_found(request);
+		cws_http_send_response(request, CWS_HTTP_NOT_FOUND);
 		return;
 	}
 
@@ -115,7 +196,7 @@ void cws_http_send_response(cws_http *request) {
 
 	/* Retrieve file size */
 	fseek(file, 0, SEEK_END);
-	const size_t content_length = ftell(file); /* Returns the read bytes (we're at the end, so the file size) */
+	const size_t content_length = ftell(file);
 	rewind(file);
 
 	/* Retrieve file data */
@@ -127,28 +208,33 @@ void cws_http_send_response(cws_http *request) {
 	}
 
 	/* Read 1 byte until content_length from file and put in file_data */
-	fread(file_data, 1, content_length, file);
+	size_t read_bytes = fread(file_data, 1, content_length, file);
 	fclose(file);
 
-	char response_header[2048];
-	snprintf(response_header, sizeof response_header,
-			 "%s 200 OK\r\n"
-			 "Content-Type: %s\r\n"
-			 "Content-Length: %zu\r\n"
-			 "Connection: close\r\n"
-			 "\r\n",
-			 request->http_version, content_type, content_length);
+	if (read_bytes != content_length) {
+		free(file_data);
+		CWS_LOG_ERROR("Partial read from file.");
+		return;
+	}
 
-	send(request->sockfd, response_header, strlen(response_header), 0);
-	send(request->sockfd, file_data, content_length, 0);
+	char *response = NULL;
+	size_t response_len = cws_http_response_builder(&response, "HTTP/1.1", CWS_HTTP_OK, content_type, "close", file_data, content_length);
+	CWS_LOG_DEBUG("%s", response);
 
+	size_t bytes_sent = 0;
+	do {
+		size_t sent = send(request->sockfd, response + bytes_sent, response_len, 0);
+		bytes_sent += sent;
+	} while (bytes_sent < response_len);
+
+	free(response);
 	free(file_data);
 }
 
 void cws_http_get_content_type(cws_http *request, char *content_type) {
 	char *ptr = strrchr(request->location_path, '.');
 	if (ptr == NULL) {
-		cws_http_send_not_found(request);
+		cws_http_send_error_page(request, CWS_HTTP_NOT_FOUND, "404 Not Found", "404 Not Found.");
 		return;
 	}
 	ptr += 1;
@@ -167,46 +253,26 @@ void cws_http_get_content_type(cws_http *request, char *content_type) {
 	snprintf(content_type, 1024, "%s/%s", ct, ptr);
 }
 
-void cws_http_send_not_implemented(cws_http *request) {
-	const char response[1024] =
-		"HTTP/1.1 501 Not Implemented\r\n"
-		"Content-Type: text/html\r\n"
-		"Content-Length: 216\r\n"
-		"\r\n"
-		"<html>\n"
-		"<head>\n"
-		"  <title>501 Not Implemented</title>\n"
-		"</head>\n"
-		"<body>\n"
-		"<p>501 Not Implemented</p>\n"
-		"</body>\n"
-		"</html>";
-	const size_t response_len = strlen(response);
+void cws_http_send_error_page(cws_http *request, cws_http_status status, char *title, char *description) {
+	char body[512];
+	memset(body, 0, sizeof(body));
+
+	snprintf(body, sizeof(body),
+			 "<html>\n"
+			 "<head>\n"
+			 "	<title>%s</title>\n"
+			 "</head>\n"
+			 "<body>\n"
+			 "<p>%s</p>\n"
+			 "</body>"
+			 "</html>",
+			 title, description);
+	size_t body_len = strlen(body) * sizeof(char);
+
+	char *response = NULL;
+	size_t response_len = cws_http_response_builder(&response, "HTTP/1.1", status, "text/html", "close", body, body_len);
 	send(request->sockfd, response, response_len, 0);
-}
-
-void cws_http_send_not_found(cws_http *request) {
-	const char html_body[] =
-		"<html>\n"
-		"<head>\n"
-		"  <title>404 Not Found</title>\n"
-		"</head>\n"
-		"<body>\n"
-		"<p>404 Not Found.</p>\n"
-		"</body>\n"
-		"</html>";
-	int html_body_len = strlen(html_body);
-
-	char response[1024];
-	int response_len = snprintf(response, sizeof(response),
-								"HTTP/1.1 404 Not Found\r\n"
-								"Content-Type: text/html\r\n"
-								"Content-Length: %d\r\n"
-								"\r\n"
-								"%s",
-								html_body_len, html_body);
-
-	send(request->sockfd, response, response_len, 0);
+	free(response);
 }
 
 void cws_http_free(cws_http *request) {

@@ -17,7 +17,7 @@
 #include "utils/colors.h"
 #include "utils/utils.h"
 
-volatile bool cws_server_run = 1;
+volatile sig_atomic_t cws_server_run = 1;
 
 int cws_server_start(cws_config *config) {
 	struct addrinfo hints;
@@ -28,32 +28,32 @@ int cws_server_start(cws_config *config) {
 	int status = getaddrinfo(config->hostname, config->port, &hints, &res);
 	if (status != 0) {
 		CWS_LOG_ERROR("getaddrinfo() error: %s", gai_strerror(status));
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 
 	int sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	if (sockfd < 0) {
 		CWS_LOG_ERROR("socket(): %s", strerror(errno));
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 
 	const int opt = 1;
 	status = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
 	if (status != 0) {
 		CWS_LOG_ERROR("setsockopt(): %s", strerror(errno));
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 
 	status = bind(sockfd, res->ai_addr, res->ai_addrlen);
 	if (status != 0) {
 		CWS_LOG_ERROR("bind(): %s", strerror(errno));
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 
 	status = listen(sockfd, CWS_SERVER_BACKLOG);
 	if (status != 0) {
 		CWS_LOG_ERROR("listen(): %s", strerror(status));
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 
 	cws_server_loop(sockfd, config);
@@ -125,6 +125,7 @@ void cws_server_loop(int sockfd, cws_config *config) {
 					cws_server_close_client(epfd, client_fd, clients);
 					continue;
 				}
+				
 				if (bytes_read < 0) {
 					if (errno != EAGAIN && errno != EWOULDBLOCK) {
 						/* Error during read, handle it (close client) */
@@ -134,18 +135,15 @@ void cws_server_loop(int sockfd, cws_config *config) {
 					continue;
 				}
 
-				data[bytes_read] = '\0';
-
 				/* Parse HTTP request */
 				cws_http *request = cws_http_parse(data, client_fd, config);
 
 				if (request == NULL) {
 					cws_server_close_client(epfd, client_fd, clients);
-					cws_http_free(request);
 					continue;
 				}
 
-				cws_http_send_response(request);
+				cws_http_send_resource(request);
 				CWS_LOG_INFO("Client (%s) disconnected", ip);
 				cws_server_close_client(epfd, client_fd, clients);
 				cws_http_free(request);
@@ -188,7 +186,7 @@ void cws_fd_set_nonblocking(int sockfd) {
 	const int status = fcntl(sockfd, F_SETFL, O_NONBLOCK);
 
 	if (status == -1) {
-		CWS_LOG_ERROR("fcntl(): %s", gai_strerror(status));
+		CWS_LOG_ERROR("fcntl(): %s", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 }

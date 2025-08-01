@@ -4,6 +4,7 @@
 #include <netdb.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+#include <signal.h>
 #include <sys/socket.h>
 
 #include "utils/config.h"
@@ -19,7 +20,7 @@
 #define CWS_SERVER_EPOLL_TIMEOUT -1
 
 /* Main server loop */
-extern volatile bool cws_server_run;
+extern volatile sig_atomic_t cws_server_run;
 
 /**
  * @brief Runs the server
