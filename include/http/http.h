@@ -49,7 +49,7 @@ typedef struct cws_http_t {
 cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config);
 
 int cws_http_parse_method(cws_http *request, const char *method);
-void cws_http_get_content_type(cws_http *request, char *content_type);
+int cws_http_get_content_type(cws_http *request, char *content_type);
 char *cws_http_status_string(cws_http_status status);
 
 /**
@@ -62,7 +62,7 @@ size_t cws_http_response_builder(char **response, char *http_version, cws_http_s
 
 void cws_http_send_response(cws_http *request, cws_http_status status);
 void cws_http_send_resource(cws_http *request);
-void cws_http_send_error_page(cws_http *request, cws_http_status status, char *title, char *description);
+void cws_http_send_simple_html(cws_http *request, cws_http_status status, char *title, char *description);
 
 void cws_http_free(cws_http *request);
 

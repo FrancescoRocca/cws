@@ -22,6 +22,7 @@ cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
 	char *request_str_cpy = strdup(request_str);
 	if (!request_str_cpy) {
 		free(request);
+
 		return NULL;
 	}
 
@@ -37,13 +38,16 @@ cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
 		return NULL;
 	}
 	CWS_LOG_DEBUG("method: %s", pch);
+
 	int ret = cws_http_parse_method(request, pch);
 	if (ret < 0) {
 		/* Not implemented */
 		cws_http_free(request);
 		free(request_str_cpy);
 
-		cws_http_send_error_page(request, CWS_HTTP_NOT_IMPLEMENTED, "501 Not Implemented", "501 Not Implemented");
+		cws_http_send_response(request, CWS_HTTP_NOT_IMPLEMENTED);
+
+		return NULL;
 	}
 
 	/* Parse location */
@@ -61,6 +65,10 @@ cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
 	if (strcmp(request->location, "/") == 0) {
 		snprintf(request->location_path, CWS_HTTP_LOCATION_PATH_LEN, "%s/index.html", config->www);
 	} else {
+		size_t location_path_len = strlen(request->location);
+		if (location_path_len > CWS_HTTP_LOCATION_PATH_LEN) {
+			request->location[location_path_len - 1] = '\0';
+		}
 		snprintf(request->location_path, CWS_HTTP_LOCATION_PATH_LEN, "%s%s", config->www, request->location);
 	}
 	CWS_LOG_DEBUG("location path: %s", request->location_path);
@@ -155,7 +163,7 @@ size_t cws_http_response_builder(char **response, char *http_version, cws_http_s
 
 	size_t total_len = header_len + body_len_bytes;
 
-	*response = (char *)malloc(total_len);
+	*response = malloc(total_len);
 	if (*response == NULL) {
 		return 0;
 	}
@@ -173,11 +181,11 @@ void cws_http_send_response(cws_http *request, cws_http_status status) {
 		case CWS_HTTP_OK:
 			break;
 		case CWS_HTTP_NOT_FOUND: {
-			cws_http_send_error_page(request, CWS_HTTP_NOT_FOUND, "404 Not Found", "Resource not found, 404.");
+			cws_http_send_simple_html(request, CWS_HTTP_NOT_FOUND, "404 Not Found", "Resource not found, 404.");
 			break;
 		}
 		case CWS_HTTP_NOT_IMPLEMENTED: {
-			cws_http_send_error_page(request, CWS_HTTP_NOT_IMPLEMENTED, "501 Not Implemented", "Method not implemented, 501.");
+			cws_http_send_simple_html(request, CWS_HTTP_NOT_IMPLEMENTED, "501 Not Implemented", "Method not implemented, 501.");
 			break;
 		}
 	}
@@ -192,7 +200,10 @@ void cws_http_send_resource(cws_http *request) {
 
 	/* Retrieve correct Content-Type */
 	char content_type[1024];
-	cws_http_get_content_type(request, content_type);
+	int ret = cws_http_get_content_type(request, content_type);
+	if (ret < 0) {
+		cws_http_send_response(request, CWS_HTTP_NOT_FOUND);
+	}
 
 	/* Retrieve file size */
 	fseek(file, 0, SEEK_END);
@@ -213,13 +224,18 @@ void cws_http_send_resource(cws_http *request) {
 
 	if (read_bytes != content_length) {
 		free(file_data);
-		CWS_LOG_ERROR("Partial read from file.");
+		CWS_LOG_ERROR("Partial read from file");
 		return;
 	}
 
+	char conn[32] = "close";
+	mcl_bucket *connection = mcl_hm_get(request->headers, "Connection");
+	if (connection) {
+		strncpy(conn, (char *)connection->value, sizeof(conn));
+	}
+
 	char *response = NULL;
-	size_t response_len = cws_http_response_builder(&response, "HTTP/1.1", CWS_HTTP_OK, content_type, "close", file_data, content_length);
-	CWS_LOG_DEBUG("%s", response);
+	size_t response_len = cws_http_response_builder(&response, "HTTP/1.1", CWS_HTTP_OK, content_type, conn, file_data, content_length);
 
 	size_t bytes_sent = 0;
 	do {
@@ -231,15 +247,14 @@ void cws_http_send_resource(cws_http *request) {
 	free(file_data);
 }
 
-void cws_http_get_content_type(cws_http *request, char *content_type) {
+int cws_http_get_content_type(cws_http *request, char *content_type) {
 	char *ptr = strrchr(request->location_path, '.');
 	if (ptr == NULL) {
-		cws_http_send_error_page(request, CWS_HTTP_NOT_FOUND, "404 Not Found", "404 Not Found.");
-		return;
+		return -1;
 	}
 	ptr += 1;
 
-	char ct[32];
+	char ct[32] = {0};
 
 	/* TODO: Improve content_type (used to test) */
 	if (strcmp(ptr, "html") == 0 || strcmp(ptr, "css") == 0 || strcmp(ptr, "javascript") == 0) {
@@ -251,9 +266,11 @@ void cws_http_get_content_type(cws_http *request, char *content_type) {
 	}
 
 	snprintf(content_type, 1024, "%s/%s", ct, ptr);
+
+	return 0;
 }
 
-void cws_http_send_error_page(cws_http *request, cws_http_status status, char *title, char *description) {
+void cws_http_send_simple_html(cws_http *request, cws_http_status status, char *title, char *description) {
 	char body[512];
 	memset(body, 0, sizeof(body));
 
@@ -269,8 +286,14 @@ void cws_http_send_error_page(cws_http *request, cws_http_status status, char *t
 			 title, description);
 	size_t body_len = strlen(body) * sizeof(char);
 
+	char conn[32] = "close";
+	mcl_bucket *connection = mcl_hm_get(request->headers, "Connection");
+	if (connection) {
+		strncpy(conn, (char *)connection->value, sizeof(conn));
+	}
+
 	char *response = NULL;
-	size_t response_len = cws_http_response_builder(&response, "HTTP/1.1", status, "text/html", "close", body, body_len);
+	size_t response_len = cws_http_response_builder(&response, "HTTP/1.1", status, "text/html", conn, body, body_len);
 	send(request->sockfd, response, response_len, 0);
 	free(response);
 }

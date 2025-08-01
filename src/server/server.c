@@ -108,7 +108,7 @@ int cws_server_loop(int sockfd, cws_config *config) {
 		return -1;
 	}
 
-	struct epoll_event *revents = (struct epoll_event *)malloc(CWS_SERVER_EPOLL_MAXEVENTS * sizeof(struct epoll_event));
+	struct epoll_event *revents = malloc(CWS_SERVER_EPOLL_MAXEVENTS * sizeof(struct epoll_event));
 	if (!revents) {
 		mcl_hm_free(clients);
 		close(epfd);
@@ -160,8 +160,8 @@ int cws_server_loop(int sockfd, cws_config *config) {
 				if (bytes_read < 0) {
 					if (errno != EAGAIN && errno != EWOULDBLOCK) {
 						/* Error during read, handle it (close client) */
-						cws_epoll_del(epfd, client_fd);
-						close(client_fd);
+						CWS_LOG_INFO("Client (%s) disconnected (error)", ip);
+						cws_server_close_client(epfd, client_fd, clients);
 					}
 					continue;
 				}
@@ -175,8 +175,6 @@ int cws_server_loop(int sockfd, cws_config *config) {
 				}
 
 				cws_http_send_resource(request);
-				CWS_LOG_INFO("Client (%s) disconnected", ip);
-				cws_server_close_client(epfd, client_fd, clients);
 				cws_http_free(request);
 
 				/* Clear str */
