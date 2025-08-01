@@ -42,7 +42,7 @@ cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
 		/* Not implemented */
 		cws_http_free(request);
 		free(request_str_cpy);
-		
+
 		cws_http_send_error_page(request, CWS_HTTP_NOT_IMPLEMENTED, "501 Not Implemented", "501 Not Implemented");
 	}
 
@@ -77,7 +77,7 @@ cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
 	strncpy(request->http_version, pch, CWS_HTTP_VERSION_LEN);
 
 	/* Parse headers until a \r\n */
-	request->headers = cws_hm_init(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn);
+	request->headers = mcl_hm_init(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn);
 	char *header_colon;
 	while (pch) {
 		/* Get header line */
@@ -100,7 +100,7 @@ cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
 		char *hvalue = header_colon + 2;
 		char *hvalue_dup = strdup(hvalue);
 
-		cws_hm_set(request->headers, hkey_dup, hvalue_dup);
+		mcl_hm_set(request->headers, hkey_dup, hvalue_dup);
 	}
 
 	/* TODO: Parse body */
@@ -276,6 +276,6 @@ void cws_http_send_error_page(cws_http *request, cws_http_status status, char *t
 }
 
 void cws_http_free(cws_http *request) {
-	cws_hm_free(request->headers);
+	mcl_hm_free(request->headers);
 	free(request);
 }

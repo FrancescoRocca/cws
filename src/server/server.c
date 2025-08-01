@@ -19,6 +19,21 @@
 
 volatile sig_atomic_t cws_server_run = 1;
 
+void cws_server_setup_hints(struct addrinfo *hints, size_t len, const char *hostname) {
+	memset(hints, 0, len);
+
+	/* IPv4 or IPv6 */
+	hints->ai_family = AF_UNSPEC;
+
+	/* TCP */
+	hints->ai_socktype = SOCK_STREAM;
+
+	if (hostname == NULL) {
+		/* Fill in IP for me */
+		hints->ai_flags = AI_PASSIVE;
+	}
+}
+
 int cws_server_start(cws_config *config) {
 	struct addrinfo hints;
 	struct addrinfo *res;
@@ -52,11 +67,12 @@ int cws_server_start(cws_config *config) {
 
 	status = listen(sockfd, CWS_SERVER_BACKLOG);
 	if (status != 0) {
-		CWS_LOG_ERROR("listen(): %s", strerror(status));
+		CWS_LOG_ERROR("listen(): %s", strerror(errno));
 		return -1;
 	}
 
-	cws_server_loop(sockfd, config);
+	int ret = cws_server_loop(sockfd, config);
+	CWS_LOG_DEBUG("cws_server_loop ret: %d", ret);
 
 	freeaddrinfo(res);
 	close(sockfd);
@@ -64,32 +80,42 @@ int cws_server_start(cws_config *config) {
 	return 0;
 }
 
-void cws_server_setup_hints(struct addrinfo *hints, size_t len, const char *hostname) {
-	memset(hints, 0, len);
-
-	/* IPv4 or IPv6 */
-	hints->ai_family = AF_UNSPEC;
-
-	/* TCP */
-	hints->ai_socktype = SOCK_STREAM;
-
-	if (hostname == NULL) {
-		/* Fill in IP for me */
-		hints->ai_flags = AI_PASSIVE;
-	}
-}
-
-void cws_server_loop(int sockfd, cws_config *config) {
+int cws_server_loop(int sockfd, cws_config *config) {
 	struct sockaddr_storage their_sa;
 	socklen_t theirsa_size = sizeof their_sa;
+	int ret;
 
-	cws_hashmap *clients = cws_hm_init(my_int_hash_fn, my_int_equal_fn, NULL, my_int_free_fn);
+	mcl_hashmap *clients = mcl_hm_init(my_int_hash_fn, my_int_equal_fn, NULL, my_int_free_fn);
+	if (!clients) {
+		return -1;
+	}
 
 	int epfd = epoll_create1(0);
-	cws_fd_set_nonblocking(sockfd);
-	cws_epoll_add(epfd, sockfd, EPOLLIN | EPOLLET);
 
-	struct epoll_event *revents = malloc(CWS_SERVER_EPOLL_MAXEVENTS * sizeof(struct epoll_event));
+	ret = cws_fd_set_nonblocking(sockfd);
+	if (ret < 0) {
+		mcl_hm_free(clients);
+		close(epfd);
+
+		return -1;
+	}
+
+	ret = cws_epoll_add(epfd, sockfd, EPOLLIN | EPOLLET);
+	if (ret < 0) {
+		mcl_hm_free(clients);
+		close(epfd);
+
+		return -1;
+	}
+
+	struct epoll_event *revents = (struct epoll_event *)malloc(CWS_SERVER_EPOLL_MAXEVENTS * sizeof(struct epoll_event));
+	if (!revents) {
+		mcl_hm_free(clients);
+		close(epfd);
+
+		return -1;
+	}
+
 	int client_fd;
 
 	while (cws_server_run) {
@@ -99,13 +125,18 @@ void cws_server_loop(int sockfd, cws_config *config) {
 			if (revents[i].data.fd == sockfd) {
 				/* New client */
 				char ip[INET_ADDRSTRLEN];
+
 				client_fd = cws_server_accept_client(sockfd, &their_sa, &theirsa_size);
+				if (client_fd < 0) {
+					continue;
+				}
+
 				cws_utils_get_client_ip(&their_sa, ip);
 				CWS_LOG_INFO("Client (%s) connected", ip);
 
 				cws_fd_set_nonblocking(client_fd);
 				cws_epoll_add(epfd, client_fd, EPOLLIN);
-				cws_hm_set(clients, &client_fd, &their_sa);
+				mcl_hm_set(clients, &client_fd, &their_sa);
 			} else {
 				char data[4096] = {0};
 				char ip[INET_ADDRSTRLEN] = {0};
@@ -115,7 +146,7 @@ void cws_server_loop(int sockfd, cws_config *config) {
 				const ssize_t bytes_read = recv(client_fd, data, sizeof data, 0);
 
 				/* Retrieve client ip */
-				cws_bucket *client = cws_hm_get(clients, &client_fd);
+				mcl_bucket *client = mcl_hm_get(clients, &client_fd);
 				struct sockaddr_storage client_sas = *(struct sockaddr_storage *)client->value;
 				cws_utils_get_client_ip(&client_sas, ip);
 
@@ -125,7 +156,7 @@ void cws_server_loop(int sockfd, cws_config *config) {
 					cws_server_close_client(epfd, client_fd, clients);
 					continue;
 				}
-				
+
 				if (bytes_read < 0) {
 					if (errno != EAGAIN && errno != EWOULDBLOCK) {
 						/* Error during read, handle it (close client) */
@@ -157,11 +188,13 @@ void cws_server_loop(int sockfd, cws_config *config) {
 	/* Clean up everything */
 	free(revents);
 	close(epfd);
-	cws_hm_free(clients);
+	mcl_hm_free(clients);
 	CWS_LOG_INFO("Closing...");
+
+	return 0;
 }
 
-void cws_epoll_add(int epfd, int sockfd, uint32_t events) {
+int cws_epoll_add(int epfd, int sockfd, uint32_t events) {
 	struct epoll_event event;
 	event.events = events;
 	event.data.fd = sockfd;
@@ -169,26 +202,32 @@ void cws_epoll_add(int epfd, int sockfd, uint32_t events) {
 
 	if (status != 0) {
 		CWS_LOG_ERROR("epoll_ctl_add(): %s", strerror(errno));
-		exit(EXIT_FAILURE);
+		return -1;
 	}
+
+	return 0;
 }
 
-void cws_epoll_del(int epfd, int sockfd) {
+int cws_epoll_del(int epfd, int sockfd) {
 	const int status = epoll_ctl(epfd, EPOLL_CTL_DEL, sockfd, NULL);
 
 	if (status != 0) {
 		CWS_LOG_ERROR("epoll_ctl_del(): %s", strerror(errno));
-		exit(EXIT_FAILURE);
+		return -1;
 	}
+
+	return 0;
 }
 
-void cws_fd_set_nonblocking(int sockfd) {
+int cws_fd_set_nonblocking(int sockfd) {
 	const int status = fcntl(sockfd, F_SETFL, O_NONBLOCK);
 
 	if (status == -1) {
 		CWS_LOG_ERROR("fcntl(): %s", strerror(errno));
-		exit(EXIT_FAILURE);
+		return -1;
 	}
+
+	return 0;
 }
 
 int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size) {
@@ -204,42 +243,7 @@ int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, sock
 	return client_fd;
 }
 
-void cws_server_close_client(int epfd, int client_fd, cws_hashmap *hashmap) {
+void cws_server_close_client(int epfd, int client_fd, mcl_hashmap *hashmap) {
 	cws_epoll_del(epfd, client_fd);
-	cws_hm_remove(hashmap, &client_fd);
-}
-
-SSL_CTX *cws_ssl_create_context() {
-	const SSL_METHOD *method;
-	SSL_CTX *ctx;
-
-	method = TLS_server_method();
-	ctx = SSL_CTX_new(method);
-
-	if (!ctx) {
-		CWS_LOG_ERROR("SSL_CTX_new()");
-		return NULL;
-	}
-
-	return ctx;
-}
-
-bool cws_ssl_configure(SSL_CTX *context, cws_config *config) {
-	int ret;
-
-	ret = SSL_CTX_use_certificate_file(context, config->cert, SSL_FILETYPE_PEM);
-	if (ret <= 0) {
-		CWS_LOG_ERROR("SSL_CTX_use_certificate_file()");
-
-		return false;
-	}
-
-	ret = SSL_CTX_use_PrivateKey_file(context, config->key, SSL_FILETYPE_PEM);
-	if (ret <= 0) {
-		CWS_LOG_ERROR("SSL_CTX_use_PrivateKey_file()");
-
-		return false;
-	}
-
-	return true;
+	mcl_hm_remove(hashmap, &client_fd);
 }

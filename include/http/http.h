@@ -34,7 +34,7 @@ typedef struct cws_http_t {
 	char location[CWS_HTTP_LOCATION_LEN];			/**< Resource requested */
 	char location_path[CWS_HTTP_LOCATION_PATH_LEN]; /**< Full resource path */
 	char http_version[CWS_HTTP_VERSION_LEN];		/**< HTTP version */
-	cws_hashmap *headers;							/**< Headers hash map */
+	mcl_hashmap *headers;							/**< Headers hash map */
 } cws_http;
 /* Connection */
 /* Accept-Encoding */

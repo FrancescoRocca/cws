@@ -23,14 +23,6 @@
 extern volatile sig_atomic_t cws_server_run;
 
 /**
- * @brief Runs the server
- *
- * @param[in] config The server's config
- * @return 0 on success, -1 on error
- */
-int cws_server_start(cws_config *config);
-
-/**
  * @brief Setups hints object
  *
  * @param[out] hints The hints addrinfo
@@ -40,11 +32,19 @@ int cws_server_start(cws_config *config);
 void cws_server_setup_hints(struct addrinfo *hints, size_t len, const char *hostname);
 
 /**
+ * @brief Runs the server
+ *
+ * @param[in] config The server's config
+ * @return 0 on success, -1 on error
+ */
+int cws_server_start(cws_config *config);
+
+/**
  * @brief Main server loop
  *
  * @param[in,out] sockfd Socket of the commincation endpoint
  */
-void cws_server_loop(int sockfd, cws_config *config);
+int cws_server_loop(int sockfd, cws_config *config);
 
 /**
  * @brief Adds a file descriptor to the interest list
@@ -53,7 +53,7 @@ void cws_server_loop(int sockfd, cws_config *config);
  * @param[in] sockfd The file descriptor to watch
  * @param[in] events The events to follow
  */
-void cws_epoll_add(int epfd, int sockfd, uint32_t events);
+int cws_epoll_add(int epfd, int sockfd, uint32_t events);
 
 /**
  * @brief Removes a file descriptor from the interest list
@@ -61,14 +61,14 @@ void cws_epoll_add(int epfd, int sockfd, uint32_t events);
  * @param[in] epfd epoll file descriptor
  * @param[in] sockfd The file descriptor to remove
  */
-void cws_epoll_del(int epfd, int sockfd);
+int cws_epoll_del(int epfd, int sockfd);
 
 /**
  * @brief Makes a file descriptor non-blocking
  *
  * @param[in] sockfd The file descriptor to make non-blocking
  */
-void cws_fd_set_nonblocking(int sockfd);
+int cws_fd_set_nonblocking(int sockfd);
 
 /**
  * @brief Handles the new client
@@ -87,10 +87,6 @@ int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, sock
  * @param[in] client_fd Client file descriptor
  * @param[in] hashmap Clients hash map
  */
-void cws_server_close_client(int epfd, int client_fd, cws_hashmap *hashmap);
-
-/* Undocumented functions */
-SSL_CTX *cws_ssl_create_context();
-bool cws_ssl_configure(SSL_CTX *context, cws_config *config);
+void cws_server_close_client(int epfd, int client_fd, mcl_hashmap *hashmap);
 
 #endif

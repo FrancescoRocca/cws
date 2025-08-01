@@ -4,32 +4,36 @@
 #include <stdlib.h>
 #include <string.h>
 
-cws_hashmap *cws_hm_init(cws_hash_fn *hash_fn, cws_equal_fn *equal_fn, cws_free_key_fn *free_key_fn, cws_free_value_fn *free_value_fn) {
-	/* Allocate hash map struct */
-	cws_hashmap *hashmap = (cws_hashmap *)malloc(sizeof(cws_hashmap));
+mcl_hashmap *mcl_hm_init(mcl_hash_fn *hash_fn, mcl_equal_fn *equal_fn, mcl_free_key_fn *free_key_fn, mcl_free_value_fn *free_value_fn) {
+	/* Allocate memory for hash map struct */
+	mcl_hashmap *hashmap = malloc(sizeof(mcl_hashmap));
 
 	if (hashmap == NULL) {
 		return NULL;
 	}
 
-	/* Populate hash map with given parameters */
+	/* Initialize hash map with given parameters */
 	hashmap->hash_fn = hash_fn;
 	hashmap->equal_fn = equal_fn;
 	hashmap->free_key_fn = free_key_fn;
 	hashmap->free_value_fn = free_value_fn;
-	/* Clear cws_bucket map */
+
+	/* Clear all buckets in the map */
 	memset(hashmap->map, 0, sizeof(hashmap->map));
 
 	return hashmap;
 }
 
-void cws_hm_free(cws_hashmap *hashmap) {
+void mcl_hm_free(mcl_hashmap *hashmap) {
 	if (hashmap == NULL) {
 		return;
 	}
 
-	for (size_t i = 0; i < CWS_HASHMAP_SIZE; ++i) {
-		cws_bucket *bucket = &hashmap->map[i];
+	/* Iterate through all buckets in the hash map */
+	for (size_t i = 0; i < MYCLIB_HASHMAP_SIZE; ++i) {
+		mcl_bucket *bucket = &hashmap->map[i];
+
+		/* Free the first bucket if it contains data */
 		if (bucket->key != NULL) {
 			if (hashmap->free_key_fn != NULL) {
 				hashmap->free_key_fn(bucket->key);
@@ -39,99 +43,101 @@ void cws_hm_free(cws_hashmap *hashmap) {
 			}
 		}
 
+		/* Free all chained buckets */
 		bucket = bucket->next;
-		while (bucket) {
+		while (bucket != NULL) {
 			if (hashmap->free_key_fn != NULL) {
 				hashmap->free_key_fn(bucket->key);
 			}
 			if (hashmap->free_value_fn != NULL) {
 				hashmap->free_value_fn(bucket->value);
 			}
-			cws_bucket *next = bucket->next;
+			mcl_bucket *next = bucket->next;
 			free(bucket);
 			bucket = next;
 		}
 	}
 
+	/* Free the hash map structure itself */
 	free(hashmap);
 }
 
-bool cws_hm_set(cws_hashmap *hashmap, void *key, void *value) {
-	if (hashmap == NULL || key == NULL || value == NULL) {
+bool mcl_hm_set(mcl_hashmap *hashmap, void *key, void *value) {
+	/* Validate input parameters */
+	if (hashmap == NULL || key == NULL) {
 		return false;
 	}
 
-	/* Get hash index */
-	int index = hashmap->hash_fn(key) % CWS_HASHMAP_SIZE;
-	cws_bucket *bucket = &hashmap->map[index];
+	/* Calculate hash index for the key */
+	int index = hashmap->hash_fn(key) % MYCLIB_HASHMAP_SIZE;
+	mcl_bucket *bucket = &hashmap->map[index];
 
-	/* Check if the key at index is empty */
+	/* If bucket is empty, insert new key-value pair */
 	if (bucket->key == NULL) {
-		/* Bucket is empty */
-		/* Set the key and value */
 		bucket->key = key;
 		bucket->value = value;
 		bucket->next = NULL;
-
 		return true;
 	}
 
-	/* Check if bucket is already set */
+	/* Check if first bucket has the same key */
 	if (hashmap->equal_fn(bucket->key, key)) {
-		/* Same key, free value and update it */
-		if (hashmap->free_value_fn != NULL) {
+		/* Update existing value, free old value if needed */
+		if (hashmap->free_value_fn != NULL && bucket->value != NULL) {
 			hashmap->free_value_fn(bucket->value);
 		}
 		bucket->value = value;
-
 		return true;
 	}
 
-	/* Key not found, iterate through the linked list */
-	cws_bucket *next = bucket->next;
-	while (next) {
-		if (hashmap->equal_fn(next->key, key)) {
-			/* Same key, free value and update it */
-			if (hashmap->free_value_fn != NULL) {
-				hashmap->free_value_fn(next->value);
+	/* Search through the collision chain */
+	mcl_bucket *current = bucket->next;
+	while (current != NULL) {
+		if (hashmap->equal_fn(current->key, key)) {
+			/* Update existing value, free old value if needed */
+			if (hashmap->free_value_fn != NULL && current->value != NULL) {
+				hashmap->free_value_fn(current->value);
 			}
-			next->value = value;
+			current->value = value;
 			return true;
 		}
-		next = next->next;
+		current = current->next;
 	}
 
-	/* Append the new key/value to the head of the linked list */
-	next = (cws_bucket *)malloc(sizeof(cws_bucket));
-	if (next == NULL) {
-		return false;
+	/* Key not found, create new bucket and add to chain */
+	mcl_bucket *new_bucket = malloc(sizeof(mcl_bucket));
+	if (new_bucket == NULL) {
+		return false; /* Memory allocation failed */
 	}
-	next->key = key;
-	next->value = value;
-	next->next = bucket->next;
-	bucket->next = next;
+
+	/* Initialize new bucket and insert at head of chain */
+	new_bucket->key = key;
+	new_bucket->value = value;
+	new_bucket->next = bucket->next;
+	bucket->next = new_bucket;
 
 	return true;
 }
 
-cws_bucket *cws_hm_get(cws_hashmap *hashmap, void *key) {
-	/* Return if hash map or key is null */
+mcl_bucket *mcl_hm_get(mcl_hashmap *hashmap, void *key) {
+	/* Validate input parameters */
 	if (hashmap == NULL || key == NULL) {
 		return NULL;
 	}
 
-	int index = hashmap->hash_fn(key) % CWS_HASHMAP_SIZE;
-	cws_bucket *bucket = &hashmap->map[index];
+	/* Calculate hash index for the key */
+	int index = hashmap->hash_fn(key) % MYCLIB_HASHMAP_SIZE;
+	mcl_bucket *bucket = &hashmap->map[index];
 
-	/* Key is not in the hash map */
+	/* Return NULL if bucket is empty */
 	if (bucket->key == NULL) {
 		return NULL;
 	}
 
-	/* Iterate through the linked list */
-	while (bucket) {
+	/* Search through the collision chain */
+	while (bucket != NULL) {
 		if (hashmap->equal_fn(bucket->key, key)) {
-			return bucket;
+			return bucket; /* Key found */
 		}
 		bucket = bucket->next;
 	}
@@ -140,55 +146,70 @@ cws_bucket *cws_hm_get(cws_hashmap *hashmap, void *key) {
 	return NULL;
 }
 
-bool cws_hm_remove(cws_hashmap *hashmap, void *key) {
+static void mcl_free_bucket_content(mcl_hashmap *hashmap, mcl_bucket *bucket) {
+	/* Free key if free function is provided */
+	if (hashmap->free_key_fn != NULL && bucket->key != NULL) {
+		hashmap->free_key_fn(bucket->key);
+	}
+
+	/* Free value if free function is provided */
+	if (hashmap->free_value_fn != NULL && bucket->value != NULL) {
+		hashmap->free_value_fn(bucket->value);
+	}
+}
+
+bool mcl_hm_remove(mcl_hashmap *hashmap, void *key) {
+	/* Validate input parameters */
 	if (hashmap == NULL || key == NULL) {
 		return false;
 	}
 
-	int index = hashmap->hash_fn(key) % CWS_HASHMAP_SIZE;
-	cws_bucket *bucket = &hashmap->map[index];
+	/* Calculate hash index for the key */
+	int index = hashmap->hash_fn(key) % MYCLIB_HASHMAP_SIZE;
+	mcl_bucket *bucket = &hashmap->map[index];
 
+	/* Return false if bucket is empty */
 	if (bucket->key == NULL) {
 		return false;
 	}
 
+	/* Check if first bucket contains the key to remove */
 	if (hashmap->equal_fn(bucket->key, key)) {
-		if (hashmap->free_key_fn != NULL) {
-			hashmap->free_key_fn(bucket->key);
-		}
-		if (hashmap->free_value_fn != NULL) {
-			hashmap->free_value_fn(bucket->value);
-		}
+		/* Free the content of the bucket */
+		mcl_free_bucket_content(hashmap, bucket);
 
 		if (bucket->next != NULL) {
-			bucket->key = bucket->next->key;
-			bucket->value = bucket->next->value;
-			bucket->next = bucket->next->next;
+			/* Move next bucket's content to first bucket and free the next bucket */
+			mcl_bucket *to_free = bucket->next;
+			bucket->key = to_free->key;
+			bucket->value = to_free->value;
+			bucket->next = to_free->next;
+			free(to_free);
 		} else {
+			/* No next bucket, mark first bucket as empty */
 			bucket->key = NULL;
+			bucket->value = NULL;
+			bucket->next = NULL;
 		}
-
 		return true;
 	}
 
-	cws_bucket *next = bucket->next;
+	/* Search through the collision chain */
+	mcl_bucket *prev = bucket;
+	mcl_bucket *current = bucket->next;
 
-	while (next) {
-		if (hashmap->equal_fn(next->key, key)) {
-			if (hashmap->free_key_fn != NULL) {
-				hashmap->free_key_fn(next->key);
-			}
-			if (hashmap->free_value_fn != NULL) {
-				hashmap->free_value_fn(next->value);
-			}
-			bucket->next = next->next;
-			free(next);
-
+	while (current != NULL) {
+		if (hashmap->equal_fn(current->key, key)) {
+			/* Key found, free content and unlink bucket */
+			mcl_free_bucket_content(hashmap, current);
+			prev->next = current->next;
+			free(current);
 			return true;
 		}
-		bucket = next;
-		next = next->next;
+		prev = current;
+		current = current->next;
 	}
 
+	/* Key not found */
 	return false;
 }

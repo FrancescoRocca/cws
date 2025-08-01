@@ -1,26 +1,30 @@
-#ifndef CWS_HASHMAP_H
-#define CWS_HASHMAP_H
+#ifndef MYCLIB_HASHMAP_H
+#define MYCLIB_HASHMAP_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
-#define CWS_HASHMAP_SIZE 1024 /**< Number of buckets in the hash map */
+#define MYCLIB_HASHMAP_SIZE 1024 /**< Number of buckets in the hash map */
 
 /**
- * @brief A single bucket in the hash map.
+ * @brief A single bucket in the hash map
+ *
+ * Each bucket can hold one key-value pair and points to the next bucket
+ * in case of hash collisions (separate chaining).
  */
-typedef struct cws_bucket_t {
+typedef struct mcl_bucket_t {
 	void *key;				   /**< Pointer to the key */
 	void *value;			   /**< Pointer to the value */
-	struct cws_bucket_t *next; /**< Pointer to the next bucket in case of collision */
-} cws_bucket;
+	struct mcl_bucket_t *next; /**< Pointer to the next bucket in case of collision */
+} mcl_bucket;
 
 /**
  * @brief Function pointer type for a hash function
  *
  * @param[in] key Pointer to the key to hash
- * @return The computed hash as an integer
+ * @return The computed hash as an unsigned integer
  */
-typedef int cws_hash_fn(void *key);
+typedef unsigned int mcl_hash_fn(const void *key);
 
 /**
  * @brief Function pointer type for a key comparison function
@@ -29,78 +33,95 @@ typedef int cws_hash_fn(void *key);
  * @param[in] key_b Pointer to the second key
  * @return true if the keys are considered equal, false otherwise
  */
-typedef bool cws_equal_fn(void *key_a, void *key_b);
+typedef bool mcl_equal_fn(const void *key_a, const void *key_b);
 
 /**
  * @brief Function pointer type for freeing a key
  *
  * @param[in] key Pointer to the key to free
  */
-typedef void cws_free_key_fn(void *key);
+typedef void mcl_free_key_fn(void *key);
 
 /**
  * @brief Function pointer type for freeing a value
  *
  * @param[in] value Pointer to the value to free
  */
-typedef void cws_free_value_fn(void *value);
+typedef void mcl_free_value_fn(void *value);
 
 /**
  * @brief Main structure representing the hash map
- */
-typedef struct cws_hashmap_t {
-	cws_hash_fn *hash_fn;			  /**< Hash function */
-	cws_equal_fn *equal_fn;			  /**< Equality comparison function */
-	cws_free_key_fn *free_key_fn;	  /**< Key deallocation function */
-	cws_free_value_fn *free_value_fn; /**< Value deallocation function */
-
-	cws_bucket map[CWS_HASHMAP_SIZE]; /**< Array of bucket chains */
-} cws_hashmap;
-
-/**
- * @brief Initializes a new hash map with user-defined behavior
  *
- * @param[in] hash_fn Function used to hash keys
- * @param[in] equal_fn Function used to compare keys
- * @param[in] free_key_fn Function used to free keys
- * @param[in] free_value_fn Function used to free values
- * @return A pointer to the newly initialized hash map
+ * Contains function pointers for hash computation, key comparison,
+ * and memory management, along with the bucket array.
  */
-cws_hashmap *cws_hm_init(cws_hash_fn *hash_fn, cws_equal_fn *equal_fn, cws_free_key_fn *free_key_fn, cws_free_value_fn *free_value_fn);
+typedef struct mcl_hashmap_t {
+	mcl_hash_fn *hash_fn;				 /**< Hash function */
+	mcl_equal_fn *equal_fn;				 /**< Equality comparison function */
+	mcl_free_key_fn *free_key_fn;		 /**< Key deallocation function (optional) */
+	mcl_free_value_fn *free_value_fn;	 /**< Value deallocation function (optional) */
+	mcl_bucket map[MYCLIB_HASHMAP_SIZE]; /**< Array of bucket chains */
+} mcl_hashmap;
 
 /**
- * @brief Frees all resources used by the hash map
+ * @brief Initialize a new hash map with user-defined behavior functions
+ *
+ * Creates a new hash map and initializes it with the provided function pointers.
+ * The free functions can be NULL if no automatic memory management is needed.
+ *
+ * @param[in] hash_fn Function used to hash keys (required)
+ * @param[in] equal_fn Function used to compare keys (required)
+ * @param[in] free_key_fn Function used to free keys (optional, can be NULL)
+ * @param[in] free_value_fn Function used to free values (optional, can be NULL)
+ * @return A pointer to the newly initialized hash map, or NULL on failure
+ */
+mcl_hashmap *mcl_hm_init(mcl_hash_fn *hash_fn, mcl_equal_fn *equal_fn, mcl_free_key_fn *free_key_fn, mcl_free_value_fn *free_value_fn);
+
+/**
+ * @brief Free all resources used by the hash map
+ *
+ * Iterates through all buckets, frees keys and values using the provided
+ * free functions (if not NULL), and deallocates the hash map structure.
  *
  * @param[in] hashmap Pointer to the hash map to free
  */
-void cws_hm_free(cws_hashmap *hashmap);
+void mcl_hm_free(mcl_hashmap *hashmap);
 
 /**
- * @brief Inserts or updates a key-value pair in the hash map
+ * @brief Insert or update a key-value pair in the hash map
+ *
+ * If the key already exists, the old value is freed (if free_value_fn is provided)
+ * and replaced with the new value. If the key doesn't exist, a new entry is created.
  *
  * @param[in] hashmap Pointer to the hash map
- * @param[in] key Pointer to the key to insert
- * @param[in] value Pointer to the value to insert
- * @return true if the operation succeeded, false otherwise
+ * @param[in] key Pointer to the key to insert (must not be NULL)
+ * @param[in] value Pointer to the value to insert (can be NULL)
+ * @return true if the operation succeeded, false on failure (NULL hashmap/key or memory allocation failure)
  */
-bool cws_hm_set(cws_hashmap *hashmap, void *key, void *value);
+bool mcl_hm_set(mcl_hashmap *hashmap, void *key, void *value);
 
 /**
- * @brief Retrieves a bucket by key
+ * @brief Retrieve a bucket by key
+ *
+ * Searches for the given key in the hash map and returns the bucket containing it.
+ * The caller can then access both the key and value from the returned bucket.
  *
  * @param[in] hashmap Pointer to the hash map
  * @param[in] key Pointer to the key to search for
- * @return Pointer to the found bucket, or NULL if not found
+ * @return Pointer to the found bucket, or NULL if not found or on invalid input
  */
-cws_bucket *cws_hm_get(cws_hashmap *hashmap, void *key);
+mcl_bucket *mcl_hm_get(mcl_hashmap *hashmap, void *key);
 
 /**
- * @brief Removes a key-value pair from the hash map
+ * @brief Remove a key-value pair from the hash map
+ *
+ * Searches for the given key and removes it from the hash map. Both the key
+ * and value are freed using the provided free functions (if not NULL).
  *
  * @param[in] hashmap Pointer to the hash map
- * @param[in] key Pointer to the key to remove, this pointer will be freed so pay attention
- * @return False if the key is not found, otherwise true
+ * @param[in] key Pointer to the key to remove
+ * @return true if the key was found and removed, false if not found or on invalid input
  */
-bool cws_hm_remove(cws_hashmap *hashmap, void *key);
+bool mcl_hm_remove(mcl_hashmap *hashmap, void *key);
 
-#endif
+#endif /* MYCLIB_HASHMAP_H */
