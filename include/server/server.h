@@ -9,15 +9,14 @@
 #include "utils/config.h"
 
 /* Clients max queue */
-#define CWS_SERVER_BACKLOG 10
+#define CWS_SERVER_BACKLOG 128
 
 /* Size of the epoll_event array */
-#define CWS_SERVER_EPOLL_MAXEVENTS 10
+#define CWS_SERVER_EPOLL_MAXEVENTS 64
 
-/* Wait forever (epoll_wait()) */
-#define CWS_SERVER_EPOLL_TIMEOUT -1
+#define CWS_SERVER_EPOLL_TIMEOUT 1000
 
-#define CWS_SERVER_MAX_REQUEST_SIZE (64 * 1024) /* 64 KB */
+#define CWS_SERVER_MAX_REQUEST_SIZE (16 * 1024) /* 16KB */
 
 /* Main server loop */
 extern volatile sig_atomic_t cws_server_run;

@@ -119,7 +119,6 @@ cws_server_ret cws_server_loop(int sockfd, cws_config *config) {
 		int nfds = epoll_wait(epfd, revents, CWS_SERVER_EPOLL_MAXEVENTS, CWS_SERVER_EPOLL_TIMEOUT);
 
 		if (nfds == 0) {
-			CWS_LOG_INFO("epoll timeout, continue...");
 			continue;
 		}
 
@@ -167,10 +166,10 @@ cws_server_ret cws_server_handle_new_client(int sockfd, int epfd, mcl_hashmap *c
 }
 
 cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashmap *clients, cws_config *config) {
-	char tmp_data[4096];
+	char tmp_data[1024];
 	memset(tmp_data, 0, sizeof(tmp_data));
 	char ip[INET_ADDRSTRLEN] = {0};
-	mcl_string *data = mcl_string_new("", 4096);
+	mcl_string *data = mcl_string_new("", 1024);
 
 	/* Incoming data */
 	ssize_t total_bytes = 0;
@@ -184,6 +183,7 @@ cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashma
 			return CWS_SERVER_REQUEST_TOO_LARGE;
 		}
 		mcl_string_append(data, tmp_data);
+		memset(tmp_data, 0, sizeof(tmp_data));
 	}
 
 	if (bytes_read < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -199,6 +199,7 @@ cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashma
 	mcl_bucket *client = mcl_hm_get(clients, &client_fd);
 	if (!client) {
 		CWS_LOG_ERROR("Client fd %d not found in hashmap", client_fd);
+		mcl_string_free(data);
 		cws_epoll_del(epfd, client_fd);
 		close(client_fd);
 
@@ -229,7 +230,9 @@ cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashma
 
 	int keepalive = cws_http_send_resource(request);
 	cws_http_free(request);
-	if (!keepalive) {
+
+	/* Only close connection if not keep-alive */
+	if (keepalive <= 0) {
 		cws_server_close_client(epfd, client_fd, clients);
 	}
 

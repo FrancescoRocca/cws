@@ -1,5 +1,6 @@
 #include "http/http.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -207,14 +208,16 @@ int cws_http_send_resource(cws_http *request) {
 	FILE *file = fopen(mcl_string_cstr(request->location_path), "rb");
 	if (file == NULL) {
 		cws_http_send_response(request, CWS_HTTP_NOT_FOUND);
-		return -1;
+		return 0;
 	}
 
 	/* Retrieve correct Content-Type */
 	char content_type[1024];
 	int ret = cws_http_get_content_type(request, content_type);
 	if (ret < 0) {
+		fclose(file);
 		cws_http_send_response(request, CWS_HTTP_NOT_FOUND);
+		return 0;
 	}
 
 	/* Retrieve file size */
@@ -227,20 +230,21 @@ int cws_http_send_resource(cws_http *request) {
 	if (file_data == NULL) {
 		fclose(file);
 		CWS_LOG_ERROR("Unable to allocate file data");
-		return -1;
+		return 0;
 	}
 
-	/* Read 1 byte until content_length from file and put in file_data */
+	/* Read file data */
 	size_t read_bytes = fread(file_data, 1, content_length, file);
 	fclose(file);
 
 	if (read_bytes != content_length) {
 		free(file_data);
 		CWS_LOG_ERROR("Partial read from file");
-		return -1;
+		return 0;
 	}
 
-	char conn[32];
+	/* Check for keep-alive connection */
+	char conn[32] = "close";
 	mcl_bucket *connection = mcl_hm_get(request->headers, "Connection");
 	if (connection && strcmp((char *)connection->value, "keep-alive") == 0) {
 		strcpy(conn, "keep-alive");
@@ -250,12 +254,23 @@ int cws_http_send_resource(cws_http *request) {
 	char *response = NULL;
 	size_t response_len = cws_http_response_builder(&response, "HTTP/1.1", CWS_HTTP_OK, content_type, conn, file_data, content_length);
 
+	/* Send response in chunks to avoid blocking */
 	size_t bytes_sent = 0;
-	size_t sent;
-	do {
-		sent = send(request->sockfd, response + bytes_sent, response_len, 0);
+	ssize_t sent;
+	const size_t chunk_size = 8192;
+
+	while (bytes_sent < response_len) {
+		size_t to_send = (response_len - bytes_sent > chunk_size) ? chunk_size : (response_len - bytes_sent);
+		sent = send(request->sockfd, response + bytes_sent, to_send, MSG_NOSIGNAL);
+
+		if (sent <= 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				continue;
+			}
+			break;
+		}
 		bytes_sent += sent;
-	} while (bytes_sent < response_len && sent != 0);
+	}
 
 	free(response);
 	free(file_data);
@@ -300,17 +315,24 @@ void cws_http_send_simple_html(cws_http *request, cws_http_status status, char *
 			 "</body>"
 			 "</html>",
 			 title, description);
-	size_t body_len = strlen(body) * sizeof(char);
+	size_t body_len = strlen(body);
 
 	char conn[32] = "close";
 	mcl_bucket *connection = mcl_hm_get(request->headers, "Connection");
 	if (connection) {
-		strncpy(conn, (char *)connection->value, sizeof(conn));
+		strncpy(conn, (char *)connection->value, sizeof(conn) - 1);
+		conn[sizeof(conn) - 1] = '\0';
 	}
 
 	char *response = NULL;
 	size_t response_len = cws_http_response_builder(&response, "HTTP/1.1", status, "text/html", conn, body, body_len);
-	send(request->sockfd, response, response_len, 0);
+
+	/* Send response with error handling */
+	ssize_t sent = send(request->sockfd, response, response_len, MSG_NOSIGNAL);
+	if (sent < 0) {
+		CWS_LOG_ERROR("Failed to send response: %s", strerror(errno));
+	}
+
 	free(response);
 }
 
