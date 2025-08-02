@@ -84,13 +84,13 @@ cws_server_ret cws_server_start(cws_config *config) {
 	return CWS_SERVER_OK;
 }
 
-int cws_server_loop(int sockfd, cws_config *config) {
+cws_server_ret cws_server_loop(int sockfd, cws_config *config) {
 	mcl_hashmap *clients = mcl_hm_init(my_int_hash_fn, my_int_equal_fn, my_int_free_key_fn, my_str_free_fn, sizeof(int), sizeof(struct sockaddr_storage));
 	if (!clients) {
 		return CWS_SERVER_HASHMAP_INIT;
 	}
 
-	cws_server_ret ret = 0;
+	cws_server_ret ret;
 	int epfd = epoll_create1(0);
 
 	ret = cws_fd_set_nonblocking(sockfd);
@@ -98,7 +98,7 @@ int cws_server_loop(int sockfd, cws_config *config) {
 		mcl_hm_free(clients);
 		close(epfd);
 
-		return -1;
+		return ret;
 	}
 
 	ret = cws_epoll_add(epfd, sockfd, EPOLLIN | EPOLLET);
@@ -106,7 +106,7 @@ int cws_server_loop(int sockfd, cws_config *config) {
 		mcl_hm_free(clients);
 		close(epfd);
 
-		return -1;
+		return ret;
 	}
 
 	struct epoll_event *revents = malloc(CWS_SERVER_EPOLL_MAXEVENTS * sizeof(struct epoll_event));
@@ -114,7 +114,7 @@ int cws_server_loop(int sockfd, cws_config *config) {
 		mcl_hm_free(clients);
 		close(epfd);
 
-		return -1;
+		return CWS_SERVER_MALLOC_ERROR;
 	}
 
 	while (cws_server_run) {
@@ -140,7 +140,7 @@ int cws_server_loop(int sockfd, cws_config *config) {
 	close(epfd);
 	mcl_hm_free(clients);
 
-	return 0;
+	return CWS_SERVER_OK;
 }
 
 cws_server_ret cws_server_handle_new_client(int sockfd, int epfd, mcl_hashmap *clients) {
@@ -164,22 +164,36 @@ cws_server_ret cws_server_handle_new_client(int sockfd, int epfd, mcl_hashmap *c
 }
 
 cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashmap *clients, cws_config *config) {
-	char data[4096] = {0};
+	char tmp_data[4096];
+	memset(tmp_data, 0, sizeof(tmp_data));
 	char ip[INET_ADDRSTRLEN] = {0};
-	mcl_string *data_str = mcl_string_new("", 4096);
+	mcl_string *data = mcl_string_new("", 4096);
 
 	/* Incoming data */
 	ssize_t total_bytes = 0;
 	ssize_t bytes_read;
-	while ((bytes_read = recv(client_fd, data, sizeof(data), 0)) > 0) {
+	while ((bytes_read = recv(client_fd, tmp_data, sizeof(tmp_data), 0)) > 0) {
 		total_bytes += bytes_read;
-		mcl_string_append(data_str, data);
+		if (total_bytes > CWS_SERVER_MAX_REQUEST_SIZE) {
+			mcl_string_free(data);
+			cws_server_close_client(epfd, client_fd, clients);
+
+			return CWS_SERVER_REQUEST_TOO_LARGE;
+		}
+		mcl_string_append(data, tmp_data);
+	}
+
+	if (bytes_read < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+		/* Error during read, handle it (close client) */
+		CWS_LOG_ERROR("recv(): %s", strerror(errno));
+		mcl_string_free(data);
+		cws_server_close_client(epfd, client_fd, clients);
+
+		return CWS_SERVER_CLIENT_DISCONNECTED_ERROR;
 	}
 
 	/* Retrieve client ip */
-	int client_fd_key = client_fd;
-	mcl_bucket *client = mcl_hm_get(clients, &client_fd_key);
-
+	mcl_bucket *client = mcl_hm_get(clients, &client_fd);
 	if (!client) {
 		CWS_LOG_ERROR("Client fd %d not found in hashmap", client_fd);
 		cws_epoll_del(epfd, client_fd);
@@ -187,30 +201,21 @@ cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashma
 
 		return CWS_SERVER_CLIENT_NOT_FOUND;
 	}
+	struct sockaddr_storage *client_sas = (struct sockaddr_storage *)client->value;
+	cws_utils_get_client_ip(client_sas, ip);
 
-	struct sockaddr_storage client_sas = *(struct sockaddr_storage *)client->value;
-	cws_utils_get_client_ip(&client_sas, ip);
-
-	if (total_bytes == 0) {
+	if (bytes_read == 0) {
 		/* Client disconnected */
 		CWS_LOG_INFO("Client (%s) disconnected", ip);
+		mcl_string_free(data);
 		cws_server_close_client(epfd, client_fd, clients);
 
 		return CWS_SERVER_CLIENT_DISCONNECTED;
 	}
 
-	if (total_bytes < 0) {
-		if (errno != EAGAIN && errno != EWOULDBLOCK) {
-			/* Error during read, handle it (close client) */
-			CWS_LOG_INFO("Client (%s) disconnected (error)", ip);
-			cws_server_close_client(epfd, client_fd, clients);
-		}
-
-		return CWS_SERVER_CLIENT_DISCONNECTED_ERROR;
-	}
-
 	/* Parse HTTP request */
 	cws_http *request = cws_http_parse(data, client_fd, config);
+	mcl_string_free(data);
 
 	if (request == NULL) {
 		CWS_LOG_INFO("Client (%s) disconnected (request NULL)", ip);

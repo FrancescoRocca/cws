@@ -19,6 +19,8 @@
 /* Wait forever (epoll_wait()) */
 #define CWS_SERVER_EPOLL_TIMEOUT -1
 
+#define CWS_SERVER_MAX_REQUEST_SIZE (64 * 1024) /* 64 KB */
+
 /* Main server loop */
 extern volatile sig_atomic_t cws_server_run;
 
@@ -40,6 +42,8 @@ typedef enum cws_server_ret_t {
 	CWS_SERVER_FD_NONBLOCKING_ERROR,
 	CWS_SERVER_ACCEPT_CLIENT_ERROR,
 	CWS_SERVER_HASHMAP_INIT,
+	CWS_SERVER_MALLOC_ERROR,
+	CWS_SERVER_REQUEST_TOO_LARGE,
 } cws_server_ret;
 
 /**
@@ -63,7 +67,7 @@ cws_server_ret cws_server_start(cws_config *config);
  *
  * @param[in,out] sockfd Socket of the commincation endpoint
  */
-int cws_server_loop(int sockfd, cws_config *config);
+cws_server_ret cws_server_loop(int sockfd, cws_config *config);
 
 /**
  * @brief Adds a file descriptor to the interest list

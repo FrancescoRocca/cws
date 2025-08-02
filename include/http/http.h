@@ -43,7 +43,7 @@ typedef struct cws_http_t {
  * @param[in] request_str The http request sent to the server
  * @return Returns a http_t pointer to the request
  */
-cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config);
+cws_http *cws_http_parse(mcl_string *request_str, int sockfd, cws_config *config);
 
 int cws_http_get_content_type(cws_http *request, char *content_type);
 

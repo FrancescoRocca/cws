@@ -33,7 +33,7 @@ static int cws_http_parse_method(cws_http *request, const char *method) {
 	return -1;
 }
 
-cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
+cws_http *cws_http_parse(mcl_string *request_str, int sockfd, cws_config *config) {
 	if (!request_str || !config) {
 		return NULL;
 	}
@@ -45,7 +45,7 @@ cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
 	}
 	request->sockfd = sockfd;
 
-	char *request_str_cpy = strdup(request_str);
+	char *request_str_cpy = strdup(mcl_string_cstr(request_str));
 	if (!request_str_cpy) {
 		free(request);
 
