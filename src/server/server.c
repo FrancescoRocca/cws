@@ -35,6 +35,10 @@ void cws_server_setup_hints(struct addrinfo *hints, size_t len, const char *host
 }
 
 cws_server_ret cws_server_start(cws_config *config) {
+	if (!config || !config->hostname || !config->port) {
+		return CWS_SERVER_CONFIG;
+	}
+
 	struct addrinfo hints;
 	struct addrinfo *res;
 
@@ -80,17 +84,17 @@ cws_server_ret cws_server_start(cws_config *config) {
 	return CWS_SERVER_OK;
 }
 
-cws_server_ret cws_server_loop(int sockfd, cws_config *config) {
-	mcl_hashmap *clients = mcl_hm_init(my_int_hash_fn, my_int_equal_fn, my_int_free_key_fn, my_str_free_fn);
+int cws_server_loop(int sockfd, cws_config *config) {
+	mcl_hashmap *clients = mcl_hm_init(my_int_hash_fn, my_int_equal_fn, my_int_free_key_fn, my_str_free_fn, sizeof(int), sizeof(struct sockaddr_storage));
 	if (!clients) {
-		return -1;
+		return CWS_SERVER_HASHMAP_INIT;
 	}
 
-	int ret = 0;
+	cws_server_ret ret = 0;
 	int epfd = epoll_create1(0);
 
 	ret = cws_fd_set_nonblocking(sockfd);
-	if (ret < 0) {
+	if (ret != CWS_SERVER_OK) {
 		mcl_hm_free(clients);
 		close(epfd);
 
@@ -98,7 +102,7 @@ cws_server_ret cws_server_loop(int sockfd, cws_config *config) {
 	}
 
 	ret = cws_epoll_add(epfd, sockfd, EPOLLIN | EPOLLET);
-	if (ret < 0) {
+	if (ret != CWS_SERVER_OK) {
 		mcl_hm_free(clients);
 		close(epfd);
 
@@ -120,12 +124,12 @@ cws_server_ret cws_server_loop(int sockfd, cws_config *config) {
 			if (revents[i].data.fd == sockfd) {
 				ret = cws_server_handle_new_client(sockfd, epfd, clients);
 				if (ret != CWS_SERVER_OK) {
-					CWS_LOG_DEBUG("%d", ret);
+					CWS_LOG_DEBUG("Handle new client: %d", ret);
 				}
 			} else {
 				ret = cws_server_handle_client_data(revents[i].data.fd, epfd, clients, config);
 				if (ret != CWS_SERVER_OK) {
-					CWS_LOG_DEBUG("%d", ret);
+					CWS_LOG_DEBUG("Handle client data: %d", ret);
 				}
 			}
 		}
@@ -154,13 +158,7 @@ cws_server_ret cws_server_handle_new_client(int sockfd, int epfd, mcl_hashmap *c
 
 	cws_fd_set_nonblocking(client_fd);
 	cws_epoll_add(epfd, client_fd, EPOLLIN);
-
-	int *key = malloc(sizeof(int));
-	*key = client_fd;
-	struct sockaddr_storage *value = malloc(sizeof(struct sockaddr_storage));
-	*value = their_sa;
-
-	mcl_hm_set(clients, key, value);
+	mcl_hm_set(clients, &client_fd, &their_sa);
 
 	return CWS_SERVER_OK;
 }
@@ -168,15 +166,19 @@ cws_server_ret cws_server_handle_new_client(int sockfd, int epfd, mcl_hashmap *c
 cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashmap *clients, cws_config *config) {
 	char data[4096] = {0};
 	char ip[INET_ADDRSTRLEN] = {0};
+	mcl_string *data_str = mcl_string_new("", 4096);
 
 	/* Incoming data */
-	const ssize_t bytes_read = recv(client_fd, data, sizeof(data), 0);
+	ssize_t total_bytes = 0;
+	ssize_t bytes_read;
+	while ((bytes_read = recv(client_fd, data, sizeof(data), 0)) > 0) {
+		total_bytes += bytes_read;
+		mcl_string_append(data_str, data);
+	}
 
 	/* Retrieve client ip */
-	int *client_fd_key = malloc(sizeof(int));
-	*client_fd_key = client_fd;
-	mcl_bucket *client = mcl_hm_get(clients, client_fd_key);
-	free(client_fd_key);
+	int client_fd_key = client_fd;
+	mcl_bucket *client = mcl_hm_get(clients, &client_fd_key);
 
 	if (!client) {
 		CWS_LOG_ERROR("Client fd %d not found in hashmap", client_fd);
@@ -189,7 +191,7 @@ cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashma
 	struct sockaddr_storage client_sas = *(struct sockaddr_storage *)client->value;
 	cws_utils_get_client_ip(&client_sas, ip);
 
-	if (bytes_read == 0) {
+	if (total_bytes == 0) {
 		/* Client disconnected */
 		CWS_LOG_INFO("Client (%s) disconnected", ip);
 		cws_server_close_client(epfd, client_fd, clients);
@@ -197,7 +199,7 @@ cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashma
 		return CWS_SERVER_CLIENT_DISCONNECTED;
 	}
 
-	if (bytes_read < 0) {
+	if (total_bytes < 0) {
 		if (errno != EAGAIN && errno != EWOULDBLOCK) {
 			/* Error during read, handle it (close client) */
 			CWS_LOG_INFO("Client (%s) disconnected (error)", ip);
@@ -277,9 +279,5 @@ int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, sock
 
 void cws_server_close_client(int epfd, int client_fd, mcl_hashmap *hashmap) {
 	cws_epoll_del(epfd, client_fd);
-
-	int *key_to_find = malloc(sizeof(int));
-	*key_to_find = client_fd;
-	mcl_hm_remove(hashmap, key_to_find);
-	free(key_to_find);
+	mcl_hm_remove(hashmap, &client_fd);
 }

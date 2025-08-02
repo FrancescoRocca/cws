@@ -48,19 +48,20 @@ static mcl_bucket *mcl_find_bucket(mcl_hashmap *hashmap, void *key, mcl_bucket *
 	return NULL;
 }
 
-mcl_hashmap *mcl_hm_init(mcl_hash_fn *hash_fn, mcl_equal_fn *equal_fn, mcl_free_key_fn *free_key_fn, mcl_free_value_fn *free_value_fn) {
+mcl_hashmap *mcl_hm_init(mcl_hash_fn *hash_fn, mcl_equal_fn *equal_fn, mcl_free_key_fn *free_key_fn, mcl_free_value_fn *free_value_fn, size_t key_size,
+						 size_t value_size) {
 	mcl_hashmap *hashmap = malloc(sizeof(mcl_hashmap));
 	if (hashmap == NULL) {
 		return NULL;
 	}
 
-	/* Initialize hash map with given parameters */
 	hashmap->hash_fn = hash_fn;
 	hashmap->equal_fn = equal_fn;
 	hashmap->free_key_fn = free_key_fn;
 	hashmap->free_value_fn = free_value_fn;
+	hashmap->key_size = key_size;
+	hashmap->value_size = value_size;
 
-	/* Clear all buckets in the map */
 	memset(hashmap->map, 0, sizeof(hashmap->map));
 
 	return hashmap;
@@ -95,11 +96,10 @@ void mcl_hm_free(mcl_hashmap *hashmap) {
 }
 
 bool mcl_hm_set(mcl_hashmap *hashmap, void *key, void *value) {
-	if (hashmap == NULL || key == NULL) {
+	if (hashmap == NULL || key == NULL || value == NULL) {
 		return false;
 	}
 
-	/* Try to find existing bucket */
 	mcl_bucket *prev;
 	mcl_bucket *existing = mcl_find_bucket(hashmap, key, &prev);
 
@@ -108,7 +108,12 @@ bool mcl_hm_set(mcl_hashmap *hashmap, void *key, void *value) {
 		if (hashmap->free_value_fn != NULL && existing->value != NULL) {
 			hashmap->free_value_fn(existing->value);
 		}
-		existing->value = value;
+
+		existing->value = malloc(hashmap->value_size);
+		if (existing->value == NULL) {
+			return false;
+		}
+		memcpy(existing->value, value, hashmap->value_size);
 		return true;
 	}
 
@@ -116,10 +121,22 @@ bool mcl_hm_set(mcl_hashmap *hashmap, void *key, void *value) {
 	size_t index = mcl_get_bucket_index(hashmap, key);
 	mcl_bucket *bucket = &hashmap->map[index];
 
-	/* If first bucket is empty, use it */
 	if (bucket->key == NULL) {
-		bucket->key = key;
-		bucket->value = value;
+		/* First bucket is empty, use it */
+		bucket->key = malloc(hashmap->key_size);
+		if (bucket->key == NULL) {
+			return false;
+		}
+
+		bucket->value = malloc(hashmap->value_size);
+		if (bucket->value == NULL) {
+			free(bucket->key);
+			bucket->key = NULL;
+			return false;
+		}
+
+		memcpy(bucket->key, key, hashmap->key_size);
+		memcpy(bucket->value, value, hashmap->value_size);
 		bucket->next = NULL;
 		return true;
 	}
@@ -130,8 +147,21 @@ bool mcl_hm_set(mcl_hashmap *hashmap, void *key, void *value) {
 		return false;
 	}
 
-	new_bucket->key = key;
-	new_bucket->value = value;
+	new_bucket->key = malloc(hashmap->key_size);
+	if (new_bucket->key == NULL) {
+		free(new_bucket);
+		return false;
+	}
+
+	new_bucket->value = malloc(hashmap->value_size);
+	if (new_bucket->value == NULL) {
+		free(new_bucket->key);
+		free(new_bucket);
+		return false;
+	}
+
+	memcpy(new_bucket->key, key, hashmap->key_size);
+	memcpy(new_bucket->value, value, hashmap->value_size);
 	new_bucket->next = bucket->next;
 	bucket->next = new_bucket;
 

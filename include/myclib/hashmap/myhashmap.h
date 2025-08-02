@@ -60,6 +60,8 @@ typedef struct mcl_hashmap_t {
 	mcl_equal_fn *equal_fn;				 /**< Equality comparison function */
 	mcl_free_key_fn *free_key_fn;		 /**< Key deallocation function (optional) */
 	mcl_free_value_fn *free_value_fn;	 /**< Value deallocation function (optional) */
+	size_t key_size;					 /**< Size in bytes of the key */
+	size_t value_size;					 /**< Size in bytes of the value */
 	mcl_bucket map[MYCLIB_HASHMAP_SIZE]; /**< Array of bucket chains */
 } mcl_hashmap;
 
@@ -68,14 +70,18 @@ typedef struct mcl_hashmap_t {
  *
  * Creates a new hash map and initializes it with the provided function pointers.
  * The free functions can be NULL if no automatic memory management is needed.
+ * Keys and values will be copied into the hashmap using memcpy with the specified sizes.
  *
  * @param[in] hash_fn Function used to hash keys (required)
  * @param[in] equal_fn Function used to compare keys (required)
  * @param[in] free_key_fn Function used to free keys (optional, can be NULL)
  * @param[in] free_value_fn Function used to free values (optional, can be NULL)
+ * @param[in] key_size Size in bytes of each key to be stored
+ * @param[in] value_size Size in bytes of each value to be stored
  * @return A pointer to the newly initialized hash map, or NULL on failure
  */
-mcl_hashmap *mcl_hm_init(mcl_hash_fn *hash_fn, mcl_equal_fn *equal_fn, mcl_free_key_fn *free_key_fn, mcl_free_value_fn *free_value_fn);
+mcl_hashmap *mcl_hm_init(mcl_hash_fn *hash_fn, mcl_equal_fn *equal_fn, mcl_free_key_fn *free_key_fn, mcl_free_value_fn *free_value_fn, size_t key_size,
+						 size_t value_size);
 
 /**
  * @brief Free all resources used by the hash map
@@ -92,11 +98,12 @@ void mcl_hm_free(mcl_hashmap *hashmap);
  *
  * If the key already exists, the old value is freed (if free_value_fn is provided)
  * and replaced with the new value. If the key doesn't exist, a new entry is created.
+ * Both key and value are copied into the hashmap using memcpy.
  *
  * @param[in] hashmap Pointer to the hash map
- * @param[in] key Pointer to the key to insert (must not be NULL)
- * @param[in] value Pointer to the value to insert (can be NULL)
- * @return true if the operation succeeded, false on failure (NULL hashmap/key or memory allocation failure)
+ * @param[in] key Pointer to the key to insert (will be copied, must not be NULL)
+ * @param[in] value Pointer to the value to insert (will be copied, must not be NULL)
+ * @return true if the operation succeeded, false on failure (NULL hashmap/key/value or memory allocation failure)
  */
 bool mcl_hm_set(mcl_hashmap *hashmap, void *key, void *value);
 

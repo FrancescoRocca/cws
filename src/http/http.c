@@ -108,7 +108,8 @@ cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
 	mcl_string_append(request->http_version, pch);
 
 	/* Parse headers until a \r\n */
-	request->headers = mcl_hm_init(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn);
+	request->headers = mcl_hm_init(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn, sizeof(char) * CWS_HTTP_HEADER_MAX,
+								   sizeof(char) * CWS_HTTP_HEADER_CONTENT_MAX);
 	char *header_colon;
 	while (pch) {
 		/* Get header line */

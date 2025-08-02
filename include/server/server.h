@@ -24,6 +24,7 @@ extern volatile sig_atomic_t cws_server_run;
 
 typedef enum cws_server_ret_t {
 	CWS_SERVER_OK,
+	CWS_SERVER_CONFIG,
 	CWS_SERVER_FD_ERROR,
 	CWS_SERVER_CLIENT_NOT_FOUND,
 	CWS_SERVER_CLIENT_DISCONNECTED,
@@ -38,6 +39,7 @@ typedef enum cws_server_ret_t {
 	CWS_SERVER_EPOLL_DEL_ERROR,
 	CWS_SERVER_FD_NONBLOCKING_ERROR,
 	CWS_SERVER_ACCEPT_CLIENT_ERROR,
+	CWS_SERVER_HASHMAP_INIT,
 } cws_server_ret;
 
 /**
@@ -61,7 +63,7 @@ cws_server_ret cws_server_start(cws_config *config);
  *
  * @param[in,out] sockfd Socket of the commincation endpoint
  */
-cws_server_ret cws_server_loop(int sockfd, cws_config *config);
+int cws_server_loop(int sockfd, cws_config *config);
 
 /**
  * @brief Adds a file descriptor to the interest list
