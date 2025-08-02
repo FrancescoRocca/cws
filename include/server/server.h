@@ -22,6 +22,24 @@
 /* Main server loop */
 extern volatile sig_atomic_t cws_server_run;
 
+typedef enum cws_server_ret_t {
+	CWS_SERVER_OK,
+	CWS_SERVER_FD_ERROR,
+	CWS_SERVER_CLIENT_NOT_FOUND,
+	CWS_SERVER_CLIENT_DISCONNECTED,
+	CWS_SERVER_CLIENT_DISCONNECTED_ERROR,
+	CWS_SERVER_HTTP_PARSE_ERROR,
+	CWS_SERVER_GETADDRINFO_ERROR,
+	CWS_SERVER_SOCKET_ERROR,
+	CWS_SERVER_SETSOCKOPT_ERROR,
+	CWS_SERVER_BIND_ERROR,
+	CWS_SERVER_LISTEN_ERROR,
+	CWS_SERVER_EPOLL_ADD_ERROR,
+	CWS_SERVER_EPOLL_DEL_ERROR,
+	CWS_SERVER_FD_NONBLOCKING_ERROR,
+	CWS_SERVER_ACCEPT_CLIENT_ERROR,
+} cws_server_ret;
+
 /**
  * @brief Setups hints object
  *
@@ -35,16 +53,15 @@ void cws_server_setup_hints(struct addrinfo *hints, size_t len, const char *host
  * @brief Runs the server
  *
  * @param[in] config The server's config
- * @return 0 on success, -1 on error
  */
-int cws_server_start(cws_config *config);
+cws_server_ret cws_server_start(cws_config *config);
 
 /**
  * @brief Main server loop
  *
  * @param[in,out] sockfd Socket of the commincation endpoint
  */
-int cws_server_loop(int sockfd, cws_config *config);
+cws_server_ret cws_server_loop(int sockfd, cws_config *config);
 
 /**
  * @brief Adds a file descriptor to the interest list
@@ -53,7 +70,7 @@ int cws_server_loop(int sockfd, cws_config *config);
  * @param[in] sockfd The file descriptor to watch
  * @param[in] events The events to follow
  */
-int cws_epoll_add(int epfd, int sockfd, uint32_t events);
+cws_server_ret cws_epoll_add(int epfd, int sockfd, uint32_t events);
 
 /**
  * @brief Removes a file descriptor from the interest list
@@ -61,14 +78,14 @@ int cws_epoll_add(int epfd, int sockfd, uint32_t events);
  * @param[in] epfd epoll file descriptor
  * @param[in] sockfd The file descriptor to remove
  */
-int cws_epoll_del(int epfd, int sockfd);
+cws_server_ret cws_epoll_del(int epfd, int sockfd);
 
 /**
  * @brief Makes a file descriptor non-blocking
  *
  * @param[in] sockfd The file descriptor to make non-blocking
  */
-int cws_fd_set_nonblocking(int sockfd);
+cws_server_ret cws_fd_set_nonblocking(int sockfd);
 
 /**
  * @brief Handles the new client
@@ -76,7 +93,6 @@ int cws_fd_set_nonblocking(int sockfd);
  * @param[in] sockfd Server's file descriptor
  * @param[out] their_sa Populates the struct with client's information
  * @param[in] theirsa_size Size of the struct
- * @return Returns -1 on error or the file descriptor on success
  */
 int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size);
 
@@ -89,7 +105,7 @@ int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, sock
  */
 void cws_server_close_client(int epfd, int client_fd, mcl_hashmap *hashmap);
 
-int cws_server_handle_new_client(int sockfd, int epfd, mcl_hashmap *clients);
-int cws_server_handle_client_data(int client_fd, int epfd, mcl_hashmap *clients, cws_config *config);
+cws_server_ret cws_server_handle_new_client(int sockfd, int epfd, mcl_hashmap *clients);
+cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashmap *clients, cws_config *config);
 
 #endif

@@ -8,12 +8,38 @@
 #include "utils/colors.h"
 #include "utils/utils.h"
 
+static void cws_http_init(cws_http **request) {
+	*request = calloc(1, sizeof(cws_http));
+	if (!*request) {
+		return;
+	}
+
+	(*request)->http_version = mcl_string_new("", 16);
+	(*request)->location = mcl_string_new("", 128);
+	(*request)->location_path = mcl_string_new("", 512);
+}
+
+static int cws_http_parse_method(cws_http *request, const char *method) {
+	if (strcmp(method, "GET") == 0) {
+		request->method = CWS_HTTP_GET;
+		return 0;
+	}
+
+	if (strcmp(method, "POST") == 0) {
+		request->method = CWS_HTTP_POST;
+		return 0;
+	}
+
+	return -1;
+}
+
 cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
 	if (!request_str || !config) {
 		return NULL;
 	}
 
-	cws_http *request = calloc(1, sizeof(cws_http));
+	cws_http *request;
+	cws_http_init(&request);
 	if (request == NULL) {
 		return NULL;
 	}
@@ -59,19 +85,16 @@ cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
 		return NULL;
 	}
 	CWS_LOG_DEBUG("location: %s", pch);
-	strncpy(request->location, pch, CWS_HTTP_LOCATION_LEN);
+	mcl_string_append(request->location, pch);
+	mcl_string_append(request->location_path, config->www);
 
 	/* Adjust location path */
-	if (strcmp(request->location, "/") == 0) {
-		snprintf(request->location_path, CWS_HTTP_LOCATION_PATH_LEN, "%s/index.html", config->www);
+	if (strcmp(mcl_string_cstr(request->location), "/") == 0) {
+		mcl_string_append(request->location_path, "/index.html");
 	} else {
-		size_t location_path_len = strlen(request->location);
-		if (location_path_len > CWS_HTTP_LOCATION_PATH_LEN) {
-			request->location[location_path_len - 1] = '\0';
-		}
-		snprintf(request->location_path, CWS_HTTP_LOCATION_PATH_LEN, "%s%s", config->www, request->location);
+		mcl_string_append(request->location_path, mcl_string_cstr(request->location));
 	}
-	CWS_LOG_DEBUG("location path: %s", request->location_path);
+	CWS_LOG_DEBUG("location path: %s", mcl_string_cstr(request->location_path));
 
 	/* Parse HTTP version */
 	pch = strtok_r(NULL, " \r\n", &saveptr);
@@ -82,7 +105,7 @@ cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
 		return NULL;
 	}
 	CWS_LOG_DEBUG("version: %s", pch);
-	strncpy(request->http_version, pch, CWS_HTTP_VERSION_LEN);
+	mcl_string_append(request->http_version, pch);
 
 	/* Parse headers until a \r\n */
 	request->headers = mcl_hm_init(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn);
@@ -116,21 +139,7 @@ cws_http *cws_http_parse(char *request_str, int sockfd, cws_config *config) {
 	return request;
 }
 
-int cws_http_parse_method(cws_http *request, const char *method) {
-	if (strcmp(method, "GET") == 0) {
-		request->method = CWS_HTTP_GET;
-		return 0;
-	}
-
-	if (strcmp(method, "POST") == 0) {
-		request->method = CWS_HTTP_POST;
-		return 0;
-	}
-
-	return -1;
-}
-
-char *cws_http_status_string(cws_http_status status) {
+static char *cws_http_status_string(cws_http_status status) {
 	switch (status) {
 		case CWS_HTTP_OK: {
 			return "200 OK";
@@ -192,7 +201,9 @@ void cws_http_send_response(cws_http *request, cws_http_status status) {
 }
 
 int cws_http_send_resource(cws_http *request) {
-	FILE *file = fopen(request->location_path, "rb");
+	int keepalive = 0;
+
+	FILE *file = fopen(mcl_string_cstr(request->location_path), "rb");
 	if (file == NULL) {
 		cws_http_send_response(request, CWS_HTTP_NOT_FOUND);
 		return -1;
@@ -228,10 +239,11 @@ int cws_http_send_resource(cws_http *request) {
 		return -1;
 	}
 
-	char conn[32] = "close";
+	char conn[32];
 	mcl_bucket *connection = mcl_hm_get(request->headers, "Connection");
-	if (connection) {
-		strncpy(conn, (char *)connection->value, sizeof(conn));
+	if (connection && strcmp((char *)connection->value, "keep-alive") == 0) {
+		strcpy(conn, "keep-alive");
+		keepalive = 1;
 	}
 
 	char *response = NULL;
@@ -247,11 +259,11 @@ int cws_http_send_resource(cws_http *request) {
 	free(response);
 	free(file_data);
 
-	return 0;
+	return keepalive;
 }
 
 int cws_http_get_content_type(cws_http *request, char *content_type) {
-	char *ptr = strrchr(request->location_path, '.');
+	char *ptr = strrchr(mcl_string_cstr(request->location_path), '.');
 	if (ptr == NULL) {
 		return -1;
 	}
