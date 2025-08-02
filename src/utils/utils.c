@@ -8,6 +8,8 @@
 
 #include "utils/colors.h"
 
+static void cws_utils_convert_ip(int family, void *addr, char *ip, size_t ip_len) { inet_ntop(family, addr, ip, ip_len); }
+
 void cws_utils_print_ips(const char *hostname, const char *port) {
 	struct addrinfo ai;
 	struct addrinfo *res;
@@ -29,11 +31,11 @@ void cws_utils_print_ips(const char *hostname, const char *port) {
 	for (struct addrinfo *p = res; p != NULL; p = p->ai_next) {
 		if (p->ai_family == AF_INET) {
 			struct sockaddr_in *sin = (struct sockaddr_in *)p->ai_addr;
-			inet_ntop(AF_INET, &sin->sin_addr, ipv4, INET_ADDRSTRLEN);
+			cws_utils_convert_ip(AF_INET, &sin->sin_addr, ipv4, INET_ADDRSTRLEN);
 			CWS_LOG_INFO("%s", ipv4);
 		} else if (p->ai_family == AF_INET6) {
 			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)p->ai_addr;
-			inet_ntop(AF_INET6, &sin6->sin6_addr, ipv6, INET6_ADDRSTRLEN);
+			cws_utils_convert_ip(AF_INET6, &sin6->sin6_addr, ipv6, INET6_ADDRSTRLEN);
 			CWS_LOG_INFO("%s", ipv6);
 		}
 	}
@@ -42,9 +44,13 @@ void cws_utils_print_ips(const char *hostname, const char *port) {
 }
 
 void cws_utils_get_client_ip(struct sockaddr_storage *sa, char *ip) {
-	struct sockaddr_in *sin = (struct sockaddr_in *)sa;
-
-	inet_ntop(AF_INET, &sin->sin_addr, ip, INET_ADDRSTRLEN);
+	if (sa->ss_family == AF_INET) {
+		struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+		cws_utils_convert_ip(AF_INET, &sin->sin_addr, ip, INET_ADDRSTRLEN);
+	} else if (sa->ss_family == AF_INET6) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
+		cws_utils_convert_ip(AF_INET6, &sin6->sin6_addr, ip, INET6_ADDRSTRLEN);
+	}
 }
 
 char *cws_strip(char *str) {

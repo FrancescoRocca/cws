@@ -4,6 +4,7 @@
 #include <netdb.h>
 #include <signal.h>
 #include <sys/socket.h>
+#include <time.h>
 
 #include "myclib/hashmap/myhashmap.h"
 #include "utils/config.h"
@@ -14,7 +15,7 @@
 /* Size of the epoll_event array */
 #define CWS_SERVER_EPOLL_MAXEVENTS 64
 
-#define CWS_SERVER_EPOLL_TIMEOUT 1000
+#define CWS_SERVER_EPOLL_TIMEOUT 3000
 
 #define CWS_SERVER_MAX_REQUEST_SIZE (16 * 1024) /* 16KB */
 
@@ -42,6 +43,11 @@ typedef enum cws_server_ret_t {
 	CWS_SERVER_MALLOC_ERROR,
 	CWS_SERVER_REQUEST_TOO_LARGE,
 } cws_server_ret;
+
+typedef struct cws_client_t {
+	struct sockaddr_storage addr;
+	time_t last_activity;
+} cws_client;
 
 /**
  * @brief Setups hints object

@@ -83,7 +83,7 @@ cws_server_ret cws_server_start(cws_config *config) {
 }
 
 cws_server_ret cws_server_loop(int sockfd, cws_config *config) {
-	mcl_hashmap *clients = mcl_hm_init(my_int_hash_fn, my_int_equal_fn, my_int_free_key_fn, my_str_free_fn, sizeof(int), sizeof(struct sockaddr_storage));
+	mcl_hashmap *clients = mcl_hm_init(my_int_hash_fn, my_int_equal_fn, my_int_free_key_fn, my_str_free_fn, sizeof(int), sizeof(cws_client));
 	if (!clients) {
 		return CWS_SERVER_HASHMAP_INIT;
 	}
@@ -116,9 +116,12 @@ cws_server_ret cws_server_loop(int sockfd, cws_config *config) {
 	}
 
 	while (cws_server_run) {
+		CWS_LOG_DEBUG("Waiting for epoll events...");
 		int nfds = epoll_wait(epfd, revents, CWS_SERVER_EPOLL_MAXEVENTS, CWS_SERVER_EPOLL_TIMEOUT);
+		CWS_LOG_DEBUG("epoll_wait returned %d events", nfds);
 
 		if (nfds == 0) {
+			/* TODO: Check for inactive clients */
 			continue;
 		}
 
@@ -160,7 +163,12 @@ cws_server_ret cws_server_handle_new_client(int sockfd, int epfd, mcl_hashmap *c
 
 	cws_fd_set_nonblocking(client_fd);
 	cws_epoll_add(epfd, client_fd, EPOLLIN);
-	mcl_hm_set(clients, &client_fd, &their_sa);
+
+	cws_client client = {
+		.addr = their_sa,
+		.last_activity = time(NULL),
+	};
+	mcl_hm_set(clients, &client_fd, &client);
 
 	return CWS_SERVER_OK;
 }
@@ -205,8 +213,9 @@ cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashma
 
 		return CWS_SERVER_CLIENT_NOT_FOUND;
 	}
-	struct sockaddr_storage *client_sas = (struct sockaddr_storage *)client->value;
-	cws_utils_get_client_ip(client_sas, ip);
+	cws_client *client_info = (cws_client *)client->value;
+	cws_utils_get_client_ip(&client_info->addr, ip);
+	client_info->last_activity = time(NULL);
 
 	if (bytes_read == 0) {
 		/* Client disconnected */
