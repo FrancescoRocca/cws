@@ -97,7 +97,8 @@ bool my_int_equal_fn(const void *a, const void *b) {
 	return false;
 }
 
-void my_int_free_fn(void *value) {
-	int fd = *(int *)value;
+void my_int_free_key_fn(void *key) {
+	int fd = *(int *)key;
 	close(fd);
+	free(key);
 }

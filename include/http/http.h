@@ -3,8 +3,8 @@
 
 #include <stddef.h>
 
+#include "myclib/hashmap/myhashmap.h"
 #include "utils/config.h"
-#include "utils/hashmap.h"
 
 #define CWS_HTTP_LOCATION_LEN 512
 #define CWS_HTTP_LOCATION_PATH_LEN 1024
@@ -61,7 +61,7 @@ size_t cws_http_response_builder(char **response, char *http_version, cws_http_s
 								 size_t body_len_bytes);
 
 void cws_http_send_response(cws_http *request, cws_http_status status);
-void cws_http_send_resource(cws_http *request);
+int cws_http_send_resource(cws_http *request);
 void cws_http_send_simple_html(cws_http *request, cws_http_status status, char *title, char *description);
 
 void cws_http_free(cws_http *request);

@@ -191,11 +191,11 @@ void cws_http_send_response(cws_http *request, cws_http_status status) {
 	}
 }
 
-void cws_http_send_resource(cws_http *request) {
+int cws_http_send_resource(cws_http *request) {
 	FILE *file = fopen(request->location_path, "rb");
 	if (file == NULL) {
 		cws_http_send_response(request, CWS_HTTP_NOT_FOUND);
-		return;
+		return -1;
 	}
 
 	/* Retrieve correct Content-Type */
@@ -215,7 +215,7 @@ void cws_http_send_resource(cws_http *request) {
 	if (file_data == NULL) {
 		fclose(file);
 		CWS_LOG_ERROR("Unable to allocate file data");
-		return;
+		return -1;
 	}
 
 	/* Read 1 byte until content_length from file and put in file_data */
@@ -225,7 +225,7 @@ void cws_http_send_resource(cws_http *request) {
 	if (read_bytes != content_length) {
 		free(file_data);
 		CWS_LOG_ERROR("Partial read from file");
-		return;
+		return -1;
 	}
 
 	char conn[32] = "close";
@@ -238,13 +238,16 @@ void cws_http_send_resource(cws_http *request) {
 	size_t response_len = cws_http_response_builder(&response, "HTTP/1.1", CWS_HTTP_OK, content_type, conn, file_data, content_length);
 
 	size_t bytes_sent = 0;
+	size_t sent;
 	do {
-		size_t sent = send(request->sockfd, response + bytes_sent, response_len, 0);
+		sent = send(request->sockfd, response + bytes_sent, response_len, 0);
 		bytes_sent += sent;
-	} while (bytes_sent < response_len);
+	} while (bytes_sent < response_len && sent != 0);
 
 	free(response);
 	free(file_data);
+
+	return 0;
 }
 
 int cws_http_get_content_type(cws_http *request, char *content_type) {

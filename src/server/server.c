@@ -81,15 +81,12 @@ int cws_server_start(cws_config *config) {
 }
 
 int cws_server_loop(int sockfd, cws_config *config) {
-	struct sockaddr_storage their_sa;
-	socklen_t theirsa_size = sizeof their_sa;
-	int ret;
-
-	mcl_hashmap *clients = mcl_hm_init(my_int_hash_fn, my_int_equal_fn, NULL, my_int_free_fn);
+	mcl_hashmap *clients = mcl_hm_init(my_int_hash_fn, my_int_equal_fn, my_int_free_key_fn, my_str_free_fn);
 	if (!clients) {
 		return -1;
 	}
 
+	int ret = 0;
 	int epfd = epoll_create1(0);
 
 	ret = cws_fd_set_nonblocking(sockfd);
@@ -116,69 +113,20 @@ int cws_server_loop(int sockfd, cws_config *config) {
 		return -1;
 	}
 
-	int client_fd;
-
 	while (cws_server_run) {
 		int nfds = epoll_wait(epfd, revents, CWS_SERVER_EPOLL_MAXEVENTS, CWS_SERVER_EPOLL_TIMEOUT);
 
 		for (int i = 0; i < nfds; ++i) {
 			if (revents[i].data.fd == sockfd) {
-				/* New client */
-				char ip[INET_ADDRSTRLEN];
-
-				client_fd = cws_server_accept_client(sockfd, &their_sa, &theirsa_size);
-				if (client_fd < 0) {
-					continue;
+				ret = cws_server_handle_new_client(sockfd, epfd, clients);
+				if (ret < 0) {
+					CWS_LOG_DEBUG("handle new client error");
 				}
-
-				cws_utils_get_client_ip(&their_sa, ip);
-				CWS_LOG_INFO("Client (%s) connected", ip);
-
-				cws_fd_set_nonblocking(client_fd);
-				cws_epoll_add(epfd, client_fd, EPOLLIN);
-				mcl_hm_set(clients, &client_fd, &their_sa);
 			} else {
-				char data[4096] = {0};
-				char ip[INET_ADDRSTRLEN] = {0};
-
-				/* Incoming data */
-				client_fd = revents[i].data.fd;
-				const ssize_t bytes_read = recv(client_fd, data, sizeof data, 0);
-
-				/* Retrieve client ip */
-				mcl_bucket *client = mcl_hm_get(clients, &client_fd);
-				struct sockaddr_storage client_sas = *(struct sockaddr_storage *)client->value;
-				cws_utils_get_client_ip(&client_sas, ip);
-
-				if (bytes_read == 0) {
-					/* Client disconnected */
-					CWS_LOG_INFO("Client (%s) disconnected", ip);
-					cws_server_close_client(epfd, client_fd, clients);
-					continue;
+				ret = cws_server_handle_client_data(revents[i].data.fd, epfd, clients, config);
+				if (ret < 0) {
+					CWS_LOG_DEBUG("handle client data error");
 				}
-
-				if (bytes_read < 0) {
-					if (errno != EAGAIN && errno != EWOULDBLOCK) {
-						/* Error during read, handle it (close client) */
-						CWS_LOG_INFO("Client (%s) disconnected (error)", ip);
-						cws_server_close_client(epfd, client_fd, clients);
-					}
-					continue;
-				}
-
-				/* Parse HTTP request */
-				cws_http *request = cws_http_parse(data, client_fd, config);
-
-				if (request == NULL) {
-					cws_server_close_client(epfd, client_fd, clients);
-					continue;
-				}
-
-				cws_http_send_resource(request);
-				cws_http_free(request);
-
-				/* Clear str */
-				memset(data, 0, sizeof data);
 			}
 		}
 	}
@@ -187,7 +135,90 @@ int cws_server_loop(int sockfd, cws_config *config) {
 	free(revents);
 	close(epfd);
 	mcl_hm_free(clients);
-	CWS_LOG_INFO("Closing...");
+
+	return 0;
+}
+
+int cws_server_handle_new_client(int sockfd, int epfd, mcl_hashmap *clients) {
+	struct sockaddr_storage their_sa;
+	socklen_t theirsa_size = sizeof their_sa;
+	char ip[INET_ADDRSTRLEN];
+
+	int client_fd = cws_server_accept_client(sockfd, &their_sa, &theirsa_size);
+	if (client_fd < 0) {
+		return -1;
+	}
+
+	cws_utils_get_client_ip(&their_sa, ip);
+	CWS_LOG_INFO("Client (%s) (fd: %d) connected", ip, client_fd);
+
+	cws_fd_set_nonblocking(client_fd);
+	cws_epoll_add(epfd, client_fd, EPOLLIN);
+
+	int *key = malloc(sizeof(int));
+	*key = client_fd;
+	struct sockaddr_storage *value = malloc(sizeof(struct sockaddr_storage));
+	*value = their_sa;
+
+	mcl_hm_set(clients, key, value);
+
+	return 0;
+}
+
+int cws_server_handle_client_data(int client_fd, int epfd, mcl_hashmap *clients, cws_config *config) {
+	char data[4096] = {0};
+	char ip[INET_ADDRSTRLEN] = {0};
+
+	/* Incoming data */
+	const ssize_t bytes_read = recv(client_fd, data, sizeof(data), 0);
+
+	/* Retrieve client ip */
+	int *client_fd_key = malloc(sizeof(int));
+	*client_fd_key = client_fd;
+	mcl_bucket *client = mcl_hm_get(clients, client_fd_key);
+	free(client_fd_key);
+
+	if (!client) {
+		CWS_LOG_ERROR("Client fd %d not found in hashmap", client_fd);
+		cws_epoll_del(epfd, client_fd);
+		close(client_fd);
+
+		return -1;
+	}
+
+	struct sockaddr_storage client_sas = *(struct sockaddr_storage *)client->value;
+	cws_utils_get_client_ip(&client_sas, ip);
+
+	if (bytes_read == 0) {
+		/* Client disconnected */
+		CWS_LOG_INFO("Client (%s) disconnected", ip);
+		cws_server_close_client(epfd, client_fd, clients);
+
+		return -1;
+	}
+
+	if (bytes_read < 0) {
+		if (errno != EAGAIN && errno != EWOULDBLOCK) {
+			/* Error during read, handle it (close client) */
+			CWS_LOG_INFO("Client (%s) disconnected (error)", ip);
+			cws_server_close_client(epfd, client_fd, clients);
+		}
+
+		return -1;
+	}
+
+	/* Parse HTTP request */
+	cws_http *request = cws_http_parse(data, client_fd, config);
+
+	if (request == NULL) {
+		CWS_LOG_INFO("Client (%s) disconnected (request NULL)", ip);
+		cws_server_close_client(epfd, client_fd, clients);
+
+		return -1;
+	}
+
+	cws_http_send_resource(request);
+	cws_http_free(request);
 
 	return 0;
 }
@@ -243,5 +274,9 @@ int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, sock
 
 void cws_server_close_client(int epfd, int client_fd, mcl_hashmap *hashmap) {
 	cws_epoll_del(epfd, client_fd);
-	mcl_hm_remove(hashmap, &client_fd);
+
+	int *key_to_find = malloc(sizeof(int));
+	*key_to_find = client_fd;
+	mcl_hm_remove(hashmap, key_to_find);
+	free(key_to_find);
 }

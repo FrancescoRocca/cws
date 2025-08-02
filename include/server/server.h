@@ -7,8 +7,8 @@
 #include <signal.h>
 #include <sys/socket.h>
 
+#include "myclib/hashmap/myhashmap.h"
 #include "utils/config.h"
-#include "utils/hashmap.h"
 
 /* Clients max queue */
 #define CWS_SERVER_BACKLOG 10
@@ -88,5 +88,8 @@ int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, sock
  * @param[in] hashmap Clients hash map
  */
 void cws_server_close_client(int epfd, int client_fd, mcl_hashmap *hashmap);
+
+int cws_server_handle_new_client(int sockfd, int epfd, mcl_hashmap *clients);
+int cws_server_handle_client_data(int client_fd, int epfd, mcl_hashmap *clients, cws_config *config);
 
 #endif
