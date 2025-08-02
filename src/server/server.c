@@ -4,8 +4,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
-#include <openssl/err.h>
-#include <openssl/ssl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,8 +17,8 @@
 
 volatile sig_atomic_t cws_server_run = 1;
 
-void cws_server_setup_hints(struct addrinfo *hints, size_t len, const char *hostname) {
-	memset(hints, 0, len);
+void cws_server_setup_hints(struct addrinfo *hints, const char *hostname) {
+	memset(hints, 0, sizeof(struct addrinfo));
 
 	/* IPv4 or IPv6 */
 	hints->ai_family = AF_UNSPEC;
@@ -42,7 +40,7 @@ cws_server_ret cws_server_start(cws_config *config) {
 	struct addrinfo hints;
 	struct addrinfo *res;
 
-	cws_server_setup_hints(&hints, sizeof hints, config->hostname);
+	cws_server_setup_hints(&hints, config->hostname);
 
 	int status = getaddrinfo(config->hostname, config->port, &hints, &res);
 	if (status != 0) {
@@ -119,6 +117,11 @@ cws_server_ret cws_server_loop(int sockfd, cws_config *config) {
 
 	while (cws_server_run) {
 		int nfds = epoll_wait(epfd, revents, CWS_SERVER_EPOLL_MAXEVENTS, CWS_SERVER_EPOLL_TIMEOUT);
+
+		if (nfds == 0) {
+			CWS_LOG_INFO("epoll timeout, continue...");
+			continue;
+		}
 
 		for (int i = 0; i < nfds; ++i) {
 			if (revents[i].data.fd == sockfd) {

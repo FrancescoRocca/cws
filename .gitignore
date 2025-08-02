@@ -3,6 +3,7 @@ build/
 docs/
 cert.pem
 key.pem
+test.md
 
 # Prerequisites
 *.d

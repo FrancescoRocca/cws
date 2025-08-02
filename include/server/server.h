@@ -2,8 +2,6 @@
 #define CWS_SERVER_H
 
 #include <netdb.h>
-#include <openssl/err.h>
-#include <openssl/ssl.h>
 #include <signal.h>
 #include <sys/socket.h>
 
@@ -50,10 +48,9 @@ typedef enum cws_server_ret_t {
  * @brief Setups hints object
  *
  * @param[out] hints The hints addrinfo
- * @param[in] len The length of hints
  * @param[in] hostname The hostname (could be NULL)
  */
-void cws_server_setup_hints(struct addrinfo *hints, size_t len, const char *hostname);
+void cws_server_setup_hints(struct addrinfo *hints, const char *hostname);
 
 /**
  * @brief Runs the server
