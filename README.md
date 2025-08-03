@@ -33,11 +33,11 @@ And then open the `docs/html/index.html`.
 ## Roadmap
 
 - Implement Keep-Alive
-- Custom web pages (404)
-- Support for virtual hosts
 - HTTPS support with TLS
 
 ## Future
+- Support for virtual hosts
+- Custom web pages (404)
 - CLI args
 - IPv6 compatible
 - Multithreading to handle concurrent requests

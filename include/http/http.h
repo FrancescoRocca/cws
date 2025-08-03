@@ -7,12 +7,12 @@
 #include "myclib/string/mystring.h"
 #include "utils/config.h"
 
-#define CWS_HTTP_HEADER_MAX 64
-#define CWS_HTTP_HEADER_CONTENT_MAX 512
+#define CWS_HTTP_HEADER_MAX 512
+#define CWS_HTTP_HEADER_CONTENT_MAX 1024
 
 typedef enum cws_http_method_t {
-	CWS_HTTP_GET,  /**< GET method */
-	CWS_HTTP_POST, /**< POST method */
+	CWS_HTTP_GET,
+	CWS_HTTP_POST,
 	CWS_HTTP_PUT,
 	CWS_HTTP_DELETE,
 	CWS_HTTP_HEAD,

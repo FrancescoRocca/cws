@@ -4,7 +4,6 @@
 #include <netdb.h>
 #include <signal.h>
 #include <sys/socket.h>
-#include <time.h>
 
 #include "myclib/hashmap/myhashmap.h"
 #include "utils/config.h"
@@ -42,28 +41,9 @@ typedef enum cws_server_ret_t {
 	CWS_SERVER_HASHMAP_INIT,
 	CWS_SERVER_MALLOC_ERROR,
 	CWS_SERVER_REQUEST_TOO_LARGE,
+	CWS_SERVER_THREADPOOL_ERROR,
+	CWS_SERVER_EPOLL_CREATE_ERROR,
 } cws_server_ret;
-
-/* TODO: use last_activity as keep-alive */
-typedef struct cws_client_t {
-	struct sockaddr_storage addr;
-	time_t last_activity;
-} cws_client;
-
-typedef struct cws_pthread_data_t {
-	int client_fd;
-	int epfd;
-	cws_config *config;
-	mcl_hashmap *clients;
-} cws_pthread_data;
-
-/**
- * @brief Setups hints object
- *
- * @param[out] hints The hints addrinfo
- * @param[in] hostname The hostname (could be NULL)
- */
-void cws_server_setup_hints(struct addrinfo *hints, const char *hostname);
 
 /**
  * @brief Runs the server
@@ -77,7 +57,7 @@ cws_server_ret cws_server_start(cws_config *config);
  *
  * @param[in,out] sockfd Socket of the commincation endpoint
  */
-cws_server_ret cws_server_loop(int sockfd, cws_config *config);
+cws_server_ret cws_server_loop(int server_fd, cws_config *config);
 
 /**
  * @brief Adds a file descriptor to the interest list
@@ -110,7 +90,7 @@ cws_server_ret cws_fd_set_nonblocking(int sockfd);
  * @param[out] their_sa Populates the struct with client's information
  * @param[in] theirsa_size Size of the struct
  */
-int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size);
+int cws_server_accept_client(int server_fd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size);
 
 /**
  * @brief Disconnect a client
@@ -121,7 +101,7 @@ int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, sock
  */
 void cws_server_close_client(int epfd, int client_fd, mcl_hashmap *hashmap);
 
-cws_server_ret cws_server_handle_new_client(int sockfd, int epfd, mcl_hashmap *clients);
+int cws_server_handle_new_client(int server_fd, int epfd, mcl_hashmap *clients);
 void *cws_server_handle_client_data(void *arg);
 
 #endif

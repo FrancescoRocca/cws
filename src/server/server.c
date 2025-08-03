@@ -12,12 +12,13 @@
 #include <unistd.h>
 
 #include "http/http.h"
+#include "server/threadpool.h"
 #include "utils/colors.h"
 #include "utils/utils.h"
 
 volatile sig_atomic_t cws_server_run = 1;
 
-void cws_server_setup_hints(struct addrinfo *hints, const char *hostname) {
+static void cws_server_setup_hints(struct addrinfo *hints, const char *hostname) {
 	memset(hints, 0, sizeof(struct addrinfo));
 
 	/* IPv4 or IPv6 */
@@ -48,53 +49,52 @@ cws_server_ret cws_server_start(cws_config *config) {
 		return CWS_SERVER_GETADDRINFO_ERROR;
 	}
 
-	int sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-	if (sockfd < 0) {
+	int server_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	if (server_fd < 0) {
 		CWS_LOG_ERROR("socket(): %s", strerror(errno));
 		return CWS_SERVER_SOCKET_ERROR;
 	}
 
 	const int opt = 1;
-	status = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
+	status = setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
 	if (status != 0) {
 		CWS_LOG_ERROR("setsockopt(): %s", strerror(errno));
 		return CWS_SERVER_SETSOCKOPT_ERROR;
 	}
 
-	status = bind(sockfd, res->ai_addr, res->ai_addrlen);
+	status = bind(server_fd, res->ai_addr, res->ai_addrlen);
 	if (status != 0) {
 		CWS_LOG_ERROR("bind(): %s", strerror(errno));
 		return CWS_SERVER_BIND_ERROR;
 	}
 
-	status = listen(sockfd, CWS_SERVER_BACKLOG);
+	status = listen(server_fd, CWS_SERVER_BACKLOG);
 	if (status != 0) {
 		CWS_LOG_ERROR("listen(): %s", strerror(errno));
 		return CWS_SERVER_LISTEN_ERROR;
 	}
 
-	cws_server_ret ret = cws_server_loop(sockfd, config);
+	cws_server_ret ret = cws_server_loop(server_fd, config);
 	CWS_LOG_DEBUG("cws_server_loop ret: %d", ret);
 
 	freeaddrinfo(res);
-	close(sockfd);
+	close(server_fd);
 
 	return CWS_SERVER_OK;
 }
 
-cws_server_ret cws_server_loop(int sockfd, cws_config *config) {
-	/* Make the server loop multi-thread */
-	mcl_hashmap *clients = mcl_hm_init(my_int_hash_fn, my_int_equal_fn, my_int_free_key_fn, my_str_free_fn, sizeof(int), sizeof(cws_client));
-	if (!clients) {
-		return CWS_SERVER_HASHMAP_INIT;
+static cws_server_ret cws_server_setup_epoll(int sockfd, int *epfd_out) {
+	int epfd = epoll_create1(0);
+	if (epfd == -1) {
+		CWS_LOG_ERROR("epoll_create(): %s", strerror(errno));
+
+		return CWS_SERVER_EPOLL_CREATE_ERROR;
 	}
 
 	cws_server_ret ret;
-	int epfd = epoll_create1(0);
 
 	ret = cws_fd_set_nonblocking(sockfd);
 	if (ret != CWS_SERVER_OK) {
-		mcl_hm_free(clients);
 		close(epfd);
 
 		return ret;
@@ -102,10 +102,28 @@ cws_server_ret cws_server_loop(int sockfd, cws_config *config) {
 
 	ret = cws_epoll_add(epfd, sockfd, EPOLLIN | EPOLLET);
 	if (ret != CWS_SERVER_OK) {
-		mcl_hm_free(clients);
 		close(epfd);
 
 		return ret;
+	}
+
+	*epfd_out = epfd;
+
+	return CWS_SERVER_OK;
+}
+
+cws_server_ret cws_server_loop(int server_fd, cws_config *config) {
+	cws_server_ret ret;
+	int epfd;
+
+	ret = cws_server_setup_epoll(server_fd, &epfd);
+	if (ret != CWS_SERVER_OK) {
+		return ret;
+	}
+
+	mcl_hashmap *clients = mcl_hm_init(my_int_hash_fn, my_int_equal_fn, my_int_free_key_fn, my_str_free_fn, sizeof(int), sizeof(char) * INET_ADDRSTRLEN);
+	if (!clients) {
+		return CWS_SERVER_HASHMAP_INIT;
 	}
 
 	struct epoll_event *revents = malloc(CWS_SERVER_EPOLL_MAXEVENTS * sizeof(struct epoll_event));
@@ -114,6 +132,14 @@ cws_server_ret cws_server_loop(int sockfd, cws_config *config) {
 		close(epfd);
 
 		return CWS_SERVER_MALLOC_ERROR;
+	}
+
+	cws_threadpool *pool = cws_threadpool_init(4, 16);
+	if (pool == NULL) {
+		mcl_hm_free(clients);
+		close(epfd);
+
+		return CWS_SERVER_THREADPOOL_ERROR;
 	}
 
 	while (cws_server_run) {
@@ -125,33 +151,38 @@ cws_server_ret cws_server_loop(int sockfd, cws_config *config) {
 		}
 
 		for (int i = 0; i < nfds; ++i) {
-			if (revents[i].data.fd == sockfd) {
-				ret = cws_server_handle_new_client(sockfd, epfd, clients);
-				if (ret != CWS_SERVER_OK) {
-					CWS_LOG_DEBUG("Handle new client: %d", ret);
+			if (revents[i].data.fd == server_fd) {
+				int client_fd = cws_server_handle_new_client(server_fd, epfd, clients);
+				if (client_fd < 0) {
+					continue;
 				}
+				cws_epoll_add(epfd, client_fd, EPOLLIN | EPOLLET);
+				cws_fd_set_nonblocking(client_fd);
 			} else {
-				cws_pthread_data *thread_data = malloc(sizeof(cws_pthread_data));
-				if (!thread_data) {
-					continue;
-				}
-				pthread_t client_thread;
-
 				int client_fd = revents[i].data.fd;
-				thread_data->client_fd = client_fd;
-				thread_data->clients = clients;
-				thread_data->config = config;
-				thread_data->epfd = epfd;
 
-				ret = pthread_create(&client_thread, NULL, cws_server_handle_client_data, thread_data);
-				CWS_LOG_DEBUG("Started client thread for fd: %d", client_fd);
-				if (ret != 0) {
-					free(thread_data);
+				cws_task *task = malloc(sizeof(cws_task));
+				if (!task) {
 					cws_server_close_client(epfd, client_fd, clients);
+
 					continue;
 				}
 
-				pthread_detach(client_thread);
+				task->client_fd = client_fd;
+				task->config = config;
+
+				cws_thread_task *ttask = malloc(sizeof(cws_thread_task));
+				if (!ttask) {
+					free(task);
+
+					continue;
+				}
+
+				ttask->arg = task;
+				ttask->function = (void *)cws_server_handle_client_data;
+
+				ret = cws_threadpool_submit(pool, ttask);
+				free(ttask);
 			}
 		}
 	}
@@ -160,121 +191,99 @@ cws_server_ret cws_server_loop(int sockfd, cws_config *config) {
 	free(revents);
 	close(epfd);
 	mcl_hm_free(clients);
+	cws_threadpool_destroy(pool);
 
 	return CWS_SERVER_OK;
 }
 
-cws_server_ret cws_server_handle_new_client(int sockfd, int epfd, mcl_hashmap *clients) {
+int cws_server_handle_new_client(int server_fd, int epfd, mcl_hashmap *clients) {
 	struct sockaddr_storage their_sa;
 	socklen_t theirsa_size = sizeof their_sa;
 	char ip[INET_ADDRSTRLEN];
 
-	int client_fd = cws_server_accept_client(sockfd, &their_sa, &theirsa_size);
+	int client_fd = cws_server_accept_client(server_fd, &their_sa, &theirsa_size);
 	if (client_fd < 0) {
-		return CWS_SERVER_FD_ERROR;
+		return client_fd;
 	}
 
 	cws_utils_get_client_ip(&their_sa, ip);
 	CWS_LOG_INFO("Client (%s) (fd: %d) connected", ip, client_fd);
 
-	cws_fd_set_nonblocking(client_fd);
-	cws_epoll_add(epfd, client_fd, EPOLLIN);
+	return client_fd;
+}
 
-	cws_client client = {
-		.addr = their_sa,
-		.last_activity = time(NULL),
-	};
-	mcl_hm_set(clients, &client_fd, &client);
+static size_t cws_read_data(int sockfd, mcl_string **str) {
+	size_t total_bytes = 0;
+	ssize_t bytes_read;
 
-	return CWS_SERVER_OK;
+	if (*str == NULL) {
+		*str = mcl_string_new("", 4096);
+	}
+
+	char tmp[4096];
+	memset(tmp, 0, sizeof(tmp));
+
+	while (1) {
+		bytes_read = recv(sockfd, tmp, sizeof(tmp), 0);
+
+		if (bytes_read == -1) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				break;
+			}
+
+			CWS_LOG_ERROR("recv(): %s", strerror(errno));
+
+			return -1;
+		} else if (bytes_read == 0) {
+			return -1;
+		}
+
+		total_bytes += bytes_read;
+		mcl_string_append(*str, tmp);
+	}
+
+	return total_bytes;
 }
 
 void *cws_server_handle_client_data(void *arg) {
-	cws_pthread_data *thread_data = (cws_pthread_data *)arg;
+	cws_task *task = (cws_task *)arg;
 
-	int client_fd = thread_data->client_fd;
-	int epfd = thread_data->epfd;
-	mcl_hashmap *clients = thread_data->clients;
-	cws_config *config = thread_data->config;
+	int client_fd = task->client_fd;
+	cws_config *config = task->config;
 
-	char tmp_data[1024];
-	memset(tmp_data, 0, sizeof(tmp_data));
-	char ip[INET_ADDRSTRLEN] = {0};
-	mcl_string *data = mcl_string_new("", 1024);
-
-	/* Incoming data */
-	ssize_t total_bytes = 0;
-	ssize_t bytes_read;
-	while ((bytes_read = recv(client_fd, tmp_data, sizeof(tmp_data), 0)) > 0) {
-		total_bytes += bytes_read;
-		if (total_bytes > CWS_SERVER_MAX_REQUEST_SIZE) {
-			mcl_string_free(data);
-			cws_server_close_client(epfd, client_fd, clients);
-			free(thread_data);
-
-			return NULL;
-		}
-		mcl_string_append(data, tmp_data);
-		memset(tmp_data, 0, sizeof(tmp_data));
-	}
-
-	if (bytes_read < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
-		/* Error during read, handle it (close client) */
-		CWS_LOG_ERROR("recv(): %s", strerror(errno));
+	/* Read data from socket */
+	mcl_string *data = NULL;
+	size_t total_bytes = cws_read_data(client_fd, &data);
+	if (total_bytes < 0) {
 		mcl_string_free(data);
-		cws_server_close_client(epfd, client_fd, clients);
-		free(thread_data);
+		free(task);
+
+		/* TODO: Here we should close the client_fd, same as total == 0 */
 
 		return NULL;
 	}
 
-	/* Retrieve client ip */
-	mcl_bucket *client = mcl_hm_get(clients, &client_fd);
-	if (!client) {
-		CWS_LOG_ERROR("Client fd %d not found in hashmap", client_fd);
+	if (total_bytes == 0) {
 		mcl_string_free(data);
-		cws_epoll_del(epfd, client_fd);
-		close(client_fd);
-		free(thread_data);
-
-		return NULL;
-	}
-	cws_client *client_info = (cws_client *)client->value;
-	cws_utils_get_client_ip(&client_info->addr, ip);
-	client_info->last_activity = time(NULL);
-
-	if (bytes_read == 0) {
-		/* Client disconnected */
-		CWS_LOG_INFO("Client (%s) disconnected", ip);
-		mcl_string_free(data);
-		cws_server_close_client(epfd, client_fd, clients);
-		free(thread_data);
 
 		return NULL;
 	}
 
 	/* Parse HTTP request */
+	// CWS_LOG_DEBUG("Raw request: %s", mcl_string_cstr(data));
 	cws_http *request = cws_http_parse(data, client_fd, config);
 	mcl_string_free(data);
 
 	if (request == NULL) {
-		CWS_LOG_INFO("Client (%s) disconnected (request NULL)", ip);
-		cws_server_close_client(epfd, client_fd, clients);
-		free(thread_data);
-
 		return NULL;
 	}
 
-	int keepalive = cws_http_send_resource(request);
+	/* TODO: fix keep-alive */
+	int _keepalive = cws_http_send_resource(request);
 	cws_http_free(request);
 
-	/* Only close connection if not keep-alive */
-	/* TODO: fix */
-	if (keepalive <= 0) {
-		cws_server_close_client(epfd, client_fd, clients);
-	}
-
-	free(thread_data);
+	/* Free the task */
+	free(task);
 
 	return NULL;
 }
@@ -315,8 +324,8 @@ cws_server_ret cws_fd_set_nonblocking(int sockfd) {
 	return CWS_SERVER_OK;
 }
 
-int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size) {
-	const int client_fd = accept(sockfd, (struct sockaddr *)their_sa, theirsa_size);
+int cws_server_accept_client(int server_fd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size) {
+	const int client_fd = accept(server_fd, (struct sockaddr *)their_sa, theirsa_size);
 
 	if (client_fd == -1) {
 		if (errno != EWOULDBLOCK) {
@@ -330,6 +339,7 @@ int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, sock
 
 void cws_server_close_client(int epfd, int client_fd, mcl_hashmap *hashmap) {
 	if (fcntl(client_fd, F_GETFD) != -1) {
+		/* TODO: race condition here */
 		cws_epoll_del(epfd, client_fd);
 		mcl_hm_remove(hashmap, &client_fd);
 	}

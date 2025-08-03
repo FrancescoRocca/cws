@@ -126,17 +126,22 @@ cws_http *cws_http_parse(mcl_string *request_str, int sockfd, cws_config *config
 			break;
 		}
 
+		char hk[CWS_HTTP_HEADER_MAX];
+		char hv[CWS_HTTP_HEADER_CONTENT_MAX];
+
 		/* Header key */
-		char *hkey = pch;
-		char *hkey_dup = strdup(hkey);
+		strncpy(hk, pch, sizeof(hk));
 		/* Header value (starting from ": ") */
 		char *hvalue = header_colon + 2;
-		char *hvalue_dup = strdup(hvalue);
+		strncpy(hv, hvalue, sizeof(hv));
 
-		mcl_hm_set(request->headers, hkey_dup, hvalue_dup);
+		// CWS_LOG_DEBUG("hkey: %s -> %s", hk, hv);
+		mcl_hm_set(request->headers, hk, hv);
 	}
 
 	/* TODO: Parse body */
+
+	free(request_str_cpy);
 
 	return request;
 }
@@ -240,6 +245,7 @@ int cws_http_send_resource(cws_http *request) {
 	if (read_bytes != content_length) {
 		free(file_data);
 		CWS_LOG_ERROR("Partial read from file");
+
 		return 0;
 	}
 
@@ -250,6 +256,7 @@ int cws_http_send_resource(cws_http *request) {
 		strcpy(conn, "keep-alive");
 		keepalive = 1;
 	}
+	mcl_hm_free_bucket(connection);
 
 	char *response = NULL;
 	size_t response_len = cws_http_response_builder(&response, "HTTP/1.1", CWS_HTTP_OK, content_type, conn, file_data, content_length);
@@ -338,5 +345,8 @@ void cws_http_send_simple_html(cws_http *request, cws_http_status status, char *
 
 void cws_http_free(cws_http *request) {
 	mcl_hm_free(request->headers);
+	mcl_string_free(request->http_version);
+	mcl_string_free(request->location);
+	mcl_string_free(request->location_path);
 	free(request);
 }
