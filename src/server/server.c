@@ -152,13 +152,16 @@ cws_server_ret cws_server_loop(int server_fd, cws_config *config) {
 
 		for (int i = 0; i < nfds; ++i) {
 			if (revents[i].data.fd == server_fd) {
+				/* Handle new client */
 				int client_fd = cws_server_handle_new_client(server_fd, epfd, clients);
 				if (client_fd < 0) {
 					continue;
 				}
 				cws_epoll_add(epfd, client_fd, EPOLLIN | EPOLLET);
 				cws_fd_set_nonblocking(client_fd);
+				mcl_hm_set(clients, &client_fd, "test");
 			} else {
+				/* Handle client data */
 				int client_fd = revents[i].data.fd;
 
 				cws_task *task = malloc(sizeof(cws_task));
@@ -170,6 +173,8 @@ cws_server_ret cws_server_loop(int server_fd, cws_config *config) {
 
 				task->client_fd = client_fd;
 				task->config = config;
+				task->epfd = epfd;
+				task->clients = clients;
 
 				cws_thread_task *ttask = malloc(sizeof(cws_thread_task));
 				if (!ttask) {
@@ -182,6 +187,11 @@ cws_server_ret cws_server_loop(int server_fd, cws_config *config) {
 				ttask->function = (void *)cws_server_handle_client_data;
 
 				ret = cws_threadpool_submit(pool, ttask);
+				if (ret != CWS_SERVER_OK) {
+					cws_server_close_client(epfd, client_fd, clients);
+					free(task);
+				}
+
 				free(ttask);
 			}
 		}
@@ -249,40 +259,41 @@ void *cws_server_handle_client_data(void *arg) {
 	cws_task *task = (cws_task *)arg;
 
 	int client_fd = task->client_fd;
+	int epfd = task->epfd;
+	mcl_hashmap *clients = task->clients;
 	cws_config *config = task->config;
 
 	/* Read data from socket */
 	mcl_string *data = NULL;
 	size_t total_bytes = cws_read_data(client_fd, &data);
-	if (total_bytes < 0) {
-		mcl_string_free(data);
+	if (total_bytes <= 0) {
+		if (data) {
+			mcl_string_free(data);
+		}
+		cws_server_close_client(epfd, client_fd, clients);
 		free(task);
-
-		/* TODO: Here we should close the client_fd, same as total == 0 */
-
-		return NULL;
-	}
-
-	if (total_bytes == 0) {
-		mcl_string_free(data);
 
 		return NULL;
 	}
 
 	/* Parse HTTP request */
-	// CWS_LOG_DEBUG("Raw request: %s", mcl_string_cstr(data));
 	cws_http *request = cws_http_parse(data, client_fd, config);
 	mcl_string_free(data);
 
 	if (request == NULL) {
+		cws_server_close_client(epfd, client_fd, clients);
+		free(task);
+
 		return NULL;
 	}
 
-	/* TODO: fix keep-alive */
-	int _keepalive = cws_http_send_resource(request);
+	int keepalive = cws_http_send_resource(request);
 	cws_http_free(request);
+	if (!keepalive) {
+		CWS_LOG_DEBUG("keep-alive: %d, closing fd: %d", keepalive, client_fd);
+		cws_server_close_client(epfd, client_fd, clients);
+	}
 
-	/* Free the task */
 	free(task);
 
 	return NULL;
@@ -337,10 +348,12 @@ int cws_server_accept_client(int server_fd, struct sockaddr_storage *their_sa, s
 	return client_fd;
 }
 
-void cws_server_close_client(int epfd, int client_fd, mcl_hashmap *hashmap) {
-	if (fcntl(client_fd, F_GETFD) != -1) {
-		/* TODO: race condition here */
+void cws_server_close_client(int epfd, int client_fd, mcl_hashmap *clients) {
+	/* TODO: fix race conditions */
+	mcl_bucket *client = mcl_hm_get(clients, &client_fd);
+	if (client) {
 		cws_epoll_del(epfd, client_fd);
-		mcl_hm_remove(hashmap, &client_fd);
+		mcl_hm_remove(clients, &client_fd);
+		mcl_hm_free_bucket(client);
 	}
 }

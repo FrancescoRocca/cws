@@ -10,6 +10,8 @@
 
 typedef struct cws_task_t {
 	int client_fd;
+	int epfd;
+	mcl_hashmap *clients;
 	cws_config *config;
 } cws_task;
 

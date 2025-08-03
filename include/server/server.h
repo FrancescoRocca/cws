@@ -4,6 +4,7 @@
 #include <netdb.h>
 #include <signal.h>
 #include <sys/socket.h>
+#include <time.h>
 
 #include "myclib/hashmap/myhashmap.h"
 #include "utils/config.h"
@@ -44,6 +45,11 @@ typedef enum cws_server_ret_t {
 	CWS_SERVER_THREADPOOL_ERROR,
 	CWS_SERVER_EPOLL_CREATE_ERROR,
 } cws_server_ret;
+
+typedef struct cws_client_info_t {
+	time_t last_activity;
+	int client_fd;
+} cws_client_info;
 
 /**
  * @brief Runs the server
@@ -97,9 +103,9 @@ int cws_server_accept_client(int server_fd, struct sockaddr_storage *their_sa, s
  *
  * @param[in] epfd Epoll file descriptor
  * @param[in] client_fd Client file descriptor
- * @param[in] hashmap Clients hash map
+ * @param[in] clients Clients hash map
  */
-void cws_server_close_client(int epfd, int client_fd, mcl_hashmap *hashmap);
+void cws_server_close_client(int epfd, int client_fd, mcl_hashmap *clients);
 
 int cws_server_handle_new_client(int server_fd, int epfd, mcl_hashmap *clients);
 void *cws_server_handle_client_data(void *arg);
