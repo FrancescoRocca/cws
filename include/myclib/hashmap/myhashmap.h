@@ -1,6 +1,7 @@
 #ifndef MYCLIB_HASHMAP_H
 #define MYCLIB_HASHMAP_H
 
+#include <pthread.h>
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -63,6 +64,8 @@ typedef struct mcl_hashmap_t {
 	size_t key_size;					 /**< Size in bytes of the key */
 	size_t value_size;					 /**< Size in bytes of the value */
 	mcl_bucket map[MYCLIB_HASHMAP_SIZE]; /**< Array of bucket chains */
+	pthread_mutex_t *locks;				 /**< Mutex array */
+	size_t num_locks;					 /**< Number of mutex */
 } mcl_hashmap;
 
 /**
@@ -94,6 +97,13 @@ mcl_hashmap *mcl_hm_init(mcl_hash_fn *hash_fn, mcl_equal_fn *equal_fn, mcl_free_
 void mcl_hm_free(mcl_hashmap *hashmap);
 
 /**
+ * @brief Free a bucket returned by mcl_hm_get()
+ *
+ * @param[in] bucket Pointer to the bucket to free
+ */
+void mcl_hm_free_bucket(mcl_bucket *bucket);
+
+/**
  * @brief Insert or update a key-value pair in the hash map
  *
  * If the key already exists, the old value is freed (if free_value_fn is provided)
@@ -115,7 +125,7 @@ bool mcl_hm_set(mcl_hashmap *hashmap, void *key, void *value);
  *
  * @param[in] hashmap Pointer to the hash map
  * @param[in] key Pointer to the key to search for
- * @return Pointer to the found bucket, or NULL if not found or on invalid input
+ * @return Pointer to the copy of the bucket, to avoid race conditions, or NULL if not found or on invalid input
  */
 mcl_bucket *mcl_hm_get(mcl_hashmap *hashmap, void *key);
 

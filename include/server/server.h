@@ -44,10 +44,18 @@ typedef enum cws_server_ret_t {
 	CWS_SERVER_REQUEST_TOO_LARGE,
 } cws_server_ret;
 
+/* TODO: use last_activity as keep-alive */
 typedef struct cws_client_t {
 	struct sockaddr_storage addr;
 	time_t last_activity;
 } cws_client;
+
+typedef struct cws_pthread_data_t {
+	int client_fd;
+	int epfd;
+	cws_config *config;
+	mcl_hashmap *clients;
+} cws_pthread_data;
 
 /**
  * @brief Setups hints object
@@ -114,6 +122,6 @@ int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, sock
 void cws_server_close_client(int epfd, int client_fd, mcl_hashmap *hashmap);
 
 cws_server_ret cws_server_handle_new_client(int sockfd, int epfd, mcl_hashmap *clients);
-cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashmap *clients, cws_config *config);
+void *cws_server_handle_client_data(void *arg);
 
 #endif

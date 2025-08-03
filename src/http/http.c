@@ -64,7 +64,7 @@ cws_http *cws_http_parse(mcl_string *request_str, int sockfd, cws_config *config
 
 		return NULL;
 	}
-	//CWS_LOG_DEBUG("method: %s", pch);
+	// CWS_LOG_DEBUG("method: %s", pch);
 
 	int ret = cws_http_parse_method(request, pch);
 	if (ret < 0) {
@@ -85,7 +85,7 @@ cws_http *cws_http_parse(mcl_string *request_str, int sockfd, cws_config *config
 
 		return NULL;
 	}
-	//CWS_LOG_DEBUG("location: %s", pch);
+	// CWS_LOG_DEBUG("location: %s", pch);
 	mcl_string_append(request->location, pch);
 	mcl_string_append(request->location_path, config->www);
 
@@ -95,7 +95,7 @@ cws_http *cws_http_parse(mcl_string *request_str, int sockfd, cws_config *config
 	} else {
 		mcl_string_append(request->location_path, mcl_string_cstr(request->location));
 	}
-	//CWS_LOG_DEBUG("location path: %s", mcl_string_cstr(request->location_path));
+	// CWS_LOG_DEBUG("location path: %s", mcl_string_cstr(request->location_path));
 
 	/* Parse HTTP version */
 	pch = strtok_r(NULL, " \r\n", &saveptr);
@@ -105,7 +105,7 @@ cws_http *cws_http_parse(mcl_string *request_str, int sockfd, cws_config *config
 
 		return NULL;
 	}
-	//CWS_LOG_DEBUG("version: %s", pch);
+	// CWS_LOG_DEBUG("version: %s", pch);
 	mcl_string_append(request->http_version, pch);
 
 	/* Parse headers until a \r\n */

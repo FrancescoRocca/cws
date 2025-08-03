@@ -1,17 +1,26 @@
 #include "mystring.h"
 
 #include <math.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
 mcl_string *mcl_string_new(const char *text, long initial_capacity) {
-	if (!text) {
+	if (text == NULL) {
 		return NULL;
 	}
 
 	/* Allocate string struct */
 	mcl_string *str = malloc(sizeof(mcl_string));
-	if (!str) {
+	if (str == NULL) {
+		return NULL;
+	}
+
+	/* Init pthread mutex */
+	int ret = pthread_mutex_init(&str->lock, NULL);
+	if (ret != 0) {
+		free(str);
+
 		return NULL;
 	}
 
@@ -20,6 +29,8 @@ mcl_string *mcl_string_new(const char *text, long initial_capacity) {
 	size_t capacity = initial_capacity;
 
 	if (capacity != -1 && capacity - 1 < str->size) {
+		free(str);
+
 		return NULL;
 	}
 
@@ -31,7 +42,7 @@ mcl_string *mcl_string_new(const char *text, long initial_capacity) {
 
 	/* Allocate data buffer */
 	str->data = malloc(sizeof(char) * str->capacity);
-	if (!str->data) {
+	if (str->data == NULL) {
 		free(str);
 
 		return NULL;
@@ -46,13 +57,21 @@ mcl_string *mcl_string_new(const char *text, long initial_capacity) {
 }
 
 int mcl_string_append(mcl_string *string, const char *text) {
-	if (!string || !text) {
+	if (string == NULL || text == NULL) {
+		return -1;
+	}
+
+	/* Lock resource */
+	int ret = pthread_mutex_lock(&string->lock);
+	if (ret != 0) {
 		return -1;
 	}
 
 	/* Handle empty case */
 	size_t text_len = strlen(text);
 	if (text_len == 0) {
+		pthread_mutex_unlock(&string->lock);
+
 		return 0;
 	}
 
@@ -64,6 +83,8 @@ int mcl_string_append(mcl_string *string, const char *text) {
 		/* Reallocate the buffer */
 		void *new_data = realloc(string->data, sizeof(char) * new_capacity);
 		if (!new_data) {
+			pthread_mutex_unlock(&string->lock);
+
 			return -1;
 		}
 
@@ -79,11 +100,22 @@ int mcl_string_append(mcl_string *string, const char *text) {
 	string->size = new_size;
 	string->data[string->size] = '\0';
 
+	/* Unlock resource */
+	ret = pthread_mutex_unlock(&string->lock);
+	if (ret != 0) {
+		return -1;
+	}
+
 	return 0;
 }
 
 void mcl_string_free(mcl_string *string) {
-	if (!string) {
+	if (string == NULL) {
+		return;
+	}
+
+	int ret = pthread_mutex_lock(&string->lock);
+	if (ret != 0) {
 		return;
 	}
 
@@ -91,29 +123,59 @@ void mcl_string_free(mcl_string *string) {
 		free(string->data);
 	}
 
+	pthread_mutex_unlock(&string->lock);
+	pthread_mutex_destroy(&string->lock);
+
 	free(string);
 }
 
-size_t mcl_string_length(const mcl_string *string) {
-	if (!string) {
+size_t mcl_string_length(mcl_string *string) {
+	if (string == NULL) {
 		return 0;
 	}
 
-	return string->size;
-}
-
-size_t mcl_string_capacity(const mcl_string *string) {
-	if (!string) {
+	int ret = pthread_mutex_lock(&string->lock);
+	if (ret != 0) {
 		return 0;
 	}
 
-	return string->capacity;
+	size_t len = string->size;
+
+	pthread_mutex_unlock(&string->lock);
+
+	return len;
 }
 
-const char *mcl_string_cstr(const mcl_string *string) {
-	if (!string || !string->data) {
+size_t mcl_string_capacity(mcl_string *string) {
+	if (string == NULL) {
+		return 0;
+	}
+
+	int ret = pthread_mutex_lock(&string->lock);
+	if (ret != 0) {
+		return 0;
+	}
+
+	size_t cap = string->capacity;
+
+	pthread_mutex_unlock(&string->lock);
+
+	return cap;
+}
+
+const char *mcl_string_cstr(mcl_string *string) {
+	if (string == NULL || string->data == NULL) {
 		return "";
 	}
 
-	return string->data;
+	int ret = pthread_mutex_lock(&string->lock);
+	if (ret != 0) {
+		return NULL;
+	}
+
+	char *data = string->data;
+
+	pthread_mutex_unlock(&string->lock);
+
+	return data;
 }

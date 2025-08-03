@@ -83,6 +83,7 @@ cws_server_ret cws_server_start(cws_config *config) {
 }
 
 cws_server_ret cws_server_loop(int sockfd, cws_config *config) {
+	/* Make the server loop multi-thread */
 	mcl_hashmap *clients = mcl_hm_init(my_int_hash_fn, my_int_equal_fn, my_int_free_key_fn, my_str_free_fn, sizeof(int), sizeof(cws_client));
 	if (!clients) {
 		return CWS_SERVER_HASHMAP_INIT;
@@ -116,9 +117,7 @@ cws_server_ret cws_server_loop(int sockfd, cws_config *config) {
 	}
 
 	while (cws_server_run) {
-		CWS_LOG_DEBUG("Waiting for epoll events...");
 		int nfds = epoll_wait(epfd, revents, CWS_SERVER_EPOLL_MAXEVENTS, CWS_SERVER_EPOLL_TIMEOUT);
-		CWS_LOG_DEBUG("epoll_wait returned %d events", nfds);
 
 		if (nfds == 0) {
 			/* TODO: Check for inactive clients */
@@ -132,10 +131,27 @@ cws_server_ret cws_server_loop(int sockfd, cws_config *config) {
 					CWS_LOG_DEBUG("Handle new client: %d", ret);
 				}
 			} else {
-				ret = cws_server_handle_client_data(revents[i].data.fd, epfd, clients, config);
-				if (ret != CWS_SERVER_OK) {
-					CWS_LOG_DEBUG("Handle client data: %d", ret);
+				cws_pthread_data *thread_data = malloc(sizeof(cws_pthread_data));
+				if (!thread_data) {
+					continue;
 				}
+				pthread_t client_thread;
+
+				int client_fd = revents[i].data.fd;
+				thread_data->client_fd = client_fd;
+				thread_data->clients = clients;
+				thread_data->config = config;
+				thread_data->epfd = epfd;
+
+				ret = pthread_create(&client_thread, NULL, cws_server_handle_client_data, thread_data);
+				CWS_LOG_DEBUG("Started client thread for fd: %d", client_fd);
+				if (ret != 0) {
+					free(thread_data);
+					cws_server_close_client(epfd, client_fd, clients);
+					continue;
+				}
+
+				pthread_detach(client_thread);
 			}
 		}
 	}
@@ -173,7 +189,14 @@ cws_server_ret cws_server_handle_new_client(int sockfd, int epfd, mcl_hashmap *c
 	return CWS_SERVER_OK;
 }
 
-cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashmap *clients, cws_config *config) {
+void *cws_server_handle_client_data(void *arg) {
+	cws_pthread_data *thread_data = (cws_pthread_data *)arg;
+
+	int client_fd = thread_data->client_fd;
+	int epfd = thread_data->epfd;
+	mcl_hashmap *clients = thread_data->clients;
+	cws_config *config = thread_data->config;
+
 	char tmp_data[1024];
 	memset(tmp_data, 0, sizeof(tmp_data));
 	char ip[INET_ADDRSTRLEN] = {0};
@@ -187,8 +210,9 @@ cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashma
 		if (total_bytes > CWS_SERVER_MAX_REQUEST_SIZE) {
 			mcl_string_free(data);
 			cws_server_close_client(epfd, client_fd, clients);
+			free(thread_data);
 
-			return CWS_SERVER_REQUEST_TOO_LARGE;
+			return NULL;
 		}
 		mcl_string_append(data, tmp_data);
 		memset(tmp_data, 0, sizeof(tmp_data));
@@ -199,8 +223,9 @@ cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashma
 		CWS_LOG_ERROR("recv(): %s", strerror(errno));
 		mcl_string_free(data);
 		cws_server_close_client(epfd, client_fd, clients);
+		free(thread_data);
 
-		return CWS_SERVER_CLIENT_DISCONNECTED_ERROR;
+		return NULL;
 	}
 
 	/* Retrieve client ip */
@@ -210,8 +235,9 @@ cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashma
 		mcl_string_free(data);
 		cws_epoll_del(epfd, client_fd);
 		close(client_fd);
+		free(thread_data);
 
-		return CWS_SERVER_CLIENT_NOT_FOUND;
+		return NULL;
 	}
 	cws_client *client_info = (cws_client *)client->value;
 	cws_utils_get_client_ip(&client_info->addr, ip);
@@ -222,8 +248,9 @@ cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashma
 		CWS_LOG_INFO("Client (%s) disconnected", ip);
 		mcl_string_free(data);
 		cws_server_close_client(epfd, client_fd, clients);
+		free(thread_data);
 
-		return CWS_SERVER_CLIENT_DISCONNECTED;
+		return NULL;
 	}
 
 	/* Parse HTTP request */
@@ -233,19 +260,23 @@ cws_server_ret cws_server_handle_client_data(int client_fd, int epfd, mcl_hashma
 	if (request == NULL) {
 		CWS_LOG_INFO("Client (%s) disconnected (request NULL)", ip);
 		cws_server_close_client(epfd, client_fd, clients);
+		free(thread_data);
 
-		return CWS_SERVER_HTTP_PARSE_ERROR;
+		return NULL;
 	}
 
 	int keepalive = cws_http_send_resource(request);
 	cws_http_free(request);
 
 	/* Only close connection if not keep-alive */
+	/* TODO: fix */
 	if (keepalive <= 0) {
 		cws_server_close_client(epfd, client_fd, clients);
 	}
 
-	return CWS_SERVER_OK;
+	free(thread_data);
+
+	return NULL;
 }
 
 cws_server_ret cws_epoll_add(int epfd, int sockfd, uint32_t events) {
@@ -298,6 +329,8 @@ int cws_server_accept_client(int sockfd, struct sockaddr_storage *their_sa, sock
 }
 
 void cws_server_close_client(int epfd, int client_fd, mcl_hashmap *hashmap) {
-	cws_epoll_del(epfd, client_fd);
-	mcl_hm_remove(hashmap, &client_fd);
+	if (fcntl(client_fd, F_GETFD) != -1) {
+		cws_epoll_del(epfd, client_fd);
+		mcl_hm_remove(hashmap, &client_fd);
+	}
 }

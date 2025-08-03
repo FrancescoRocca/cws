@@ -1,8 +1,11 @@
 #include "myhashmap.h"
 
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+static size_t mcl_get_mutex(mcl_hashmap *hashmap, size_t hash) { return hash % hashmap->num_locks; }
 
 static size_t mcl_get_bucket_index(mcl_hashmap *hashmap, void *key) {
 	unsigned int hash = hashmap->hash_fn(key);
@@ -62,6 +65,28 @@ mcl_hashmap *mcl_hm_init(mcl_hash_fn *hash_fn, mcl_equal_fn *equal_fn, mcl_free_
 	hashmap->key_size = key_size;
 	hashmap->value_size = value_size;
 
+	hashmap->num_locks = 64;
+	hashmap->locks = malloc(sizeof(pthread_mutex_t) * hashmap->num_locks);
+	if (hashmap->locks == NULL) {
+		free(hashmap);
+
+		return NULL;
+	}
+
+	int ret;
+	for (size_t i = 0; i < hashmap->num_locks; ++i) {
+		ret = pthread_mutex_init(&(hashmap->locks[i]), NULL);
+		if (ret != 0) {
+			/* Mutex failed */
+			for (size_t j = 0; j < i; ++j) {
+				pthread_mutex_destroy(&(hashmap->locks[j]));
+			}
+
+			free(hashmap->locks);
+			free(hashmap);
+		}
+	}
+
 	memset(hashmap->map, 0, sizeof(hashmap->map));
 
 	return hashmap;
@@ -91,14 +116,34 @@ void mcl_hm_free(mcl_hashmap *hashmap) {
 		}
 	}
 
+	/* Free the mutex */
+	for (size_t i = 0; i < hashmap->num_locks; ++i) {
+		pthread_mutex_destroy(&(hashmap->locks[i]));
+	}
+	free(hashmap->locks);
+
 	/* Free the hash map structure itself */
 	free(hashmap);
+}
+
+void mcl_hm_free_bucket(mcl_bucket *bucket) {
+	if (bucket == NULL) {
+		return;
+	}
+
+	free(bucket->key);
+	free(bucket->value);
+	free(bucket);
 }
 
 bool mcl_hm_set(mcl_hashmap *hashmap, void *key, void *value) {
 	if (hashmap == NULL || key == NULL || value == NULL) {
 		return false;
 	}
+
+	size_t mutex_id = mcl_get_mutex(hashmap, hashmap->hash_fn(key));
+	pthread_mutex_t *mutex = &(hashmap->locks[mutex_id]);
+	pthread_mutex_lock(mutex);
 
 	mcl_bucket *prev;
 	mcl_bucket *existing = mcl_find_bucket(hashmap, key, &prev);
@@ -111,9 +156,14 @@ bool mcl_hm_set(mcl_hashmap *hashmap, void *key, void *value) {
 
 		existing->value = malloc(hashmap->value_size);
 		if (existing->value == NULL) {
+			pthread_mutex_unlock(mutex);
+
 			return false;
 		}
+
 		memcpy(existing->value, value, hashmap->value_size);
+		pthread_mutex_unlock(mutex);
+
 		return true;
 	}
 
@@ -125,6 +175,8 @@ bool mcl_hm_set(mcl_hashmap *hashmap, void *key, void *value) {
 		/* First bucket is empty, use it */
 		bucket->key = malloc(hashmap->key_size);
 		if (bucket->key == NULL) {
+			pthread_mutex_unlock(mutex);
+
 			return false;
 		}
 
@@ -132,24 +184,32 @@ bool mcl_hm_set(mcl_hashmap *hashmap, void *key, void *value) {
 		if (bucket->value == NULL) {
 			free(bucket->key);
 			bucket->key = NULL;
+			pthread_mutex_unlock(mutex);
+
 			return false;
 		}
 
 		memcpy(bucket->key, key, hashmap->key_size);
 		memcpy(bucket->value, value, hashmap->value_size);
 		bucket->next = NULL;
+		pthread_mutex_unlock(mutex);
+
 		return true;
 	}
 
 	/* Create new bucket and insert at head of collision chain */
 	mcl_bucket *new_bucket = malloc(sizeof(mcl_bucket));
 	if (new_bucket == NULL) {
+		pthread_mutex_unlock(mutex);
+
 		return false;
 	}
 
 	new_bucket->key = malloc(hashmap->key_size);
 	if (new_bucket->key == NULL) {
 		free(new_bucket);
+		pthread_mutex_unlock(mutex);
+
 		return false;
 	}
 
@@ -157,6 +217,8 @@ bool mcl_hm_set(mcl_hashmap *hashmap, void *key, void *value) {
 	if (new_bucket->value == NULL) {
 		free(new_bucket->key);
 		free(new_bucket);
+		pthread_mutex_unlock(mutex);
+
 		return false;
 	}
 
@@ -164,8 +226,36 @@ bool mcl_hm_set(mcl_hashmap *hashmap, void *key, void *value) {
 	memcpy(new_bucket->value, value, hashmap->value_size);
 	new_bucket->next = bucket->next;
 	bucket->next = new_bucket;
+	pthread_mutex_unlock(mutex);
 
 	return true;
+}
+
+static mcl_bucket *mcl_get_bucket_copy(mcl_bucket *from, size_t key_size, size_t value_size) {
+	mcl_bucket *copy = malloc(sizeof(mcl_bucket));
+	if (copy == NULL) {
+		return NULL;
+	}
+	memcpy(copy, from, sizeof(mcl_bucket));
+
+	copy->key = malloc(key_size);
+	if (copy->key == NULL) {
+		free(copy);
+
+		return NULL;
+	}
+	memcpy(copy->key, from->key, key_size);
+
+	copy->value = malloc(value_size);
+	if (copy->value == NULL) {
+		free(copy->key);
+		free(copy);
+
+		return NULL;
+	}
+	memcpy(copy->value, from->value, value_size);
+
+	return copy;
 }
 
 mcl_bucket *mcl_hm_get(mcl_hashmap *hashmap, void *key) {
@@ -173,8 +263,24 @@ mcl_bucket *mcl_hm_get(mcl_hashmap *hashmap, void *key) {
 		return NULL;
 	}
 
+	size_t mutex_id = mcl_get_mutex(hashmap, hashmap->hash_fn(key));
+	pthread_mutex_t *mutex = &(hashmap->locks[mutex_id]);
+	pthread_mutex_lock(mutex);
+
 	mcl_bucket *prev;
-	return mcl_find_bucket(hashmap, key, &prev);
+	mcl_bucket *found = mcl_find_bucket(hashmap, key, &prev);
+
+	if (found) {
+		mcl_bucket *copy = mcl_get_bucket_copy(found, hashmap->key_size, hashmap->value_size);
+
+		pthread_mutex_unlock(mutex);
+
+		return copy;
+	}
+
+	pthread_mutex_unlock(mutex);
+
+	return NULL;
 }
 
 bool mcl_hm_remove(mcl_hashmap *hashmap, void *key) {
@@ -182,10 +288,16 @@ bool mcl_hm_remove(mcl_hashmap *hashmap, void *key) {
 		return false;
 	}
 
+	size_t mutex_id = mcl_get_mutex(hashmap, hashmap->hash_fn(key));
+	pthread_mutex_t *mutex = &(hashmap->locks[mutex_id]);
+	pthread_mutex_lock(mutex);
+
 	mcl_bucket *prev;
 	mcl_bucket *to_remove = mcl_find_bucket(hashmap, key, &prev);
 
 	if (to_remove == NULL) {
+		pthread_mutex_unlock(mutex);
+
 		return false;
 	}
 
@@ -213,6 +325,8 @@ bool mcl_hm_remove(mcl_hashmap *hashmap, void *key) {
 		prev->next = to_remove->next;
 		free(to_remove);
 	}
+
+	pthread_mutex_unlock(mutex);
 
 	return true;
 }
