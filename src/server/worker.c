@@ -55,6 +55,7 @@ cws_worker **cws_worker_init(size_t workers_num, mcl_hashmap *clients, cws_confi
 		memset(workers[i], 0, sizeof(cws_worker));
 
 		workers[i]->config = config;
+		workers[i]->clients = clients;
 
 		/* Communicate though threads */
 		pipe(workers[i]->pipefd);
@@ -98,18 +99,16 @@ void *cws_worker_loop(void *arg) {
 			continue;
 		}
 
-		for (size_t i = 0; i < nfds; ++i) {
+		for (int i = 0; i < nfds; ++i) {
 			if (events[i].data.fd == worker->pipefd[0]) {
 				/* Handle new client */
 				int client_fd;
 				read(worker->pipefd[0], &client_fd, sizeof(int));
-				// CWS_LOG_DEBUG("Data from main, add client: %d", client_fd);
 				cws_fd_set_nonblocking(client_fd);
 				cws_epoll_add(worker->epfd, client_fd, EPOLLIN | EPOLLET);
 			} else {
 				/* Handle client data */
 				int client_fd = events[i].data.fd;
-				// CWS_LOG_DEBUG("Data from client (thread: %ld)", worker->thread);
 				cws_server_handle_client_data(worker->epfd, client_fd, worker->clients, worker->config);
 			}
 		}
@@ -169,6 +168,8 @@ static size_t cws_read_data(int sockfd, mcl_string **str) {
 		if (bytes_read == -1) {
 			if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				break;
+			} else if (errno == ECONNRESET) {
+				return 0;
 			}
 
 			CWS_LOG_ERROR("recv(): %s", strerror(errno));

@@ -81,13 +81,39 @@ cws_server_ret cws_server_start(cws_config *config) {
 	return CWS_SERVER_OK;
 }
 
+static cws_server_ret cws_server_setup_epoll(int server_fd, int *epfd_out) {
+	int epfd = epoll_create1(0);
+	if (epfd < 0) {
+		return epfd;
+	}
+
+	cws_server_ret ret;
+	ret = cws_fd_set_nonblocking(server_fd);
+	if (ret != CWS_SERVER_OK) {
+		return ret;
+	}
+
+	cws_epoll_add(epfd, server_fd, EPOLLIN);
+	*epfd_out = epfd;
+
+	return CWS_SERVER_OK;
+}
+
 cws_server_ret cws_server_loop(int server_fd, cws_config *config) {
+	int epfd = 0;
+	cws_server_ret ret;
+
+	ret = cws_server_setup_epoll(server_fd, &epfd);
+	if (ret != CWS_SERVER_OK) {
+		return ret;
+	}
+
 	mcl_hashmap *clients = mcl_hm_init(my_int_hash_fn, my_int_equal_fn, my_int_free_key_fn, my_str_free_fn, sizeof(int), sizeof(char) * INET_ADDRSTRLEN);
 	if (clients == NULL) {
 		return CWS_SERVER_HASHMAP_INIT;
 	}
 
-	size_t workers_num = 4;
+	size_t workers_num = 6;
 	size_t workers_index = 0;
 	cws_worker **workers = cws_worker_init(workers_num, clients, config);
 	if (workers == NULL) {
@@ -95,20 +121,38 @@ cws_server_ret cws_server_loop(int server_fd, cws_config *config) {
 		return CWS_SERVER_WORKER_ERROR;
 	}
 
+	struct epoll_event events[128];
+	memset(events, 0, sizeof(events));
 	int client_fd = 0;
+
 	while (cws_server_run) {
-		client_fd = cws_server_handle_new_client(server_fd, clients);
-		if (client_fd < 0) {
+		int nfds = epoll_wait(epfd, events, 128, -1);
+
+		if (nfds < 0) {
 			continue;
 		}
 
-		/* Add client to worker */
-		int random = 10;
-		mcl_hm_set(clients, &client_fd, &random);
-		write(workers[workers_index]->pipefd[1], &client_fd, sizeof(int));
-		workers_index = (workers_index + 1) % workers_num;
+		if (nfds == 0) {
+			continue;
+		}
+
+		for (int i = 0; i < nfds; ++i) {
+			if (events[i].data.fd == server_fd) {
+				client_fd = cws_server_handle_new_client(server_fd, clients);
+				if (client_fd < 0) {
+					continue;
+				}
+
+				/* Add client to worker */
+				int random = 10;
+				mcl_hm_set(clients, &client_fd, &random);
+				write(workers[workers_index]->pipefd[1], &client_fd, sizeof(int));
+				workers_index = (workers_index + 1) % workers_num;
+			}
+		}
 	}
 
+	close(epfd);
 	cws_worker_free(workers, workers_num);
 	mcl_hm_free(clients);
 

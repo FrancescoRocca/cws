@@ -213,6 +213,7 @@ void cws_http_send_response(cws_http *request, cws_http_status status) {
 }
 
 int cws_http_send_resource(cws_http *request) {
+	/* keep-alive by default */
 	int keepalive = 1;
 
 	FILE *file = fopen(mcl_string_cstr(request->location_path), "rb");

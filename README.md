@@ -36,6 +36,7 @@ And then open the `docs/html/index.html`.
 - HTTPS support with TLS
 
 ## Future
+
 - Support for virtual hosts
 - Custom web pages (404)
 - CLI args
@@ -44,3 +45,19 @@ And then open the `docs/html/index.html`.
 - Logging
 - Compression (Gzip)
 - Reverse proxy
+
+## Performance
+
+This test was performed using `wrk`.
+
+```bash
+Running 30s test @ http://localhost:3030
+  12 threads and 400 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     3.45ms    2.37ms  91.92ms   95.45%
+    Req/Sec    10.08k     1.33k   19.57k    82.30%
+  3621422 requests in 32.47s, 2.55GB read
+  Socket errors: connect 0, read 0, write 0, timeout 395
+Requests/sec: 111514.25
+Transfer/sec:     80.51MB
+```
