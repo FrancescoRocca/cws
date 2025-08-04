@@ -208,7 +208,7 @@ void cws_http_send_response(cws_http *request, cws_http_status status) {
 }
 
 int cws_http_send_resource(cws_http *request) {
-	int keepalive = 0;
+	int keepalive = 1;
 
 	FILE *file = fopen(mcl_string_cstr(request->location_path), "rb");
 	if (file == NULL) {
@@ -249,12 +249,12 @@ int cws_http_send_resource(cws_http *request) {
 		return 0;
 	}
 
-	/* Check for keep-alive connection */
-	char conn[32] = "close";
+	/* Check for keep-alive */
+	char conn[32] = "keep-alive";
 	mcl_bucket *connection = mcl_hm_get(request->headers, "Connection");
 	if (connection && strcmp((char *)connection->value, "keep-alive") == 0) {
 		strcpy(conn, "keep-alive");
-		keepalive = 1;
+		keepalive = 0;
 	}
 	mcl_hm_free_bucket(connection);
 
@@ -324,12 +324,13 @@ void cws_http_send_simple_html(cws_http *request, cws_http_status status, char *
 			 title, description);
 	size_t body_len = strlen(body);
 
-	char conn[32] = "close";
+	char conn[32] = "keep-alive";
 	mcl_bucket *connection = mcl_hm_get(request->headers, "Connection");
 	if (connection) {
 		strncpy(conn, (char *)connection->value, sizeof(conn) - 1);
 		conn[sizeof(conn) - 1] = '\0';
 	}
+	mcl_hm_free_bucket(connection);
 
 	char *response = NULL;
 	size_t response_len = cws_http_response_builder(&response, "HTTP/1.1", status, "text/html", conn, body, body_len);

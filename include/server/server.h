@@ -4,7 +4,6 @@
 #include <netdb.h>
 #include <signal.h>
 #include <sys/socket.h>
-#include <time.h>
 
 #include "myclib/hashmap/myhashmap.h"
 #include "utils/config.h"
@@ -44,70 +43,13 @@ typedef enum cws_server_ret_t {
 	CWS_SERVER_REQUEST_TOO_LARGE,
 	CWS_SERVER_THREADPOOL_ERROR,
 	CWS_SERVER_EPOLL_CREATE_ERROR,
+	CWS_SERVER_WORKER_ERROR,
 } cws_server_ret;
 
-typedef struct cws_client_info_t {
-	time_t last_activity;
-	int client_fd;
-} cws_client_info;
-
-/**
- * @brief Runs the server
- *
- * @param[in] config The server's config
- */
 cws_server_ret cws_server_start(cws_config *config);
-
-/**
- * @brief Main server loop
- *
- * @param[in,out] sockfd Socket of the commincation endpoint
- */
 cws_server_ret cws_server_loop(int server_fd, cws_config *config);
-
-/**
- * @brief Adds a file descriptor to the interest list
- *
- * @param[in] epfd epoll file descriptor
- * @param[in] sockfd The file descriptor to watch
- * @param[in] events The events to follow
- */
-cws_server_ret cws_epoll_add(int epfd, int sockfd, uint32_t events);
-
-/**
- * @brief Removes a file descriptor from the interest list
- *
- * @param[in] epfd epoll file descriptor
- * @param[in] sockfd The file descriptor to remove
- */
-cws_server_ret cws_epoll_del(int epfd, int sockfd);
-
-/**
- * @brief Makes a file descriptor non-blocking
- *
- * @param[in] sockfd The file descriptor to make non-blocking
- */
-cws_server_ret cws_fd_set_nonblocking(int sockfd);
-
-/**
- * @brief Handles the new client
- *
- * @param[in] sockfd Server's file descriptor
- * @param[out] their_sa Populates the struct with client's information
- * @param[in] theirsa_size Size of the struct
- */
+int cws_server_handle_new_client(int server_fd, mcl_hashmap *clients);
 int cws_server_accept_client(int server_fd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size);
-
-/**
- * @brief Disconnect a client
- *
- * @param[in] epfd Epoll file descriptor
- * @param[in] client_fd Client file descriptor
- * @param[in] clients Clients hash map
- */
-void cws_server_close_client(int epfd, int client_fd, mcl_hashmap *clients);
-
-int cws_server_handle_new_client(int server_fd, int epfd, mcl_hashmap *clients);
-void *cws_server_handle_client_data(void *arg);
+cws_server_ret cws_fd_set_nonblocking(int sockfd);
 
 #endif
