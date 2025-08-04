@@ -88,12 +88,12 @@ void cws_worker_free(cws_worker **workers, size_t workers_num) {
 
 void *cws_worker_loop(void *arg) {
 	cws_worker *worker = arg;
-	struct epoll_event events[32];
+	struct epoll_event events[64];
 
 	int nfds;
 
 	while (cws_server_run) {
-		nfds = epoll_wait(worker->epfd, events, 32, 1000);
+		nfds = epoll_wait(worker->epfd, events, 64, 1000);
 		if (nfds == 0) {
 			continue;
 		}
@@ -103,13 +103,13 @@ void *cws_worker_loop(void *arg) {
 				/* Handle new client */
 				int client_fd;
 				read(worker->pipefd[0], &client_fd, sizeof(int));
-				CWS_LOG_DEBUG("Data from main, add client: %d", client_fd);
+				// CWS_LOG_DEBUG("Data from main, add client: %d", client_fd);
 				cws_fd_set_nonblocking(client_fd);
 				cws_epoll_add(worker->epfd, client_fd, EPOLLIN | EPOLLET);
 			} else {
 				/* Handle client data */
 				int client_fd = events[i].data.fd;
-				CWS_LOG_DEBUG("Data from client (thread: %ld)", worker->thread);
+				// CWS_LOG_DEBUG("Data from client (thread: %ld)", worker->thread);
 				cws_server_handle_client_data(worker->epfd, client_fd, worker->clients, worker->config);
 			}
 		}

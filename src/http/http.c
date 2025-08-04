@@ -5,9 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/sendfile.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
 #include "utils/colors.h"
@@ -216,71 +214,78 @@ void cws_http_send_response(cws_http *request, cws_http_status status) {
 
 int cws_http_send_resource(cws_http *request) {
 	int keepalive = 1;
-	const char *path = mcl_string_cstr(request->location_path);
 
-	/* Open file */
-	int fd = open(path, O_RDONLY);
-	if (fd < 0) {
+	FILE *file = fopen(mcl_string_cstr(request->location_path), "rb");
+	if (file == NULL) {
 		cws_http_send_response(request, CWS_HTTP_NOT_FOUND);
-
 		return 0;
 	}
-
-	struct stat st;
-	if (fstat(fd, &st) < 0) {
-		close(fd);
-		cws_http_send_response(request, CWS_HTTP_NOT_FOUND);
-	}
-	size_t content_length = st.st_size;
 
 	/* Retrieve correct Content-Type */
 	char content_type[1024];
-	if (cws_http_get_content_type(request, content_type) < 0) {
-		close(fd);
+	int ret = cws_http_get_content_type(request, content_type);
+	if (ret < 0) {
+		fclose(file);
 		cws_http_send_response(request, CWS_HTTP_NOT_FOUND);
 		return 0;
 	}
 
-	/* Build header only */
+	/* Retrieve file size */
+	fseek(file, 0, SEEK_END);
+	const size_t content_length = ftell(file);
+	rewind(file);
+
+	/* Retrieve file data */
+	char *file_data = malloc(content_length);
+	if (file_data == NULL) {
+		fclose(file);
+		CWS_LOG_ERROR("Unable to allocate file data");
+		return 0;
+	}
+
+	/* Read file data */
+	size_t read_bytes = fread(file_data, 1, content_length, file);
+	fclose(file);
+
+	if (read_bytes != content_length) {
+		free(file_data);
+		CWS_LOG_ERROR("Partial read from file");
+
+		return 0;
+	}
+
+	/* Check for keep-alive */
 	char conn[32] = "keep-alive";
-	mcl_bucket *hb = mcl_hm_get(request->headers, "Connection");
-	if (hb && strcmp((char *)hb->value, "close")) {
+	mcl_bucket *connection = mcl_hm_get(request->headers, "Connection");
+	if (connection && strcmp((char *)connection->value, "keep-alive") == 0) {
+		strcpy(conn, "keep-alive");
 		keepalive = 0;
-		strncpy(conn, "close", sizeof(conn));
 	}
-	mcl_hm_free_bucket(hb);
+	mcl_hm_free_bucket(connection);
 
-	char *header = NULL;
-	size_t header_len = cws_http_response_builder(&header, "HTTP/1.1", CWS_HTTP_OK, content_type, conn, NULL, content_length);
-	if (!header_len) {
-		close(fd);
+	char *response = NULL;
+	size_t response_len = cws_http_response_builder(&response, "HTTP/1.1", CWS_HTTP_OK, content_type, conn, file_data, content_length);
 
-		return keepalive;
-	}
+	/* Send response in chunks to avoid blocking */
+	size_t bytes_sent = 0;
+	ssize_t sent;
+	const size_t chunk_size = 8192;
 
-	/* Send headers */
-	size_t sent = 0;
-	while (sent < header_len) {
-		ssize_t n = send(request->sockfd, header + sent, header_len - sent, MSG_NOSIGNAL);
-		if (n <= 0) {
-			if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
+	while (bytes_sent < response_len) {
+		size_t to_send = (response_len - bytes_sent > chunk_size) ? chunk_size : (response_len - bytes_sent);
+		sent = send(request->sockfd, response + bytes_sent, to_send, MSG_NOSIGNAL);
+
+		if (sent <= 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				continue;
+			}
 			break;
 		}
-		sent += n;
-	}
-	free(header);
-
-	/* Zero-copy sendfile */
-	off_t offset = 0;
-	while (offset < (off_t)content_length) {
-		ssize_t n = sendfile(request->sockfd, fd, &offset, content_length - offset);
-		if (n <= 0) {
-			if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
-			break;
-		}
+		bytes_sent += sent;
 	}
 
-	close(fd);
+	free(response);
+	free(file_data);
 
 	return keepalive;
 }
