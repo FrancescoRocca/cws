@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/epoll.h>
@@ -32,6 +33,9 @@ static void cws_server_setup_hints(struct addrinfo *hints, const char *hostname)
 }
 
 cws_server_ret cws_server_start(cws_config *config) {
+	/* Ignore SIGPIPE so a write/sendfile to a closed peer doesn't terminate the process */
+	signal(SIGPIPE, SIG_IGN);
+
 	if (!config || !config->hostname || !config->port) {
 		return CWS_SERVER_CONFIG;
 	}

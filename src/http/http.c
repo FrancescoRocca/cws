@@ -1,10 +1,14 @@
 #include "http/http.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/sendfile.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "utils/colors.h"
 #include "utils/utils.h"
@@ -187,7 +191,10 @@ size_t cws_http_response_builder(char **response, char *http_version, cws_http_s
 	snprintf(*response, header_len + 1, "%s %s\r\nContent-Type: %s\r\nContent-Length: %ld\r\nConnection: %s\r\n\r\n", http_version, status_code, content_type,
 			 body_len_bytes, connection);
 
-	memcpy(*response + header_len, body, body_len_bytes);
+	/* Only append body if we have it */
+	if (body && body_len_bytes > 0) {
+		memcpy(*response + header_len, body, body_len_bytes);
+	}
 
 	return total_len;
 }
@@ -209,78 +216,71 @@ void cws_http_send_response(cws_http *request, cws_http_status status) {
 
 int cws_http_send_resource(cws_http *request) {
 	int keepalive = 1;
+	const char *path = mcl_string_cstr(request->location_path);
 
-	FILE *file = fopen(mcl_string_cstr(request->location_path), "rb");
-	if (file == NULL) {
+	/* Open file */
+	int fd = open(path, O_RDONLY);
+	if (fd < 0) {
 		cws_http_send_response(request, CWS_HTTP_NOT_FOUND);
+
 		return 0;
 	}
+
+	struct stat st;
+	if (fstat(fd, &st) < 0) {
+		close(fd);
+		cws_http_send_response(request, CWS_HTTP_NOT_FOUND);
+	}
+	size_t content_length = st.st_size;
 
 	/* Retrieve correct Content-Type */
 	char content_type[1024];
-	int ret = cws_http_get_content_type(request, content_type);
-	if (ret < 0) {
-		fclose(file);
+	if (cws_http_get_content_type(request, content_type) < 0) {
+		close(fd);
 		cws_http_send_response(request, CWS_HTTP_NOT_FOUND);
 		return 0;
 	}
 
-	/* Retrieve file size */
-	fseek(file, 0, SEEK_END);
-	const size_t content_length = ftell(file);
-	rewind(file);
-
-	/* Retrieve file data */
-	char *file_data = malloc(content_length);
-	if (file_data == NULL) {
-		fclose(file);
-		CWS_LOG_ERROR("Unable to allocate file data");
-		return 0;
-	}
-
-	/* Read file data */
-	size_t read_bytes = fread(file_data, 1, content_length, file);
-	fclose(file);
-
-	if (read_bytes != content_length) {
-		free(file_data);
-		CWS_LOG_ERROR("Partial read from file");
-
-		return 0;
-	}
-
-	/* Check for keep-alive */
+	/* Build header only */
 	char conn[32] = "keep-alive";
-	mcl_bucket *connection = mcl_hm_get(request->headers, "Connection");
-	if (connection && strcmp((char *)connection->value, "keep-alive") == 0) {
-		strcpy(conn, "keep-alive");
+	mcl_bucket *hb = mcl_hm_get(request->headers, "Connection");
+	if (hb && strcmp((char *)hb->value, "close")) {
 		keepalive = 0;
+		strncpy(conn, "close", sizeof(conn));
 	}
-	mcl_hm_free_bucket(connection);
+	mcl_hm_free_bucket(hb);
 
-	char *response = NULL;
-	size_t response_len = cws_http_response_builder(&response, "HTTP/1.1", CWS_HTTP_OK, content_type, conn, file_data, content_length);
+	char *header = NULL;
+	size_t header_len = cws_http_response_builder(&header, "HTTP/1.1", CWS_HTTP_OK, content_type, conn, NULL, content_length);
+	if (!header_len) {
+		close(fd);
 
-	/* Send response in chunks to avoid blocking */
-	size_t bytes_sent = 0;
-	ssize_t sent;
-	const size_t chunk_size = 8192;
+		return keepalive;
+	}
 
-	while (bytes_sent < response_len) {
-		size_t to_send = (response_len - bytes_sent > chunk_size) ? chunk_size : (response_len - bytes_sent);
-		sent = send(request->sockfd, response + bytes_sent, to_send, MSG_NOSIGNAL);
-
-		if (sent <= 0) {
-			if (errno == EAGAIN || errno == EWOULDBLOCK) {
-				continue;
-			}
+	/* Send headers */
+	size_t sent = 0;
+	while (sent < header_len) {
+		ssize_t n = send(request->sockfd, header + sent, header_len - sent, MSG_NOSIGNAL);
+		if (n <= 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
 			break;
 		}
-		bytes_sent += sent;
+		sent += n;
+	}
+	free(header);
+
+	/* Zero-copy sendfile */
+	off_t offset = 0;
+	while (offset < (off_t)content_length) {
+		ssize_t n = sendfile(request->sockfd, fd, &offset, content_length - offset);
+		if (n <= 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
+			break;
+		}
 	}
 
-	free(response);
-	free(file_data);
+	close(fd);
 
 	return keepalive;
 }
