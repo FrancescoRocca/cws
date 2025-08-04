@@ -2,11 +2,29 @@ body {
     margin: 0;
     height: 100vh;
     font-family: "Montserrat", sans-serif;
-    background: linear-gradient(135deg, #ff6a6a, #ff9472);
+    background: linear-gradient(135deg, #3a8ddb, #6dd5fa);
     display: flex;
     justify-content: center;
     align-items: center;
     color: white;
+    animation: fadeIn 1s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+main {
+    text-align: center;
+    padding: 1rem;
 }
 
 h1 {
@@ -16,7 +34,7 @@ h1 {
 }
 
 .highlight {
-    color: #ffe678;
+    color: #d1b3ff;
 }
 
 p {
@@ -36,14 +54,32 @@ a:hover {
     color: #ffe678;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
+.icon-credit {
+    position: absolute;
+    bottom: 10px;
+    width: 100%;
+    text-align: center;
+    font-size: 0.8rem;
+    color: #cccccc;
+}
+
+.icon-credit a {
+    color: #cccccc;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.icon-credit a:hover {
+    color: #ffffff;
+}
+
+/* Mobile tweaks */
+@media (max-width: 480px) {
+    h1 {
+        font-size: 2.2rem;
     }
 
-    to {
-        opacity: 1;
-        transform: translateY(0);
+    p {
+        font-size: 1rem;
     }
 }
