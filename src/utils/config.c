@@ -1,6 +1,9 @@
 #include "utils/config.h"
 
 #include <cyaml/cyaml.h>
+#include <stdio.h>
+
+#include "utils/colors.h"
 
 static const cyaml_config_t cyaml_config = {
 	.log_fn = cyaml_log,
@@ -8,15 +11,28 @@ static const cyaml_config_t cyaml_config = {
 	.log_level = CYAML_LOG_WARNING,
 };
 
-static const cyaml_schema_field_t top_mapping_schema[] = {CYAML_FIELD_STRING_PTR("hostname", CYAML_FLAG_POINTER, cws_config, hostname, 0, CYAML_UNLIMITED),
-														  CYAML_FIELD_STRING_PTR("port", CYAML_FLAG_POINTER, cws_config, port, 0, CYAML_UNLIMITED),
-														  CYAML_FIELD_STRING_PTR("www", CYAML_FLAG_POINTER, cws_config, www, 0, CYAML_UNLIMITED),
-														  CYAML_FIELD_STRING_PTR("cert", CYAML_FLAG_POINTER, cws_config, cert, 0, CYAML_UNLIMITED),
-														  CYAML_FIELD_STRING_PTR("key", CYAML_FLAG_POINTER, cws_config, key, 0, CYAML_UNLIMITED),
-														  CYAML_FIELD_END};
+static const cyaml_schema_field_t virtual_hosts_fields[] = {
+	CYAML_FIELD_STRING_PTR("domain", CYAML_FLAG_POINTER, struct cws_virtual_host_t, domain, 0, CYAML_UNLIMITED),
+	CYAML_FIELD_STRING_PTR("root", CYAML_FLAG_POINTER, struct cws_virtual_host_t, root, 0, CYAML_UNLIMITED),
+	CYAML_FIELD_BOOL("ssl", CYAML_FLAG_DEFAULT, struct cws_virtual_host_t, ssl),
+	CYAML_FIELD_STRING_PTR("cert", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, struct cws_virtual_host_t, cert, 0, CYAML_UNLIMITED),
+	CYAML_FIELD_STRING_PTR("key", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, struct cws_virtual_host_t, key, 0, CYAML_UNLIMITED),
+	CYAML_FIELD_END,
+};
 
-static const cyaml_schema_value_t top_schema = {
-	CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER, cws_config, top_mapping_schema),
+static cyaml_schema_value_t virtual_hosts_schema = {
+	CYAML_VALUE_MAPPING(CYAML_FLAG_DEFAULT, struct cws_virtual_host_t, virtual_hosts_fields),
+};
+
+static const cyaml_schema_field_t top_schema_fields[] = {
+	CYAML_FIELD_STRING_PTR("hostname", CYAML_FLAG_POINTER, struct cws_config_t, hostname, 0, CYAML_UNLIMITED),
+	CYAML_FIELD_STRING_PTR("port", CYAML_FLAG_POINTER, struct cws_config_t, port, 0, CYAML_UNLIMITED),
+	CYAML_FIELD_SEQUENCE("virtual_hosts", CYAML_FLAG_POINTER, struct cws_config_t, virtual_hosts, &virtual_hosts_schema, 0, CYAML_UNLIMITED),
+	CYAML_FIELD_END,
+};
+
+static cyaml_schema_value_t top_schema = {
+	CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER, struct cws_config_t, top_schema_fields),
 };
 
 cws_config *cws_config_init(void) {
@@ -25,6 +41,8 @@ cws_config *cws_config_init(void) {
 
 	cyaml_err_t err = cyaml_load_file(path, &cyaml_config, &top_schema, (cyaml_data_t **)&config, NULL);
 	if (err != CYAML_OK) {
+		CWS_LOG_ERROR("%s", cyaml_strerror(err));
+
 		return NULL;
 	}
 
@@ -34,10 +52,6 @@ cws_config *cws_config_init(void) {
 void cws_config_free(cws_config *config) {
 	cyaml_err_t err = cyaml_free(&cyaml_config, &top_schema, config, 0);
 	if (err != CYAML_OK) {
-		/* Handle */
+		/* TODO: Handle */
 	}
 }
-
-/*
-	https://github.com/tlsa/libcyaml/blob/main/docs/guide.md
-*/

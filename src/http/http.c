@@ -48,6 +48,9 @@ cws_http *cws_http_parse(mcl_string *request_str, int sockfd, cws_config *config
 	}
 	request->sockfd = sockfd;
 
+	/* Prepare the virtual_host struct */
+	cws_virtual_host vhost;
+
 	char *request_str_cpy = strdup(mcl_string_cstr(request_str));
 	if (!request_str_cpy) {
 		free(request);
@@ -89,7 +92,7 @@ cws_http *cws_http_parse(mcl_string *request_str, int sockfd, cws_config *config
 	}
 	// CWS_LOG_DEBUG("location: %s", pch);
 	mcl_string_append(request->location, pch);
-	mcl_string_append(request->location_path, config->www);
+	// TODO: mcl_string_append(request->location_path, config->www);
 
 	/* Adjust location path */
 	if (strcmp(mcl_string_cstr(request->location), "/") == 0) {

@@ -32,19 +32,19 @@ And then open the `docs/html/index.html`.
 
 ## Roadmap
 
-- Implement Keep-Alive
 - HTTPS support with TLS
+- Support for virtual hosts
+- CLI args
 
 ## Future
 
-- Support for virtual hosts
 - Custom web pages (404)
-- CLI args
 - IPv6 compatible
 - Multithreading to handle concurrent requests
 - Logging
 - Compression (Gzip)
 - Reverse proxy
+- PHP-FPM
 
 ## Performance
 

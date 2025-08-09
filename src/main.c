@@ -19,9 +19,14 @@ int main(void) {
 	}
 
 	cws_config *config = cws_config_init();
-	if (!config) {
+	if (config == NULL) {
 		CWS_LOG_ERROR("Unable to read config file");
 		return EXIT_FAILURE;
+	}
+
+	CWS_LOG_INFO("Virtual hosts count: %d", config->virtual_hosts_count);
+	for (size_t i = 0; i < config->virtual_hosts_count; ++i) {
+		CWS_LOG_DEBUG("%s (ssl: %d)", config->virtual_hosts[i].domain, config->virtual_hosts[i].ssl);
 	}
 
 	CWS_LOG_INFO("Running cws on http://%s:%s...", config->hostname, config->port);
