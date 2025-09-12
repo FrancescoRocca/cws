@@ -3,7 +3,6 @@ project('cws', 'c', version : '0.1.0')
 cc = meson.get_compiler('c')
 
 subdir('src')
-subdir('include')
 
 incdir = include_directories('include')
 
