@@ -5,10 +5,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <unistd.h>
 
-#include "utils/colors.h"
+#include "utils/debug.h"
 #include "utils/utils.h"
 
 static void cws_http_init(cws_http **request) {

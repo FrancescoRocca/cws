@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,15 +5,15 @@
 #include <unistd.h>
 
 #include "server/server.h"
-#include "utils/colors.h"
 #include "utils/config.h"
+#include "utils/debug.h"
 
 void cws_signal_handler(int signo) { cws_server_run = 0; }
 
 int main(void) {
 	struct sigaction act = {.sa_handler = cws_signal_handler, .sa_flags = 0, .sa_mask = {{0}}};
 	if (sigaction(SIGINT, &act, NULL)) {
-		CWS_LOG_ERROR("sigaction(): %s", strerror(errno));
+		CWS_LOG_ERROR("sigaction()");
 		return EXIT_FAILURE;
 	}
 

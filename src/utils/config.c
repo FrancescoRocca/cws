@@ -3,7 +3,7 @@
 #include <cyaml/cyaml.h>
 #include <stdio.h>
 
-#include "utils/colors.h"
+#include "utils/debug.h"
 
 static const cyaml_config_t cyaml_config = {
 	.log_fn = cyaml_log,

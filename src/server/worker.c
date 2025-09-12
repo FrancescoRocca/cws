@@ -9,7 +9,7 @@
 #include <unistd.h>
 
 #include "http/http.h"
-#include "utils/colors.h"
+#include "utils/debug.h"
 
 static int cws_worker_setup_epoll(cws_worker *worker) {
 	worker->epfd = epoll_create1(0);

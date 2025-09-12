@@ -2,9 +2,8 @@
 #define CWS_SERVER_H
 
 #include <myclib/myhashmap.h>
-#include <netdb.h>
+#include <myclib/mysocket.h>
 #include <signal.h>
-#include <sys/socket.h>
 
 #include "utils/config.h"
 
