@@ -28,7 +28,7 @@ static void cws_server_setup_hints(struct addrinfo *hints, const char *hostname)
 	}
 }
 
-cws_server_ret cws_server_start(cws_config *config) {
+cws_server_ret cws_server_start(cws_config_s *config) {
 	if (!config || !config->hostname || !config->port) {
 		return CWS_SERVER_CONFIG;
 	}
@@ -96,7 +96,7 @@ static cws_server_ret cws_server_setup_epoll(int server_fd, int *epfd_out) {
 	return CWS_SERVER_OK;
 }
 
-cws_server_ret cws_server_loop(int server_fd, cws_config *config) {
+cws_server_ret cws_server_loop(int server_fd, cws_config_s *config) {
 	int epfd = 0;
 	cws_server_ret ret;
 
@@ -112,7 +112,7 @@ cws_server_ret cws_server_loop(int server_fd, cws_config *config) {
 
 	size_t workers_num = 6;
 	size_t workers_index = 0;
-	cws_worker **workers = cws_worker_init(workers_num, clients, config);
+	cws_worker_s **workers = cws_worker_init(workers_num, clients, config);
 	if (workers == NULL) {
 		hm_free(clients);
 		return CWS_SERVER_WORKER_ERROR;

@@ -17,7 +17,7 @@ int main(void) {
 		return EXIT_FAILURE;
 	}
 
-	cws_config *config = cws_config_init();
+	cws_config_s *config = cws_config_init();
 	if (config == NULL) {
 		CWS_LOG_ERROR("Unable to read config file");
 		return EXIT_FAILURE;

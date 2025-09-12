@@ -10,8 +10,8 @@
 #include "utils/debug.h"
 #include "utils/utils.h"
 
-static void cws_http_init(cws_http **request) {
-	*request = calloc(1, sizeof(cws_http));
+static void cws_http_init(cws_http_s **request) {
+	*request = calloc(1, sizeof(cws_http_s));
 	if (!*request) {
 		return;
 	}
@@ -21,7 +21,7 @@ static void cws_http_init(cws_http **request) {
 	(*request)->location_path = string_new("", 512);
 }
 
-static int cws_http_parse_method(cws_http *request, const char *method) {
+static int cws_http_parse_method(cws_http_s *request, const char *method) {
 	if (strcmp(method, "GET") == 0) {
 		request->method = CWS_HTTP_GET;
 		return 0;
@@ -35,12 +35,12 @@ static int cws_http_parse_method(cws_http *request, const char *method) {
 	return -1;
 }
 
-cws_http *cws_http_parse(string_s *request_str, int sockfd, cws_config *config) {
+cws_http_s *cws_http_parse(string_s *request_str, int sockfd, cws_config_s *config) {
 	if (!request_str || !config) {
 		return NULL;
 	}
 
-	cws_http *request;
+	cws_http_s *request;
 	cws_http_init(&request);
 	if (request == NULL) {
 		return NULL;
@@ -150,7 +150,7 @@ cws_http *cws_http_parse(string_s *request_str, int sockfd, cws_config *config) 
 	return request;
 }
 
-static char *cws_http_status_string(cws_http_status status) {
+static char *cws_http_status_string(cws_http_status_e status) {
 	switch (status) {
 		case CWS_HTTP_OK: {
 			return "200 OK";
@@ -169,7 +169,7 @@ static char *cws_http_status_string(cws_http_status status) {
 	return "?";
 }
 
-size_t cws_http_response_builder(char **response, char *http_version, cws_http_status status, char *content_type, char *connection, char *body,
+size_t cws_http_response_builder(char **response, char *http_version, cws_http_status_e status, char *content_type, char *connection, char *body,
 								 size_t body_len_bytes) {
 	char *status_code = cws_http_status_string(status);
 
@@ -199,7 +199,7 @@ size_t cws_http_response_builder(char **response, char *http_version, cws_http_s
 	return total_len;
 }
 
-void cws_http_send_response(cws_http *request, cws_http_status status) {
+void cws_http_send_response(cws_http_s *request, cws_http_status_e status) {
 	switch (status) {
 		case CWS_HTTP_OK:
 			break;
@@ -214,7 +214,7 @@ void cws_http_send_response(cws_http *request, cws_http_status status) {
 	}
 }
 
-int cws_http_send_resource(cws_http *request) {
+int cws_http_send_resource(cws_http_s *request) {
 	/* keep-alive by default */
 	int keepalive = 1;
 
@@ -293,7 +293,7 @@ int cws_http_send_resource(cws_http *request) {
 	return keepalive;
 }
 
-int cws_http_get_content_type(cws_http *request, char *content_type) {
+int cws_http_get_content_type(cws_http_s *request, char *content_type) {
 	char *ptr = strrchr(string_cstr(request->location_path), '.');
 	if (ptr == NULL) {
 		return -1;
@@ -316,7 +316,7 @@ int cws_http_get_content_type(cws_http *request, char *content_type) {
 	return 0;
 }
 
-void cws_http_send_simple_html(cws_http *request, cws_http_status status, char *title, char *description) {
+void cws_http_send_simple_html(cws_http_s *request, cws_http_status_e status, char *title, char *description) {
 	char body[512];
 	memset(body, 0, sizeof(body));
 
@@ -352,7 +352,7 @@ void cws_http_send_simple_html(cws_http *request, cws_http_status status, char *
 	free(response);
 }
 
-void cws_http_free(cws_http *request) {
+void cws_http_free(cws_http_s *request) {
 	hm_free(request->headers);
 	string_free(request->http_version);
 	string_free(request->location);

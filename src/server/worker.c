@@ -11,7 +11,7 @@
 #include "http/http.h"
 #include "utils/debug.h"
 
-static int cws_worker_setup_epoll(cws_worker *worker) {
+static int cws_worker_setup_epoll(cws_worker_s *worker) {
 	worker->epfd = epoll_create1(0);
 	if (worker->epfd == -1) {
 		return -1;
@@ -34,15 +34,15 @@ static int cws_worker_setup_epoll(cws_worker *worker) {
 	return 0;
 }
 
-cws_worker **cws_worker_init(size_t workers_num, hashmap_s *clients, cws_config *config) {
-	cws_worker **workers = malloc(sizeof(cws_worker) * workers_num);
+cws_worker_s **cws_worker_init(size_t workers_num, hashmap_s *clients, cws_config_s *config) {
+	cws_worker_s **workers = malloc(sizeof(cws_worker_s) * workers_num);
 	if (workers == NULL) {
 		return NULL;
 	}
-	memset(workers, 0, sizeof(cws_worker) * workers_num);
+	memset(workers, 0, sizeof(cws_worker_s) * workers_num);
 
 	for (size_t i = 0; i < workers_num; ++i) {
-		workers[i] = malloc(sizeof(cws_worker));
+		workers[i] = malloc(sizeof(cws_worker_s));
 		if (workers[i] == NULL) {
 			for (size_t j = 0; j < i; ++j) {
 				free(workers[j]);
@@ -52,7 +52,7 @@ cws_worker **cws_worker_init(size_t workers_num, hashmap_s *clients, cws_config 
 
 			free(workers);
 		}
-		memset(workers[i], 0, sizeof(cws_worker));
+		memset(workers[i], 0, sizeof(cws_worker_s));
 
 		workers[i]->config = config;
 		workers[i]->clients = clients;
@@ -78,7 +78,7 @@ cws_worker **cws_worker_init(size_t workers_num, hashmap_s *clients, cws_config 
 	return workers;
 }
 
-void cws_worker_free(cws_worker **workers, size_t workers_num) {
+void cws_worker_free(cws_worker_s **workers, size_t workers_num) {
 	for (size_t i = 0; i < workers_num; ++i) {
 		pthread_join(workers[i]->thread, NULL);
 		free(workers[i]);
@@ -88,7 +88,7 @@ void cws_worker_free(cws_worker **workers, size_t workers_num) {
 }
 
 void *cws_worker_loop(void *arg) {
-	cws_worker *worker = arg;
+	cws_worker_s *worker = arg;
 	struct epoll_event events[64];
 
 	int nfds;
@@ -186,7 +186,7 @@ static size_t cws_read_data(int sockfd, string_s **str) {
 	return total_bytes;
 }
 
-cws_server_ret cws_server_handle_client_data(int epfd, int client_fd, hashmap_s *clients, cws_config *config) {
+cws_server_ret cws_server_handle_client_data(int epfd, int client_fd, hashmap_s *clients, cws_config_s *config) {
 	/* Read data from socket */
 	string_s *data = NULL;
 	size_t total_bytes = cws_read_data(client_fd, &data);
@@ -200,7 +200,7 @@ cws_server_ret cws_server_handle_client_data(int epfd, int client_fd, hashmap_s 
 	}
 
 	/* Parse HTTP request */
-	cws_http *request = cws_http_parse(data, client_fd, config);
+	cws_http_s *request = cws_http_parse(data, client_fd, config);
 	string_free(data);
 
 	if (request == NULL) {
