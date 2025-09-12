@@ -1,3 +1,5 @@
+#define _XOPEN_SOURCE 700
+
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,7 +10,7 @@
 #include "utils/config.h"
 #include "utils/debug.h"
 
-void cws_signal_handler(int signo) { cws_server_run = 0; }
+void cws_signal_handler(int) { cws_server_run = 0; }
 
 int main(void) {
 	struct sigaction act = {.sa_handler = cws_signal_handler, .sa_flags = 0, .sa_mask = {{0}}};
@@ -18,8 +20,9 @@ int main(void) {
 	}
 
 	cws_config_s *config = cws_config_init();
-	if (config == NULL) {
+	if (!config) {
 		CWS_LOG_ERROR("Unable to read config file");
+
 		return EXIT_FAILURE;
 	}
 
@@ -36,6 +39,9 @@ int main(void) {
 
 	CWS_LOG_INFO("Running cws on http://%s:%s...", config->hostname, config->port);
 	ret = cws_server_loop(&server);
+	if (ret != CWS_SERVER_OK) {
+		CWS_LOG_ERROR("Unable to start web server");
+	}
 
 	CWS_LOG_INFO("Shutting down cws...");
 	cws_server_shutdown(&server);

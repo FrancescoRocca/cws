@@ -30,6 +30,6 @@ cws_server_ret cws_epoll_add(int epfd, int sockfd, uint32_t events);
 
 cws_server_ret cws_epoll_del(int epfd, int sockfd);
 
-cws_server_ret cws_server_handle_client_data(int epfd, int client_fd, cws_config_s *config);
+cws_server_ret cws_server_handle_client_data(int epfd, int client_fd);
 
 #endif

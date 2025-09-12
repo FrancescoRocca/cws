@@ -112,10 +112,12 @@ cws_server_ret cws_server_loop(cws_server_s *server) {
 	while (cws_server_run) {
 		int nfds = epoll_wait(server->epfd, events, 128, -1);
 
+		/* epoll error */
 		if (nfds < 0) {
 			continue;
 		}
 
+		/* No events */
 		if (nfds == 0) {
 			continue;
 		}

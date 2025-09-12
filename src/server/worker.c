@@ -78,6 +78,10 @@ cws_worker_s **cws_worker_new(size_t workers_num, cws_config_s *config) {
 }
 
 void cws_worker_free(cws_worker_s **workers, size_t workers_num) {
+	if (!workers) {
+		return;
+	}
+
 	for (size_t i = 0; i < workers_num; ++i) {
 		pthread_join(workers[i]->thread, NULL);
 		free(workers[i]);
@@ -93,7 +97,12 @@ void *cws_worker_loop(void *arg) {
 	int nfds;
 
 	while (cws_server_run) {
-		nfds = epoll_wait(worker->epfd, events, 64, 1000);
+		nfds = epoll_wait(worker->epfd, events, 64, -1);
+
+		if (nfds < 0) {
+			continue;
+		}
+
 		if (nfds == 0) {
 			continue;
 		}
@@ -108,7 +117,7 @@ void *cws_worker_loop(void *arg) {
 			} else {
 				/* Handle client data */
 				int client_fd = events[i].data.fd;
-				cws_server_handle_client_data(worker->epfd, client_fd, worker->config);
+				cws_server_handle_client_data(worker->epfd, client_fd);
 			}
 		}
 	}
@@ -116,7 +125,10 @@ void *cws_worker_loop(void *arg) {
 	return NULL;
 }
 
-void cws_server_close_client(int epfd, int client_fd) { cws_epoll_del(epfd, client_fd); }
+void cws_server_close_client(int epfd, int client_fd) {
+	cws_epoll_del(epfd, client_fd);
+	sock_close(client_fd);
+}
 
 cws_server_ret cws_epoll_add(int epfd, int sockfd, uint32_t events) {
 	struct epoll_event event;
@@ -178,9 +190,9 @@ static size_t cws_read_data(int sockfd, string_s **str) {
 	return total_bytes;
 }
 
-cws_server_ret cws_server_handle_client_data(int epfd, int client_fd, cws_config_s *config) {
+cws_server_ret cws_server_handle_client_data(int epfd, int client_fd) {
 	/* Read data from socket */
-	string_s *data = NULL;
+	string_s *data;
 	size_t total_bytes = cws_read_data(client_fd, &data);
 	if (total_bytes <= 0) {
 		if (data) {
@@ -192,7 +204,7 @@ cws_server_ret cws_server_handle_client_data(int epfd, int client_fd, cws_config
 	}
 
 	/* Parse HTTP request */
-	cws_http_s *request = cws_http_parse(data, client_fd, config);
+	cws_http_s *request = cws_http_parse(data, client_fd);
 	string_free(data);
 
 	if (request == NULL) {

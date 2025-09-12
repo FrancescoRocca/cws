@@ -35,8 +35,8 @@ static int cws_http_parse_method(cws_http_s *request, const char *method) {
 	return -1;
 }
 
-cws_http_s *cws_http_parse(string_s *request_str, int sockfd, cws_config_s *config) {
-	if (!request_str || !config) {
+cws_http_s *cws_http_parse(string_s *request_str, int sockfd) {
+	if (!request_str) {
 		return NULL;
 	}
 
@@ -46,9 +46,6 @@ cws_http_s *cws_http_parse(string_s *request_str, int sockfd, cws_config_s *conf
 		return NULL;
 	}
 	request->sockfd = sockfd;
-
-	/* Prepare the virtual_host struct */
-	// TODO: cws_virtual_host vhost;
 
 	char *request_str_cpy = strdup(string_cstr(request_str));
 	if (!request_str_cpy) {
@@ -61,6 +58,7 @@ cws_http_s *cws_http_parse(string_s *request_str, int sockfd, cws_config_s *conf
 	char *pch = NULL;
 
 	/* Parse HTTP method */
+	// TODO: fix strtok_r
 	pch = strtok_r(request_str_cpy, " ", &saveptr);
 	if (pch == NULL) {
 		cws_http_free(request);
