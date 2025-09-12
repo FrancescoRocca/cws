@@ -6,6 +6,8 @@
 #include <signal.h>
 
 #include "utils/config.h"
+#include "utils/utils.h"
+#include "worker.h"
 
 /* Clients max queue */
 #define CWS_SERVER_BACKLOG 128
@@ -17,38 +19,26 @@
 
 #define CWS_SERVER_MAX_REQUEST_SIZE (16 * 1024) /* 16KB */
 
+#define CWS_WORKERS_NUM 6
+
 /* Main server loop */
 extern volatile sig_atomic_t cws_server_run;
 
-typedef enum cws_server_ret {
-	CWS_SERVER_OK,
-	CWS_SERVER_CONFIG,
-	CWS_SERVER_FD_ERROR,
-	CWS_SERVER_CLIENT_NOT_FOUND,
-	CWS_SERVER_CLIENT_DISCONNECTED,
-	CWS_SERVER_CLIENT_DISCONNECTED_ERROR,
-	CWS_SERVER_HTTP_PARSE_ERROR,
-	CWS_SERVER_GETADDRINFO_ERROR,
-	CWS_SERVER_SOCKET_ERROR,
-	CWS_SERVER_SETSOCKOPT_ERROR,
-	CWS_SERVER_BIND_ERROR,
-	CWS_SERVER_LISTEN_ERROR,
-	CWS_SERVER_EPOLL_ADD_ERROR,
-	CWS_SERVER_EPOLL_DEL_ERROR,
-	CWS_SERVER_FD_NONBLOCKING_ERROR,
-	CWS_SERVER_ACCEPT_CLIENT_ERROR,
-	CWS_SERVER_HASHMAP_INIT,
-	CWS_SERVER_MALLOC_ERROR,
-	CWS_SERVER_REQUEST_TOO_LARGE,
-	CWS_SERVER_THREADPOOL_ERROR,
-	CWS_SERVER_EPOLL_CREATE_ERROR,
-	CWS_SERVER_WORKER_ERROR,
-} cws_server_ret;
+typedef struct cws_server {
+	int epfd;
+	int sockfd;
+	cws_worker_s **workers;
+	cws_config_s *config;
+} cws_server_s;
 
-cws_server_ret cws_server_start(cws_config_s *config);
-cws_server_ret cws_server_loop(int server_fd, cws_config_s *config);
-int cws_server_handle_new_client(int server_fd, hashmap_s *clients);
+cws_server_ret cws_server_setup(cws_config_s *config, cws_server_s *server);
+
+cws_server_ret cws_server_loop(cws_server_s *server);
+
+void cws_server_shutdown(cws_server_s *server);
+
+int cws_server_handle_new_client(int server_fd);
+
 int cws_server_accept_client(int server_fd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size);
-cws_server_ret cws_fd_set_nonblocking(int sockfd);
 
 #endif

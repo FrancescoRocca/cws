@@ -19,6 +19,7 @@ typedef struct cws_config {
 } cws_config_s;
 
 cws_config_s *cws_config_init(void);
+
 void cws_config_free(cws_config_s *config);
 
 #endif

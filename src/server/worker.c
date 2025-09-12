@@ -20,21 +20,21 @@ static int cws_worker_setup_epoll(cws_worker_s *worker) {
 	cws_server_ret ret;
 	ret = cws_fd_set_nonblocking(worker->pipefd[0]);
 	if (ret != CWS_SERVER_OK) {
-		close(worker->epfd);
+		sock_close(worker->epfd);
 
 		return -1;
 	}
 
 	ret = cws_epoll_add(worker->epfd, worker->pipefd[0], EPOLLIN);
 	if (ret != CWS_SERVER_OK) {
-		close(worker->epfd);
-		close(worker->pipefd[0]);
+		sock_close(worker->epfd);
+		sock_close(worker->pipefd[0]);
 	}
 
 	return 0;
 }
 
-cws_worker_s **cws_worker_init(size_t workers_num, hashmap_s *clients, cws_config_s *config) {
+cws_worker_s **cws_worker_new(size_t workers_num, cws_config_s *config) {
 	cws_worker_s **workers = malloc(sizeof(cws_worker_s) * workers_num);
 	if (workers == NULL) {
 		return NULL;
@@ -55,7 +55,6 @@ cws_worker_s **cws_worker_init(size_t workers_num, hashmap_s *clients, cws_confi
 		memset(workers[i], 0, sizeof(cws_worker_s));
 
 		workers[i]->config = config;
-		workers[i]->clients = clients;
 
 		/* Communicate though threads */
 		pipe(workers[i]->pipefd);
@@ -109,7 +108,7 @@ void *cws_worker_loop(void *arg) {
 			} else {
 				/* Handle client data */
 				int client_fd = events[i].data.fd;
-				cws_server_handle_client_data(worker->epfd, client_fd, worker->clients, worker->config);
+				cws_server_handle_client_data(worker->epfd, client_fd, worker->config);
 			}
 		}
 	}
@@ -117,14 +116,7 @@ void *cws_worker_loop(void *arg) {
 	return NULL;
 }
 
-void cws_server_close_client(int epfd, int client_fd, hashmap_s *clients) {
-	bucket_s *client = hm_get(clients, &client_fd);
-	if (client) {
-		cws_epoll_del(epfd, client_fd);
-		hm_remove(clients, &client_fd);
-		hm_free_bucket(client);
-	}
-}
+void cws_server_close_client(int epfd, int client_fd) { cws_epoll_del(epfd, client_fd); }
 
 cws_server_ret cws_epoll_add(int epfd, int sockfd, uint32_t events) {
 	struct epoll_event event;
@@ -186,7 +178,7 @@ static size_t cws_read_data(int sockfd, string_s **str) {
 	return total_bytes;
 }
 
-cws_server_ret cws_server_handle_client_data(int epfd, int client_fd, hashmap_s *clients, cws_config_s *config) {
+cws_server_ret cws_server_handle_client_data(int epfd, int client_fd, cws_config_s *config) {
 	/* Read data from socket */
 	string_s *data = NULL;
 	size_t total_bytes = cws_read_data(client_fd, &data);
@@ -194,7 +186,7 @@ cws_server_ret cws_server_handle_client_data(int epfd, int client_fd, hashmap_s 
 		if (data) {
 			string_free(data);
 		}
-		cws_server_close_client(epfd, client_fd, clients);
+		cws_server_close_client(epfd, client_fd);
 
 		return CWS_SERVER_CLIENT_DISCONNECTED_ERROR;
 	}
@@ -204,7 +196,7 @@ cws_server_ret cws_server_handle_client_data(int epfd, int client_fd, hashmap_s 
 	string_free(data);
 
 	if (request == NULL) {
-		cws_server_close_client(epfd, client_fd, clients);
+		cws_server_close_client(epfd, client_fd);
 
 		return CWS_SERVER_HTTP_PARSE_ERROR;
 	}
@@ -212,7 +204,7 @@ cws_server_ret cws_server_handle_client_data(int epfd, int client_fd, hashmap_s 
 	int keepalive = cws_http_send_resource(request);
 	cws_http_free(request);
 	if (!keepalive) {
-		cws_server_close_client(epfd, client_fd, clients);
+		cws_server_close_client(epfd, client_fd);
 	}
 
 	return CWS_SERVER_OK;

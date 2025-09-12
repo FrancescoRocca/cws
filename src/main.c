@@ -28,13 +28,17 @@ int main(void) {
 		CWS_LOG_DEBUG("%s (ssl: %d)", config->virtual_hosts[i].domain, config->virtual_hosts[i].ssl);
 	}
 
-	CWS_LOG_INFO("Running cws on http://%s:%s...", config->hostname, config->port);
-	int ret = cws_server_start(config);
-	if (ret < 0) {
-		CWS_LOG_ERROR("Unable to start web server");
+	cws_server_s server;
+	cws_server_ret ret = cws_server_setup(config, &server);
+	if (ret != CWS_SERVER_OK) {
+		CWS_LOG_ERROR("Unable to setup web server");
 	}
 
+	CWS_LOG_INFO("Running cws on http://%s:%s...", config->hostname, config->port);
+	ret = cws_server_loop(&server);
+
 	CWS_LOG_INFO("Shutting down cws...");
+	cws_server_shutdown(&server);
 	cws_config_free(config);
 
 	return EXIT_SUCCESS;
