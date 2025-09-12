@@ -1,10 +1,10 @@
 #ifndef CWS_HTTP_H
 #define CWS_HTTP_H
 
+#include <myclib/myhashmap.h>
+#include <myclib/mystring.h>
 #include <stddef.h>
 
-#include "myclib/hashmap/myhashmap.h"
-#include "myclib/string/mystring.h"
 #include "utils/config.h"
 
 #define CWS_HTTP_HEADER_MAX 512
@@ -29,12 +29,12 @@ typedef enum cws_http_status_t {
  *
  */
 typedef struct cws_http_t {
-	int sockfd;				   /**< Socket file descriptor */
-	cws_http_method method;	   /**< HTTP request method */
-	mcl_string *location;	   /**< Resource requested */
-	mcl_string *location_path; /**< Full resource path */
-	mcl_string *http_version;  /**< HTTP version */
-	mcl_hashmap *headers;	   /**< Headers hash map */
+	int sockfd;				 /**< Socket file descriptor */
+	cws_http_method method;	 /**< HTTP request method */
+	string_s *location;		 /**< Resource requested */
+	string_s *location_path; /**< Full resource path */
+	string_s *http_version;	 /**< HTTP version */
+	hashmap_s *headers;		 /**< Headers hash map */
 } cws_http;
 
 /**
@@ -43,7 +43,7 @@ typedef struct cws_http_t {
  * @param[in] request_str The http request sent to the server
  * @return Returns a http_t pointer to the request
  */
-cws_http *cws_http_parse(mcl_string *request_str, int sockfd, cws_config *config);
+cws_http *cws_http_parse(string_s *request_str, int sockfd, cws_config *config);
 
 int cws_http_get_content_type(cws_http *request, char *content_type);
 

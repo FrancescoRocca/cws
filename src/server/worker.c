@@ -34,7 +34,7 @@ static int cws_worker_setup_epoll(cws_worker *worker) {
 	return 0;
 }
 
-cws_worker **cws_worker_init(size_t workers_num, mcl_hashmap *clients, cws_config *config) {
+cws_worker **cws_worker_init(size_t workers_num, hashmap_s *clients, cws_config *config) {
 	cws_worker **workers = malloc(sizeof(cws_worker) * workers_num);
 	if (workers == NULL) {
 		return NULL;
@@ -117,12 +117,12 @@ void *cws_worker_loop(void *arg) {
 	return NULL;
 }
 
-void cws_server_close_client(int epfd, int client_fd, mcl_hashmap *clients) {
-	mcl_bucket *client = mcl_hm_get(clients, &client_fd);
+void cws_server_close_client(int epfd, int client_fd, hashmap_s *clients) {
+	bucket_s *client = hm_get(clients, &client_fd);
 	if (client) {
 		cws_epoll_del(epfd, client_fd);
-		mcl_hm_remove(clients, &client_fd);
-		mcl_hm_free_bucket(client);
+		hm_remove(clients, &client_fd);
+		hm_free_bucket(client);
 	}
 }
 
@@ -151,12 +151,12 @@ cws_server_ret cws_epoll_del(int epfd, int sockfd) {
 	return CWS_SERVER_OK;
 }
 
-static size_t cws_read_data(int sockfd, mcl_string **str) {
+static size_t cws_read_data(int sockfd, string_s **str) {
 	size_t total_bytes = 0;
 	ssize_t bytes_read;
 
 	if (*str == NULL) {
-		*str = mcl_string_new("", 4096);
+		*str = string_new("", 4096);
 	}
 
 	char tmp[4096];
@@ -180,19 +180,19 @@ static size_t cws_read_data(int sockfd, mcl_string **str) {
 		}
 
 		total_bytes += bytes_read;
-		mcl_string_append(*str, tmp);
+		string_append(*str, tmp);
 	}
 
 	return total_bytes;
 }
 
-cws_server_ret cws_server_handle_client_data(int epfd, int client_fd, mcl_hashmap *clients, cws_config *config) {
+cws_server_ret cws_server_handle_client_data(int epfd, int client_fd, hashmap_s *clients, cws_config *config) {
 	/* Read data from socket */
-	mcl_string *data = NULL;
+	string_s *data = NULL;
 	size_t total_bytes = cws_read_data(client_fd, &data);
 	if (total_bytes <= 0) {
 		if (data) {
-			mcl_string_free(data);
+			string_free(data);
 		}
 		cws_server_close_client(epfd, client_fd, clients);
 
@@ -201,7 +201,7 @@ cws_server_ret cws_server_handle_client_data(int epfd, int client_fd, mcl_hashma
 
 	/* Parse HTTP request */
 	cws_http *request = cws_http_parse(data, client_fd, config);
-	mcl_string_free(data);
+	string_free(data);
 
 	if (request == NULL) {
 		cws_server_close_client(epfd, client_fd, clients);

@@ -17,9 +17,9 @@ static void cws_http_init(cws_http **request) {
 		return;
 	}
 
-	(*request)->http_version = mcl_string_new("", 16);
-	(*request)->location = mcl_string_new("", 128);
-	(*request)->location_path = mcl_string_new("", 512);
+	(*request)->http_version = string_new("", 16);
+	(*request)->location = string_new("", 128);
+	(*request)->location_path = string_new("", 512);
 }
 
 static int cws_http_parse_method(cws_http *request, const char *method) {
@@ -36,7 +36,7 @@ static int cws_http_parse_method(cws_http *request, const char *method) {
 	return -1;
 }
 
-cws_http *cws_http_parse(mcl_string *request_str, int sockfd, cws_config *config) {
+cws_http *cws_http_parse(string_s *request_str, int sockfd, cws_config *config) {
 	if (!request_str || !config) {
 		return NULL;
 	}
@@ -49,9 +49,9 @@ cws_http *cws_http_parse(mcl_string *request_str, int sockfd, cws_config *config
 	request->sockfd = sockfd;
 
 	/* Prepare the virtual_host struct */
-	cws_virtual_host vhost;
+	// TODO: cws_virtual_host vhost;
 
-	char *request_str_cpy = strdup(mcl_string_cstr(request_str));
+	char *request_str_cpy = strdup(string_cstr(request_str));
 	if (!request_str_cpy) {
 		free(request);
 
@@ -91,14 +91,14 @@ cws_http *cws_http_parse(mcl_string *request_str, int sockfd, cws_config *config
 		return NULL;
 	}
 	// CWS_LOG_DEBUG("location: %s", pch);
-	mcl_string_append(request->location, pch);
+	string_append(request->location, pch);
 	// TODO: mcl_string_append(request->location_path, config->www);
 
 	/* Adjust location path */
-	if (strcmp(mcl_string_cstr(request->location), "/") == 0) {
-		mcl_string_append(request->location_path, "/index.html");
+	if (strcmp(string_cstr(request->location), "/") == 0) {
+		string_append(request->location_path, "/index.html");
 	} else {
-		mcl_string_append(request->location_path, mcl_string_cstr(request->location));
+		string_append(request->location_path, string_cstr(request->location));
 	}
 	// CWS_LOG_DEBUG("location path: %s", mcl_string_cstr(request->location_path));
 
@@ -111,11 +111,11 @@ cws_http *cws_http_parse(mcl_string *request_str, int sockfd, cws_config *config
 		return NULL;
 	}
 	// CWS_LOG_DEBUG("version: %s", pch);
-	mcl_string_append(request->http_version, pch);
+	string_append(request->http_version, pch);
 
 	/* Parse headers until a \r\n */
-	request->headers = mcl_hm_init(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn, sizeof(char) * CWS_HTTP_HEADER_MAX,
-								   sizeof(char) * CWS_HTTP_HEADER_CONTENT_MAX);
+	request->headers =
+		hm_new(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn, sizeof(char) * CWS_HTTP_HEADER_MAX, sizeof(char) * CWS_HTTP_HEADER_CONTENT_MAX);
 	char *header_colon;
 	while (pch) {
 		/* Get header line */
@@ -141,7 +141,7 @@ cws_http *cws_http_parse(mcl_string *request_str, int sockfd, cws_config *config
 		strncpy(hv, hvalue, sizeof(hv));
 
 		// CWS_LOG_DEBUG("hkey: %s -> %s", hk, hv);
-		mcl_hm_set(request->headers, hk, hv);
+		hm_set(request->headers, hk, hv);
 	}
 
 	/* TODO: Parse body */
@@ -219,7 +219,7 @@ int cws_http_send_resource(cws_http *request) {
 	/* keep-alive by default */
 	int keepalive = 1;
 
-	FILE *file = fopen(mcl_string_cstr(request->location_path), "rb");
+	FILE *file = fopen(string_cstr(request->location_path), "rb");
 	if (file == NULL) {
 		cws_http_send_response(request, CWS_HTTP_NOT_FOUND);
 		return 0;
@@ -260,12 +260,12 @@ int cws_http_send_resource(cws_http *request) {
 
 	/* Check for keep-alive */
 	char conn[32] = "keep-alive";
-	mcl_bucket *connection = mcl_hm_get(request->headers, "Connection");
+	bucket_s *connection = hm_get(request->headers, "Connection");
 	if (connection && strcmp((char *)connection->value, "keep-alive") == 0) {
 		strcpy(conn, "keep-alive");
 		keepalive = 0;
 	}
-	mcl_hm_free_bucket(connection);
+	hm_free_bucket(connection);
 
 	char *response = NULL;
 	size_t response_len = cws_http_response_builder(&response, "HTTP/1.1", CWS_HTTP_OK, content_type, conn, file_data, content_length);
@@ -295,7 +295,7 @@ int cws_http_send_resource(cws_http *request) {
 }
 
 int cws_http_get_content_type(cws_http *request, char *content_type) {
-	char *ptr = strrchr(mcl_string_cstr(request->location_path), '.');
+	char *ptr = strrchr(string_cstr(request->location_path), '.');
 	if (ptr == NULL) {
 		return -1;
 	}
@@ -334,12 +334,12 @@ void cws_http_send_simple_html(cws_http *request, cws_http_status status, char *
 	size_t body_len = strlen(body);
 
 	char conn[32] = "keep-alive";
-	mcl_bucket *connection = mcl_hm_get(request->headers, "Connection");
+	bucket_s *connection = hm_get(request->headers, "Connection");
 	if (connection) {
 		strncpy(conn, (char *)connection->value, sizeof(conn) - 1);
 		conn[sizeof(conn) - 1] = '\0';
 	}
-	mcl_hm_free_bucket(connection);
+	hm_free_bucket(connection);
 
 	char *response = NULL;
 	size_t response_len = cws_http_response_builder(&response, "HTTP/1.1", status, "text/html", conn, body, body_len);
@@ -354,9 +354,9 @@ void cws_http_send_simple_html(cws_http *request, cws_http_status status, char *
 }
 
 void cws_http_free(cws_http *request) {
-	mcl_hm_free(request->headers);
-	mcl_string_free(request->http_version);
-	mcl_string_free(request->location);
-	mcl_string_free(request->location_path);
+	hm_free(request->headers);
+	string_free(request->http_version);
+	string_free(request->location);
+	string_free(request->location_path);
 	free(request);
 }

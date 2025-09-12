@@ -108,7 +108,7 @@ cws_server_ret cws_server_loop(int server_fd, cws_config *config) {
 		return ret;
 	}
 
-	mcl_hashmap *clients = mcl_hm_init(my_int_hash_fn, my_int_equal_fn, my_int_free_key_fn, my_str_free_fn, sizeof(int), sizeof(char) * INET_ADDRSTRLEN);
+	hashmap_s *clients = hm_new(my_int_hash_fn, my_int_equal_fn, my_int_free_key_fn, my_str_free_fn, sizeof(int), sizeof(char) * INET_ADDRSTRLEN);
 	if (clients == NULL) {
 		return CWS_SERVER_HASHMAP_INIT;
 	}
@@ -117,7 +117,7 @@ cws_server_ret cws_server_loop(int server_fd, cws_config *config) {
 	size_t workers_index = 0;
 	cws_worker **workers = cws_worker_init(workers_num, clients, config);
 	if (workers == NULL) {
-		mcl_hm_free(clients);
+		hm_free(clients);
 		return CWS_SERVER_WORKER_ERROR;
 	}
 
@@ -145,7 +145,7 @@ cws_server_ret cws_server_loop(int server_fd, cws_config *config) {
 
 				/* Add client to worker */
 				int random = 10;
-				mcl_hm_set(clients, &client_fd, &random);
+				hm_set(clients, &client_fd, &random);
 				write(workers[workers_index]->pipefd[1], &client_fd, sizeof(int));
 				workers_index = (workers_index + 1) % workers_num;
 			}
@@ -154,12 +154,12 @@ cws_server_ret cws_server_loop(int server_fd, cws_config *config) {
 
 	close(epfd);
 	cws_worker_free(workers, workers_num);
-	mcl_hm_free(clients);
+	hm_free(clients);
 
 	return CWS_SERVER_OK;
 }
 
-int cws_server_handle_new_client(int server_fd, mcl_hashmap *clients) {
+int cws_server_handle_new_client(int server_fd, hashmap_s *clients) {
 	struct sockaddr_storage their_sa;
 	socklen_t theirsa_size = sizeof their_sa;
 	char ip[INET_ADDRSTRLEN];

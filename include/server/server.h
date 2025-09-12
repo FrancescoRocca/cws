@@ -1,11 +1,11 @@
 #ifndef CWS_SERVER_H
 #define CWS_SERVER_H
 
+#include <myclib/myhashmap.h>
 #include <netdb.h>
 #include <signal.h>
 #include <sys/socket.h>
 
-#include "myclib/hashmap/myhashmap.h"
 #include "utils/config.h"
 
 /* Clients max queue */
@@ -48,7 +48,7 @@ typedef enum cws_server_ret_t {
 
 cws_server_ret cws_server_start(cws_config *config);
 cws_server_ret cws_server_loop(int server_fd, cws_config *config);
-int cws_server_handle_new_client(int server_fd, mcl_hashmap *clients);
+int cws_server_handle_new_client(int server_fd, hashmap_s *clients);
 int cws_server_accept_client(int server_fd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size);
 cws_server_ret cws_fd_set_nonblocking(int sockfd);
 
