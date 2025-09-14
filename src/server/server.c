@@ -38,13 +38,13 @@ static cws_server_ret cws_server_setup_epoll(int server_fd, int *epfd_out) {
 		return ret;
 	}
 
-	cws_epoll_add(epfd, server_fd, EPOLLIN);
+	cws_epoll_add(epfd, server_fd);
 	*epfd_out = epfd;
 
 	return CWS_SERVER_OK;
 }
 
-cws_server_ret cws_server_setup(cws_config_s *config, cws_server_s *server) {
+cws_server_ret cws_server_setup(cws_server_s *server, cws_config_s *config) {
 	if (!config || !config->hostname || !config->port) {
 		return CWS_SERVER_CONFIG;
 	}
@@ -103,7 +103,7 @@ cws_server_ret cws_server_setup(cws_config_s *config, cws_server_s *server) {
 	return CWS_SERVER_OK;
 }
 
-cws_server_ret cws_server_loop(cws_server_s *server) {
+cws_server_ret cws_server_start(cws_server_s *server) {
 	struct epoll_event events[128];
 	memset(events, 0, sizeof(events));
 	int client_fd = 0;
@@ -141,10 +141,9 @@ cws_server_ret cws_server_loop(cws_server_s *server) {
 
 int cws_server_handle_new_client(int server_fd) {
 	struct sockaddr_storage their_sa;
-	socklen_t theirsa_size = sizeof their_sa;
 	char ip[INET_ADDRSTRLEN];
 
-	int client_fd = cws_server_accept_client(server_fd, &their_sa, &theirsa_size);
+	int client_fd = cws_server_accept_client(server_fd, &their_sa);
 	if (client_fd < 0) {
 		return client_fd;
 	}
@@ -155,8 +154,9 @@ int cws_server_handle_new_client(int server_fd) {
 	return client_fd;
 }
 
-int cws_server_accept_client(int server_fd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size) {
-	const int client_fd = accept(server_fd, (struct sockaddr *)their_sa, theirsa_size);
+int cws_server_accept_client(int server_fd, struct sockaddr_storage *their_sa) {
+	socklen_t theirsa_size = sizeof(struct sockaddr_storage);
+	const int client_fd = accept(server_fd, (struct sockaddr *)their_sa, &theirsa_size);
 
 	if (client_fd == -1) {
 		if (errno != EWOULDBLOCK) {

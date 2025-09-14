@@ -31,14 +31,14 @@ typedef struct cws_server {
 	cws_config_s *config;
 } cws_server_s;
 
-cws_server_ret cws_server_setup(cws_config_s *config, cws_server_s *server);
+cws_server_ret cws_server_setup(cws_server_s *server, cws_config_s *config);
 
-cws_server_ret cws_server_loop(cws_server_s *server);
+cws_server_ret cws_server_start(cws_server_s *server);
 
 void cws_server_shutdown(cws_server_s *server);
 
 int cws_server_handle_new_client(int server_fd);
 
-int cws_server_accept_client(int server_fd, struct sockaddr_storage *their_sa, socklen_t *theirsa_size);
+int cws_server_accept_client(int server_fd, struct sockaddr_storage *their_sa);
 
 #endif

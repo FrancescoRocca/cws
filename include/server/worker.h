@@ -26,7 +26,7 @@ void *cws_worker_loop(void *arg);
 
 void cws_server_close_client(int epfd, int client_fd);
 
-cws_server_ret cws_epoll_add(int epfd, int sockfd, uint32_t events);
+cws_server_ret cws_epoll_add(int epfd, int sockfd);
 
 cws_server_ret cws_epoll_del(int epfd, int sockfd);
 

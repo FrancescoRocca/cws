@@ -1,4 +1,4 @@
-#define _XOPEN_SOURCE 700
+#define _XOPEN_SOURCE 1
 
 #include <signal.h>
 #include <stdio.h>
@@ -32,13 +32,13 @@ int main(void) {
 	}
 
 	cws_server_s server;
-	cws_server_ret ret = cws_server_setup(config, &server);
+	cws_server_ret ret = cws_server_setup(&server, config);
 	if (ret != CWS_SERVER_OK) {
 		CWS_LOG_ERROR("Unable to setup web server");
 	}
 
 	CWS_LOG_INFO("Running cws on http://%s:%s...", config->hostname, config->port);
-	ret = cws_server_loop(&server);
+	ret = cws_server_start(&server);
 	if (ret != CWS_SERVER_OK) {
 		CWS_LOG_ERROR("Unable to start web server");
 	}

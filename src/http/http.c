@@ -1,3 +1,5 @@
+#define _XOPEN_SOURCE 1
+
 #include "http/http.h"
 
 #include <errno.h>

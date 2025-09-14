@@ -25,13 +25,48 @@ static int cws_worker_setup_epoll(cws_worker_s *worker) {
 		return -1;
 	}
 
-	ret = cws_epoll_add(worker->epfd, worker->pipefd[0], EPOLLIN);
+	ret = cws_epoll_add(worker->epfd, worker->pipefd[0]);
 	if (ret != CWS_SERVER_OK) {
 		sock_close(worker->epfd);
 		sock_close(worker->pipefd[0]);
 	}
 
 	return 0;
+}
+
+static size_t cws_read_data(int sockfd, string_s **str) {
+	size_t total_bytes = 0;
+	ssize_t bytes_read;
+
+	if (*str == NULL) {
+		*str = string_new("", 4096);
+	}
+
+	char tmp[4096];
+	memset(tmp, 0, sizeof(tmp));
+
+	while (1) {
+		bytes_read = recv(sockfd, tmp, sizeof(tmp), 0);
+
+		if (bytes_read == -1) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				break;
+			} else if (errno == ECONNRESET) {
+				return 0;
+			}
+
+			CWS_LOG_ERROR("recv(): %s", strerror(errno));
+
+			return -1;
+		} else if (bytes_read == 0) {
+			return -1;
+		}
+
+		total_bytes += bytes_read;
+		string_append(*str, tmp);
+	}
+
+	return total_bytes;
 }
 
 cws_worker_s **cws_worker_new(size_t workers_num, cws_config_s *config) {
@@ -113,7 +148,7 @@ void *cws_worker_loop(void *arg) {
 				int client_fd;
 				read(worker->pipefd[0], &client_fd, sizeof(int));
 				cws_fd_set_nonblocking(client_fd);
-				cws_epoll_add(worker->epfd, client_fd, EPOLLIN | EPOLLET);
+				cws_epoll_add(worker->epfd, client_fd);
 			} else {
 				/* Handle client data */
 				int client_fd = events[i].data.fd;
@@ -130,9 +165,9 @@ void cws_server_close_client(int epfd, int client_fd) {
 	sock_close(client_fd);
 }
 
-cws_server_ret cws_epoll_add(int epfd, int sockfd, uint32_t events) {
+cws_server_ret cws_epoll_add(int epfd, int sockfd) {
 	struct epoll_event event;
-	event.events = events;
+	event.events = EPOLLIN | EPOLLET;
 	event.data.fd = sockfd;
 	const int status = epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &event);
 
@@ -155,43 +190,7 @@ cws_server_ret cws_epoll_del(int epfd, int sockfd) {
 	return CWS_SERVER_OK;
 }
 
-static size_t cws_read_data(int sockfd, string_s **str) {
-	size_t total_bytes = 0;
-	ssize_t bytes_read;
-
-	if (*str == NULL) {
-		*str = string_new("", 4096);
-	}
-
-	char tmp[4096];
-	memset(tmp, 0, sizeof(tmp));
-
-	while (1) {
-		bytes_read = recv(sockfd, tmp, sizeof(tmp), 0);
-
-		if (bytes_read == -1) {
-			if (errno == EAGAIN || errno == EWOULDBLOCK) {
-				break;
-			} else if (errno == ECONNRESET) {
-				return 0;
-			}
-
-			CWS_LOG_ERROR("recv(): %s", strerror(errno));
-
-			return -1;
-		} else if (bytes_read == 0) {
-			return -1;
-		}
-
-		total_bytes += bytes_read;
-		string_append(*str, tmp);
-	}
-
-	return total_bytes;
-}
-
 cws_server_ret cws_server_handle_client_data(int epfd, int client_fd) {
-	/* Read data from socket */
 	string_s *data;
 	size_t total_bytes = cws_read_data(client_fd, &data);
 	if (total_bytes <= 0) {
@@ -203,7 +202,6 @@ cws_server_ret cws_server_handle_client_data(int epfd, int client_fd) {
 		return CWS_SERVER_CLIENT_DISCONNECTED_ERROR;
 	}
 
-	/* Parse HTTP request */
 	cws_http_s *request = cws_http_parse(data, client_fd);
 	string_free(data);
 
