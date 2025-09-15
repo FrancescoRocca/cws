@@ -9,17 +9,18 @@
 #define CWS_HTTP_HEADER_CONTENT_MAX 1024
 
 typedef enum cws_http_method {
-	CWS_HTTP_GET,
-	CWS_HTTP_POST,
-	CWS_HTTP_PUT,
-	CWS_HTTP_DELETE,
-	CWS_HTTP_HEAD,
+	HTTP_GET,
+	HTTP_POST,
+	HTTP_PUT,
+	HTTP_DELETE,
+	HTTP_HEAD,
+	HTTP_UNKNOWN,
 } cws_http_method_e;
 
 typedef enum cws_http_status {
-	CWS_HTTP_OK,
-	CWS_HTTP_NOT_FOUND,
-	CWS_HTTP_NOT_IMPLEMENTED,
+	HTTP_OK,
+	HTTP_NOT_FOUND,
+	HTTP_NOT_IMPLEMENTED,
 } cws_http_status_e;
 
 typedef struct cws_http {
@@ -31,18 +32,11 @@ typedef struct cws_http {
 	hashmap_s *headers;
 } cws_http_s;
 
-cws_http_s *cws_http_parse(string_s *request_str, int sockfd);
-
-int cws_http_get_content_type(cws_http_s *request, char *content_type);
-
-size_t cws_http_response_builder(char **response, char *http_version, cws_http_status_e status, char *content_type, char *connection, char *body,
-								 size_t body_len_bytes);
+cws_http_s *cws_http_parse(string_s *request_str);
 
 void cws_http_send_response(cws_http_s *request, cws_http_status_e status);
 
-int cws_http_send_resource(cws_http_s *request);
-
-void cws_http_send_simple_html(cws_http_s *request, cws_http_status_e status, char *title, char *description);
+size_t http_response_builder(char **response, char *http_version, cws_http_status_e status, char *content_type, char *body, size_t body_len_bytes);
 
 void cws_http_free(cws_http_s *request);
 

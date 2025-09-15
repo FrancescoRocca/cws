@@ -34,13 +34,9 @@ static int cws_worker_setup_epoll(cws_worker_s *worker) {
 	return 0;
 }
 
-static size_t cws_read_data(int sockfd, string_s **str) {
+static size_t cws_read_data(int sockfd, string_s *str) {
 	size_t total_bytes = 0;
 	ssize_t bytes_read;
-
-	if (*str == NULL) {
-		*str = string_new("", 4096);
-	}
 
 	char tmp[4096];
 	memset(tmp, 0, sizeof(tmp));
@@ -63,7 +59,7 @@ static size_t cws_read_data(int sockfd, string_s **str) {
 		}
 
 		total_bytes += bytes_read;
-		string_append(*str, tmp);
+		string_append(str, tmp);
 	}
 
 	return total_bytes;
@@ -191,8 +187,8 @@ cws_server_ret cws_epoll_del(int epfd, int sockfd) {
 }
 
 cws_server_ret cws_server_handle_client_data(int epfd, int client_fd) {
-	string_s *data;
-	size_t total_bytes = cws_read_data(client_fd, &data);
+	string_s *data = string_new("", 4096);
+	size_t total_bytes = cws_read_data(client_fd, data);
 	if (total_bytes <= 0) {
 		if (data) {
 			string_free(data);
@@ -202,7 +198,8 @@ cws_server_ret cws_server_handle_client_data(int epfd, int client_fd) {
 		return CWS_SERVER_CLIENT_DISCONNECTED_ERROR;
 	}
 
-	cws_http_s *request = cws_http_parse(data, client_fd);
+	/* TODO: set sockfd to request */
+	cws_http_s *request = cws_http_parse(data);
 	string_free(data);
 
 	if (request == NULL) {
@@ -211,11 +208,11 @@ cws_server_ret cws_server_handle_client_data(int epfd, int client_fd) {
 		return CWS_SERVER_HTTP_PARSE_ERROR;
 	}
 
-	int keepalive = cws_http_send_resource(request);
+	// cws_http_send_resource(request);
 	cws_http_free(request);
-	if (!keepalive) {
-		cws_server_close_client(epfd, client_fd);
-	}
+	// if (!keepalive) {
+	// cws_server_close_client(epfd, client_fd);
+	//}
 
 	return CWS_SERVER_OK;
 }
