@@ -195,6 +195,7 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 	}
 	CWS_LOG_DEBUG("location: %s", pch);
 	string_append(request->location, pch);
+	// TODO: fix www
 	request->location_path = string_format("%s/%s", "www", request->location->data);
 
 	/* Adjust location path */

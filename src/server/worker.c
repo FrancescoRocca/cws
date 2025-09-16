@@ -1,6 +1,5 @@
 #include "server/worker.h"
 
-#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,35 +33,14 @@ static int cws_worker_setup_epoll(cws_worker_s *worker) {
 	return 0;
 }
 
-static size_t cws_read_data(int sockfd, string_s *str) {
-	size_t total_bytes = 0;
-	ssize_t bytes_read;
-
+static int cws_read_data(int sockfd, string_s *str) {
 	char tmp[4096];
 	memset(tmp, 0, sizeof(tmp));
 
-	while (1) {
-		bytes_read = recv(sockfd, tmp, sizeof(tmp), 0);
+	int bytes = sock_readall(sockfd, tmp, sizeof(tmp));
+	string_append(str, tmp);
 
-		if (bytes_read == -1) {
-			if (errno == EAGAIN || errno == EWOULDBLOCK) {
-				break;
-			} else if (errno == ECONNRESET) {
-				return 0;
-			}
-
-			CWS_LOG_ERROR("recv(): %s", strerror(errno));
-
-			return -1;
-		} else if (bytes_read == 0) {
-			return -1;
-		}
-
-		total_bytes += bytes_read;
-		string_append(str, tmp);
-	}
-
-	return total_bytes;
+	return bytes;
 }
 
 cws_worker_s **cws_worker_new(size_t workers_num, cws_config_s *config) {
@@ -168,7 +146,7 @@ cws_server_ret cws_epoll_add(int epfd, int sockfd) {
 	const int status = epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &event);
 
 	if (status != 0) {
-		CWS_LOG_ERROR("epoll_ctl_add(): %s", strerror(errno));
+		CWS_LOG_ERROR("epoll_ctl_add()");
 		return CWS_SERVER_EPOLL_ADD_ERROR;
 	}
 
@@ -179,7 +157,7 @@ cws_server_ret cws_epoll_del(int epfd, int sockfd) {
 	const int status = epoll_ctl(epfd, EPOLL_CTL_DEL, sockfd, NULL);
 
 	if (status != 0) {
-		CWS_LOG_ERROR("epoll_ctl_del(): %s", strerror(errno));
+		CWS_LOG_ERROR("epoll_ctl_del()");
 		return CWS_SERVER_EPOLL_DEL_ERROR;
 	}
 
@@ -188,6 +166,7 @@ cws_server_ret cws_epoll_del(int epfd, int sockfd) {
 
 cws_server_ret cws_server_handle_client_data(int epfd, int client_fd) {
 	string_s *data = string_new("", 4096);
+
 	size_t total_bytes = cws_read_data(client_fd, data);
 	if (total_bytes <= 0) {
 		if (data) {
@@ -198,9 +177,12 @@ cws_server_ret cws_server_handle_client_data(int epfd, int client_fd) {
 		return CWS_SERVER_CLIENT_DISCONNECTED_ERROR;
 	}
 
-	/* TODO: set sockfd to request */
 	cws_http_s *request = cws_http_parse(data);
+	request->sockfd = client_fd;
+
 	string_free(data);
+
+	// TODO: fix response
 
 	if (request == NULL) {
 		cws_server_close_client(epfd, client_fd);
