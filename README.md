@@ -5,9 +5,7 @@ A minimal web server. This is a personal project; it is not intended to be a pro
 ## Requirements
 
 - [meson](https://mesonbuild.com/index.html)
-- libssl
 - libcyaml
-- libyaml
 - myclib (on my profile)
 - [doxygen](https://www.doxygen.nl/)
     - Optional, just to build the docs. It requires `dot`.
