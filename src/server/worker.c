@@ -208,11 +208,7 @@ cws_server_ret cws_server_handle_client_data(int epfd, int client_fd) {
 		return CWS_SERVER_HTTP_PARSE_ERROR;
 	}
 
-	// cws_http_send_resource(request);
 	cws_http_free(request);
-	// if (!keepalive) {
-	// cws_server_close_client(epfd, client_fd);
-	//}
 
 	return CWS_SERVER_OK;
 }

@@ -3,6 +3,7 @@
 #include "http/http.h"
 
 #include <fcntl.h>
+#include <myclib/mysocket.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,7 +20,6 @@ static cws_http_s *http_new() {
 
 	request->http_version = string_new("", 16);
 	request->location = string_new("", 128);
-	request->location_path = string_new("", 512);
 
 	return request;
 }
@@ -81,7 +81,7 @@ static char *http_status_string(cws_http_status_e status) {
 static size_t file_data(const char *path, char **data) {
 	FILE *file = fopen(path, "rb");
 	if (!file) {
-		return NULL;
+		return 0;
 	}
 
 	/* Retrieve file size */
@@ -95,7 +95,7 @@ static size_t file_data(const char *path, char **data) {
 		fclose(file);
 		CWS_LOG_ERROR("Unable to allocate file data");
 
-		return NULL;
+		return 0;
 	}
 
 	/* Read file data */
@@ -123,9 +123,9 @@ static cws_server_ret http_send_resource(cws_http_s *request) {
 	char *response;
 	size_t content_length = file_data(request->location_path->data, &data);
 
-	size_t response_len = http_response_builder(&response, "HTTP/1.1", HTTP_OK, content_type, data, content_length);
+	size_t response_len = http_response_builder(&response, HTTP_OK, content_type, data, content_length);
 
-	ssize_t sent = send(request->sockfd, response, response_len, MSG_NOSIGNAL);
+	ssize_t sent = sock_writeall(request->sockfd, response, response_len);
 	CWS_LOG_DEBUG("Sent %zu bytes", sent);
 
 	free(response);
@@ -134,7 +134,7 @@ static cws_server_ret http_send_resource(cws_http_s *request) {
 	return CWS_SERVER_OK;
 }
 
-static void http_send_simple_html(cws_http_s *request, cws_http_status_e status, char *title, char *description) {
+static size_t http_simple_html(char **response, cws_http_status_e status, char *title, char *description) {
 	char body[512];
 	memset(body, 0, sizeof(body));
 
@@ -150,23 +150,9 @@ static void http_send_simple_html(cws_http_s *request, cws_http_status_e status,
 			 title, description);
 	size_t body_len = strlen(body);
 
-	char conn[32] = "keep-alive";
-	bucket_s *connection = hm_get(request->headers, "Connection");
-	if (connection) {
-		strncpy(conn, (char *)connection->value, sizeof(conn) - 1);
-		conn[sizeof(conn) - 1] = '\0';
-	}
-	hm_free_bucket(connection);
+	size_t response_len = http_response_builder(response, status, "text/html", body, body_len);
 
-	char *response = NULL;
-	size_t response_len = http_response_builder(&response, "HTTP/1.1", status, "text/html", body, body_len);
-
-	ssize_t sent = send(request->sockfd, response, response_len, MSG_NOSIGNAL);
-	if (sent < 0) {
-		CWS_LOG_ERROR("Failed to send response");
-	}
-
-	free(response);
+	return response_len;
 }
 
 cws_http_s *cws_http_parse(string_s *request_str) {
@@ -179,32 +165,21 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 		return NULL;
 	}
 
-	char *request_str_cpy = strdup(string_cstr(request_str));
-	if (!request_str_cpy) {
-		free(request);
-
-		return NULL;
-	}
-
 	char *saveptr = NULL;
 	char *pch = NULL;
 
 	/* Parse HTTP method */
-	pch = strtok_r(request_str_cpy, " ", &saveptr);
+	pch = strtok_r(request_str->data, " ", &saveptr);
 	if (pch == NULL) {
 		cws_http_free(request);
-		free(request_str_cpy);
 
 		return NULL;
 	}
-	// CWS_LOG_DEBUG("method: %s", pch);
+	CWS_LOG_DEBUG("method: %s", pch);
 
 	request->method = http_parse_method(pch);
-	// TODO: fix here
-	if (ret < 0) {
-		/* Not implemented */
+	if (request->method == HTTP_UNKNOWN) {
 		cws_http_free(request);
-		free(request_str_cpy);
 
 		cws_http_send_response(request, HTTP_NOT_IMPLEMENTED);
 
@@ -215,13 +190,12 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 	pch = strtok_r(NULL, " ", &saveptr);
 	if (pch == NULL) {
 		cws_http_free(request);
-		free(request_str_cpy);
 
 		return NULL;
 	}
-	// CWS_LOG_DEBUG("location: %s", pch);
+	CWS_LOG_DEBUG("location: %s", pch);
 	string_append(request->location, pch);
-	// TODO: mcl_string_append(request->location_path, config->www);
+	request->location_path = string_format("%s/%s", "www", request->location->data);
 
 	/* Adjust location path */
 	if (strcmp(string_cstr(request->location), "/") == 0) {
@@ -229,17 +203,16 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 	} else {
 		string_append(request->location_path, string_cstr(request->location));
 	}
-	// CWS_LOG_DEBUG("location path: %s", mcl_string_cstr(request->location_path));
+	CWS_LOG_DEBUG("location path: %s", request->location_path->data);
 
 	/* Parse HTTP version */
 	pch = strtok_r(NULL, " \r\n", &saveptr);
 	if (pch == NULL) {
 		cws_http_free(request);
-		free(request_str_cpy);
 
 		return NULL;
 	}
-	// CWS_LOG_DEBUG("version: %s", pch);
+	CWS_LOG_DEBUG("version: %s", pch);
 	string_append(request->http_version, pch);
 
 	/* Parse headers until a \r\n */
@@ -275,21 +248,24 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 
 	/* TODO: Parse body */
 
-	free(request_str_cpy);
-
 	return request;
 }
 
-size_t http_response_builder(char **response, char *http_version, cws_http_status_e status, char *content_type, char *body, size_t body_len_bytes) {
+static size_t http_header_len(char *status_code, char *content_type, size_t body_len) {
+	size_t len = snprintf(NULL, 0,
+						  "HTTP/1.1 %s\r\n"
+						  "Content-Type: %s\r\n"
+						  "Content-Length: %zu\r\n"
+						  "\r\n",
+						  status_code, content_type, body_len);
+
+	return len;
+}
+
+size_t http_response_builder(char **response, cws_http_status_e status, char *content_type, char *body, size_t body_len_bytes) {
 	char *status_code = http_status_string(status);
 
-	size_t header_len = snprintf(NULL, 0,
-								 "%s %s\r\n"
-								 "Content-Type: %s\r\n"
-								 "Content-Length: %ld\r\n"
-								 "\r\n",
-								 http_version, status_code, content_type, body_len_bytes);
-
+	size_t header_len = http_header_len(status_code, content_type, body_len_bytes);
 	size_t total_len = header_len + body_len_bytes;
 
 	*response = malloc(total_len);
@@ -297,7 +273,7 @@ size_t http_response_builder(char **response, char *http_version, cws_http_statu
 		return 0;
 	}
 
-	snprintf(*response, header_len + 1, "%s %s\r\nContent-Type: %s\r\nContent-Length: %ld\r\n\r\n", http_version, status_code, content_type, body_len_bytes);
+	snprintf(*response, header_len + 1, "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %zu\r\n\r\n", status_code, content_type, body_len_bytes);
 
 	/* Only append body if we have it */
 	if (body && body_len_bytes > 0) {
@@ -308,16 +284,22 @@ size_t http_response_builder(char **response, char *http_version, cws_http_statu
 }
 
 void cws_http_send_response(cws_http_s *request, cws_http_status_e status) {
+	char *response;
+
 	switch (status) {
 		case HTTP_OK:
 			http_send_resource(request);
 			break;
 		case HTTP_NOT_FOUND: {
-			http_send_simple_html(request, HTTP_NOT_FOUND, "404 Not Found", "Resource not found, 404.");
+			size_t len = http_simple_html(&response, HTTP_NOT_FOUND, "404 Not Found", "Resource not found, 404.");
+			sock_writeall(request->sockfd, response, len);
+
 			break;
 		}
 		case HTTP_NOT_IMPLEMENTED: {
-			http_send_simple_html(request, HTTP_NOT_IMPLEMENTED, "501 Not Implemented", "Method not implemented, 501.");
+			size_t len = http_simple_html(&response, HTTP_NOT_IMPLEMENTED, "501 Not Implemented", "Method not implemented, 501.");
+			sock_writeall(request->sockfd, response, len);
+
 			break;
 		}
 	}

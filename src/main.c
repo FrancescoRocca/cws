@@ -32,6 +32,7 @@ int main(void) {
 	}
 
 	cws_server_s server;
+
 	cws_server_ret ret = cws_server_setup(&server, config);
 	if (ret != CWS_SERVER_OK) {
 		CWS_LOG_ERROR("Unable to setup web server");

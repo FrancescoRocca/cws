@@ -49,6 +49,8 @@ cws_server_ret cws_server_setup(cws_server_s *server, cws_config_s *config) {
 		return CWS_SERVER_CONFIG;
 	}
 
+	memset(server, 0, sizeof(cws_server_s));
+
 	/* Setup basic stuff */
 	struct addrinfo hints;
 	struct addrinfo *res;
@@ -95,8 +97,8 @@ cws_server_ret cws_server_setup(cws_server_s *server, cws_config_s *config) {
 	}
 
 	/* Setup workers */
-	cws_worker_s **workers = cws_worker_new(CWS_WORKERS_NUM, config);
-	if (workers == NULL) {
+	server->workers = cws_worker_new(CWS_WORKERS_NUM, config);
+	if (server->workers == NULL) {
 		return CWS_SERVER_WORKER_ERROR;
 	}
 
