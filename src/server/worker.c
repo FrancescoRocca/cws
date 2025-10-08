@@ -48,7 +48,7 @@ cws_worker_s **cws_worker_new(size_t workers_num, cws_config_s *config) {
 	if (workers == NULL) {
 		return NULL;
 	}
-	memset(workers, 0, sizeof **workers * workers_num);
+	memset(workers, 0, workers_num * sizeof *workers);
 
 	for (size_t i = 0; i < workers_num; ++i) {
 		workers[i] = malloc(sizeof(cws_worker_s));
@@ -176,17 +176,15 @@ cws_server_ret cws_server_handle_client_data(int epfd, int client_fd) {
 	}
 
 	cws_http_s *request = cws_http_parse(data);
-	request->sockfd = client_fd;
-
 	string_free(data);
-
-	// TODO: fix response
-
 	if (request == NULL) {
 		cws_server_close_client(epfd, client_fd);
 
 		return CWS_SERVER_HTTP_PARSE_ERROR;
 	}
+	request->sockfd = client_fd;
+
+	cws_http_send_response(request, HTTP_OK);
 
 	cws_http_free(request);
 

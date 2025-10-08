@@ -22,6 +22,7 @@ static cws_http_s *http_new() {
 
 	request->http_version = string_new("", 16);
 	request->location = string_new("", 128);
+	request->location_path = string_new("", 128);
 
 	return request;
 }
@@ -89,6 +90,7 @@ static size_t file_data(const char *path, char **data) {
 	/* Retrieve file size */
 	fseek(file, 0, SEEK_END);
 	const size_t content_length = ftell(file);
+	errno = 0;
 	rewind(file);
 	if (errno != 0) {
 		fclose(file);
@@ -198,16 +200,16 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 
 		return NULL;
 	}
-	CWS_LOG_DEBUG("location: %s", pch);
 	string_append(request->location, pch);
-	// TODO: fix www
-	request->location_path = string_format("%s/%s", "www", request->location->data);
 
 	/* Adjust location path */
-	if (strcmp(string_cstr(request->location), "/") == 0) {
-		string_append(request->location_path, "/index.html");
+	string_append(request->location_path, "www/");
+	CWS_LOG_DEBUG("location path: %s", request->location_path->data);
+
+	if (strcmp(request->location->data, "/") == 0) {
+		string_append(request->location_path, "index.html");
 	} else {
-		string_append(request->location_path, string_cstr(request->location));
+		string_append(request->location_path, request->location->data);
 	}
 	CWS_LOG_DEBUG("location path: %s", request->location_path->data);
 
@@ -272,7 +274,7 @@ size_t http_response_builder(char **response, cws_http_status_e status, char *co
 	char *status_code = http_status_string(status);
 
 	size_t header_len = http_header_len(status_code, content_type, body_len_bytes);
-	size_t total_len = header_len + body_len_bytes;
+	size_t total_len = header_len + body_len_bytes + 1;
 
 	*response = malloc(total_len);
 	if (*response == NULL) {

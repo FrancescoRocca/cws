@@ -19,6 +19,11 @@ int main(void) {
 		return EXIT_FAILURE;
 	}
 
+	if (sigaction(SIGTERM, &act, NULL)) {
+		CWS_LOG_ERROR("sigaction()");
+		return EXIT_FAILURE;
+	}
+
 	cws_config_s *config = cws_config_init();
 	if (!config) {
 		CWS_LOG_ERROR("Unable to read config file");
