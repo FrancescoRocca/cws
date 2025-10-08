@@ -2,6 +2,7 @@
 
 #include "http/http.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <myclib/mysocket.h>
 #include <stdio.h>
@@ -17,6 +18,7 @@ static cws_http_s *http_new() {
 	if (!request) {
 		return NULL;
 	}
+	memset(request, 0, sizeof *request);
 
 	request->http_version = string_new("", 16);
 	request->location = string_new("", 128);
@@ -88,10 +90,16 @@ static size_t file_data(const char *path, char **data) {
 	fseek(file, 0, SEEK_END);
 	const size_t content_length = ftell(file);
 	rewind(file);
+	if (errno != 0) {
+		fclose(file);
+		CWS_LOG_ERROR("Unable to rewind");
+
+		return 0;
+	}
 
 	/* Retrieve file data */
 	*data = malloc(content_length);
-	if (!data) {
+	if (!*data) {
 		fclose(file);
 		CWS_LOG_ERROR("Unable to allocate file data");
 
@@ -99,11 +107,10 @@ static size_t file_data(const char *path, char **data) {
 	}
 
 	/* Read file data */
-	size_t read_bytes = fread(data, 1, content_length, file);
+	size_t read_bytes = fread(*data, 1, content_length, file);
 	fclose(file);
 
 	if (read_bytes != content_length) {
-		free(data);
 		CWS_LOG_ERROR("Partial read from file");
 
 		return 0;
@@ -119,7 +126,7 @@ static cws_server_ret http_send_resource(cws_http_s *request) {
 
 	/* TODO: Check for keep-alive */
 
-	char *data;
+	char *data = NULL;
 	char *response;
 	size_t content_length = file_data(request->location_path->data, &data);
 
@@ -136,7 +143,7 @@ static cws_server_ret http_send_resource(cws_http_s *request) {
 
 static size_t http_simple_html(char **response, cws_http_status_e status, char *title, char *description) {
 	char body[512];
-	memset(body, 0, sizeof(body));
+	memset(body, 0, sizeof body);
 
 	snprintf(body, sizeof(body),
 			 "<html>\n"
@@ -180,8 +187,6 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 	request->method = http_parse_method(pch);
 	if (request->method == HTTP_UNKNOWN) {
 		cws_http_free(request);
-
-		cws_http_send_response(request, HTTP_NOT_IMPLEMENTED);
 
 		return NULL;
 	}
@@ -285,7 +290,7 @@ size_t http_response_builder(char **response, cws_http_status_e status, char *co
 }
 
 void cws_http_send_response(cws_http_s *request, cws_http_status_e status) {
-	char *response;
+	char *response = NULL;
 
 	switch (status) {
 		case HTTP_OK:
@@ -304,12 +309,30 @@ void cws_http_send_response(cws_http_s *request, cws_http_status_e status) {
 			break;
 		}
 	}
+
+	free(response);
 }
 
 void cws_http_free(cws_http_s *request) {
-	hm_free(request->headers);
-	string_free(request->http_version);
-	string_free(request->location);
-	string_free(request->location_path);
+	if (!request) {
+		return;
+	}
+
+	if (request->headers) {
+		hm_free(request->headers);
+	}
+
+	if (request->http_version) {
+		string_free(request->http_version);
+	}
+
+	if (request->location) {
+		string_free(request->location);
+	}
+
+	if (request->location_path) {
+		string_free(request->location_path);
+	}
+
 	free(request);
 }

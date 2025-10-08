@@ -12,7 +12,7 @@
 #include "utils/utils.h"
 
 static void cws_server_setup_hints(struct addrinfo *hints, const char *hostname) {
-	memset(hints, 0, sizeof(struct addrinfo));
+	memset(hints, 0, sizeof *hints);
 
 	/* IPv4 or IPv6 */
 	hints->ai_family = AF_UNSPEC;
@@ -49,7 +49,7 @@ cws_server_ret cws_server_setup(cws_server_s *server, cws_config_s *config) {
 		return CWS_SERVER_CONFIG;
 	}
 
-	memset(server, 0, sizeof(cws_server_s));
+	memset(server, 0, sizeof *server);
 
 	/* Setup basic stuff */
 	struct addrinfo hints;
@@ -107,7 +107,7 @@ cws_server_ret cws_server_setup(cws_server_s *server, cws_config_s *config) {
 
 cws_server_ret cws_server_start(cws_server_s *server) {
 	struct epoll_event events[128];
-	memset(events, 0, sizeof(events));
+	memset(events, 0, sizeof events);
 	int client_fd = 0;
 	size_t workers_index = 0;
 

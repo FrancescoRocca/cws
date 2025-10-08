@@ -35,7 +35,7 @@ static int cws_worker_setup_epoll(cws_worker_s *worker) {
 
 static int cws_read_data(int sockfd, string_s *str) {
 	char tmp[4096];
-	memset(tmp, 0, sizeof(tmp));
+	memset(tmp, 0, sizeof tmp);
 
 	int bytes = sock_readall(sockfd, tmp, sizeof(tmp));
 	string_append(str, tmp);
@@ -44,24 +44,23 @@ static int cws_read_data(int sockfd, string_s *str) {
 }
 
 cws_worker_s **cws_worker_new(size_t workers_num, cws_config_s *config) {
-	cws_worker_s **workers = malloc(sizeof(cws_worker_s) * workers_num);
+	cws_worker_s **workers = malloc(workers_num * sizeof *workers);
 	if (workers == NULL) {
 		return NULL;
 	}
-	memset(workers, 0, sizeof(cws_worker_s) * workers_num);
+	memset(workers, 0, sizeof **workers * workers_num);
 
 	for (size_t i = 0; i < workers_num; ++i) {
 		workers[i] = malloc(sizeof(cws_worker_s));
 		if (workers[i] == NULL) {
 			for (size_t j = 0; j < i; ++j) {
 				free(workers[j]);
-
-				return NULL;
 			}
 
 			free(workers);
+			return NULL;
 		}
-		memset(workers[i], 0, sizeof(cws_worker_s));
+		memset(workers[i], 0, sizeof **workers);
 
 		workers[i]->config = config;
 
@@ -71,11 +70,10 @@ cws_worker_s **cws_worker_new(size_t workers_num, cws_config_s *config) {
 		if (ret == -1) {
 			for (size_t j = 0; j < i; ++j) {
 				free(workers[j]);
-
-				return NULL;
 			}
 
 			free(workers);
+			return NULL;
 		}
 	}
 
