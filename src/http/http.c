@@ -274,9 +274,9 @@ size_t http_response_builder(char **response, cws_http_status_e status, char *co
 	char *status_code = http_status_string(status);
 
 	size_t header_len = http_header_len(status_code, content_type, body_len_bytes);
-	size_t total_len = header_len + body_len_bytes + 1;
+	size_t total_len = header_len + body_len_bytes;
 
-	*response = malloc(total_len);
+	*response = malloc(total_len + 1);
 	if (*response == NULL) {
 		return 0;
 	}
@@ -287,6 +287,8 @@ size_t http_response_builder(char **response, cws_http_status_e status, char *co
 	if (body && body_len_bytes > 0) {
 		memcpy(*response + header_len, body, body_len_bytes);
 	}
+
+	(*response)[total_len] = '\0';
 
 	return total_len;
 }

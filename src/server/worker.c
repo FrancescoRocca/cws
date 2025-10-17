@@ -38,6 +38,9 @@ static int cws_read_data(int sockfd, string_s *str) {
 	memset(tmp, 0, sizeof tmp);
 
 	int bytes = sock_readall(sockfd, tmp, sizeof(tmp));
+	if (bytes < 0) {
+		return -1;
+	}
 	string_append(str, tmp);
 
 	return bytes;
@@ -139,7 +142,7 @@ void cws_server_close_client(int epfd, int client_fd) {
 
 cws_server_ret cws_epoll_add(int epfd, int sockfd) {
 	struct epoll_event event;
-	event.events = EPOLLIN | EPOLLET;
+	event.events = EPOLLIN;
 	event.data.fd = sockfd;
 	const int status = epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &event);
 
@@ -167,9 +170,7 @@ cws_server_ret cws_server_handle_client_data(int epfd, int client_fd) {
 
 	size_t total_bytes = cws_read_data(client_fd, data);
 	if (total_bytes <= 0) {
-		if (data) {
-			string_free(data);
-		}
+		string_free(data);
 		cws_server_close_client(epfd, client_fd);
 
 		return CWS_SERVER_CLIENT_DISCONNECTED_ERROR;
@@ -187,6 +188,7 @@ cws_server_ret cws_server_handle_client_data(int epfd, int client_fd) {
 	cws_http_send_response(request, HTTP_OK);
 
 	cws_http_free(request);
+	cws_server_close_client(epfd, client_fd);
 
 	return CWS_SERVER_OK;
 }
