@@ -1,8 +1,8 @@
 #ifndef CWS_UTILS_H
 #define CWS_UTILS_H
 
-#include <myclib/mysocket.h>
 #include <stdbool.h>
+#include <sys/socket.h>
 
 typedef enum cws_server_ret {
 	CWS_SERVER_OK,

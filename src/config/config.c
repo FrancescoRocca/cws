@@ -1,4 +1,4 @@
-#include "utils/config.h"
+#include "config/config.h"
 
 #include <cyaml/cyaml.h>
 #include <stdio.h>
@@ -52,6 +52,6 @@ cws_config_s *cws_config_init(void) {
 void cws_config_free(cws_config_s *config) {
 	cyaml_err_t err = cyaml_free(&cyaml_config, &top_schema, config, 0);
 	if (err != CYAML_OK) {
-		/* TODO: Handle */
+		return;
 	}
 }

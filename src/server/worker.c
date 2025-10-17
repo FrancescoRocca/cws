@@ -1,5 +1,6 @@
 #include "server/worker.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,42 +9,36 @@
 #include <unistd.h>
 
 #include "http/http.h"
-#include "utils/debug.h"
+#include "server/epoll_utils.h"
+#include "utils/utils.h"
 
-static int cws_worker_setup_epoll(cws_worker_s *worker) {
+static cws_server_ret cws_worker_setup_epoll(cws_worker_s *worker) {
 	worker->epfd = epoll_create1(0);
 	if (worker->epfd == -1) {
-		return -1;
+		return CWS_SERVER_EPOLL_CREATE_ERROR;
 	}
 
-	cws_server_ret ret;
-	ret = cws_fd_set_nonblocking(worker->pipefd[0]);
-	if (ret != CWS_SERVER_OK) {
-		sock_close(worker->epfd);
-
-		return -1;
-	}
-
-	ret = cws_epoll_add(worker->epfd, worker->pipefd[0]);
-	if (ret != CWS_SERVER_OK) {
-		sock_close(worker->epfd);
-		sock_close(worker->pipefd[0]);
-	}
-
-	return 0;
+	return CWS_SERVER_OK;
 }
 
-static int cws_read_data(int sockfd, string_s *str) {
-	char tmp[4096];
-	memset(tmp, 0, sizeof tmp);
+static ssize_t cws_read_data(int sockfd, string_s *str) {
+	char tmp[4096] = {0};
 
-	int bytes = sock_readall(sockfd, tmp, sizeof(tmp));
-	if (bytes < 0) {
+	ssize_t n = recv(sockfd, tmp, sizeof tmp, MSG_PEEK);
+	if (n < 0) {
+		if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			return 0;
+		}
 		return -1;
 	}
-	string_append(str, tmp);
 
-	return bytes;
+	if (n == 0) {
+		/* Connection closed */
+		return -1;
+	}
+
+	string_append(str, tmp);
+	return n;
 }
 
 cws_worker_s **cws_worker_new(size_t workers_num, cws_config_s *config) {
@@ -67,8 +62,7 @@ cws_worker_s **cws_worker_new(size_t workers_num, cws_config_s *config) {
 
 		workers[i]->config = config;
 
-		/* Communicate though threads */
-		pipe(workers[i]->pipefd);
+		/* Setup worker's epoll */
 		int ret = cws_worker_setup_epoll(workers[i]);
 		if (ret == -1) {
 			for (size_t j = 0; j < i; ++j) {
@@ -118,17 +112,9 @@ void *cws_worker_loop(void *arg) {
 		}
 
 		for (int i = 0; i < nfds; ++i) {
-			if (events[i].data.fd == worker->pipefd[0]) {
-				/* Handle new client */
-				int client_fd;
-				read(worker->pipefd[0], &client_fd, sizeof(int));
-				cws_fd_set_nonblocking(client_fd);
-				cws_epoll_add(worker->epfd, client_fd);
-			} else {
-				/* Handle client data */
-				int client_fd = events[i].data.fd;
-				cws_server_handle_client_data(worker->epfd, client_fd);
-			}
+			/* Handle client's data */
+			int client_fd = events[i].data.fd;
+			cws_server_handle_client_data(worker->epfd, client_fd);
 		}
 	}
 
@@ -137,39 +123,21 @@ void *cws_worker_loop(void *arg) {
 
 void cws_server_close_client(int epfd, int client_fd) {
 	cws_epoll_del(epfd, client_fd);
-	sock_close(client_fd);
-}
-
-cws_server_ret cws_epoll_add(int epfd, int sockfd) {
-	struct epoll_event event;
-	event.events = EPOLLIN;
-	event.data.fd = sockfd;
-	const int status = epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &event);
-
-	if (status != 0) {
-		CWS_LOG_ERROR("epoll_ctl_add()");
-		return CWS_SERVER_EPOLL_ADD_ERROR;
-	}
-
-	return CWS_SERVER_OK;
-}
-
-cws_server_ret cws_epoll_del(int epfd, int sockfd) {
-	const int status = epoll_ctl(epfd, EPOLL_CTL_DEL, sockfd, NULL);
-
-	if (status != 0) {
-		CWS_LOG_ERROR("epoll_ctl_del()");
-		return CWS_SERVER_EPOLL_DEL_ERROR;
-	}
-
-	return CWS_SERVER_OK;
+	close(client_fd);
 }
 
 cws_server_ret cws_server_handle_client_data(int epfd, int client_fd) {
 	string_s *data = string_new("", 4096);
 
-	size_t total_bytes = cws_read_data(client_fd, data);
+	ssize_t total_bytes = cws_read_data(client_fd, data);
+	if (total_bytes == 0) {
+		/* Request not completed yet */
+		string_free(data);
+		return CWS_SERVER_OK;
+	}
+
 	if (total_bytes <= 0) {
+		/* Something happened, close connection */
 		string_free(data);
 		cws_server_close_client(epfd, client_fd);
 
@@ -180,7 +148,6 @@ cws_server_ret cws_server_handle_client_data(int epfd, int client_fd) {
 	string_free(data);
 	if (request == NULL) {
 		cws_server_close_client(epfd, client_fd);
-
 		return CWS_SERVER_HTTP_PARSE_ERROR;
 	}
 	request->sockfd = client_fd;

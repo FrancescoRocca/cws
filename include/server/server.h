@@ -5,7 +5,7 @@
 #include <myclib/mysocket.h>
 #include <signal.h>
 
-#include "utils/config.h"
+#include "config/config.h"
 #include "utils/utils.h"
 #include "worker.h"
 

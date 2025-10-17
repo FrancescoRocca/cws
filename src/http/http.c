@@ -134,8 +134,18 @@ static cws_server_ret http_send_resource(cws_http_s *request) {
 
 	size_t response_len = http_response_builder(&response, HTTP_OK, content_type, data, content_length);
 
-	ssize_t sent = sock_writeall(request->sockfd, response, response_len);
-	CWS_LOG_DEBUG("Sent %zu bytes", sent);
+	size_t total_sent = 0;
+	while (total_sent < response_len) {
+		ssize_t sent = send(request->sockfd, response + total_sent, response_len - total_sent, MSG_NOSIGNAL);
+		if (sent < 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				continue;
+			}
+			break;
+		}
+		total_sent += sent;
+	}
+	CWS_LOG_DEBUG("Sent %zd bytes", total_sent);
 
 	free(response);
 	free(data);
@@ -174,14 +184,20 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 		return NULL;
 	}
 
+	char *request_copy = strdup(request_str->data);
+	if (request_copy == NULL) {
+		cws_http_free(request);
+		return NULL;
+	}
+
 	char *saveptr = NULL;
 	char *pch = NULL;
 
 	/* Parse HTTP method */
-	pch = strtok_r(request_str->data, " ", &saveptr);
+	pch = strtok_r(request_copy, " ", &saveptr);
 	if (pch == NULL) {
 		cws_http_free(request);
-
+		free(request_copy);
 		return NULL;
 	}
 	CWS_LOG_DEBUG("method: %s", pch);
@@ -189,7 +205,7 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 	request->method = http_parse_method(pch);
 	if (request->method == HTTP_UNKNOWN) {
 		cws_http_free(request);
-
+		free(request_copy);
 		return NULL;
 	}
 
@@ -197,17 +213,16 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 	pch = strtok_r(NULL, " ", &saveptr);
 	if (pch == NULL) {
 		cws_http_free(request);
-
+		free(request_copy);
 		return NULL;
 	}
 	string_append(request->location, pch);
 
 	/* Adjust location path */
-	string_append(request->location_path, "www/");
-	CWS_LOG_DEBUG("location path: %s", request->location_path->data);
+	string_append(request->location_path, "www");
 
 	if (strcmp(request->location->data, "/") == 0) {
-		string_append(request->location_path, "index.html");
+		string_append(request->location_path, "/index.html");
 	} else {
 		string_append(request->location_path, request->location->data);
 	}
@@ -216,6 +231,7 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 	/* Parse HTTP version */
 	pch = strtok_r(NULL, " \r\n", &saveptr);
 	if (pch == NULL) {
+		free(request_copy);
 		cws_http_free(request);
 
 		return NULL;
@@ -254,6 +270,8 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 		hm_set(request->headers, hk, hv);
 	}
 
+	free(request_copy);
+
 	/* TODO: Parse body */
 
 	return request;
@@ -264,6 +282,7 @@ static size_t http_header_len(char *status_code, char *content_type, size_t body
 						  "HTTP/1.1 %s\r\n"
 						  "Content-Type: %s\r\n"
 						  "Content-Length: %zu\r\n"
+						  "Connection: close\r\n"
 						  "\r\n",
 						  status_code, content_type, body_len);
 
@@ -281,12 +300,15 @@ size_t http_response_builder(char **response, cws_http_status_e status, char *co
 		return 0;
 	}
 
-	snprintf(*response, header_len + 1, "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %zu\r\n\r\n", status_code, content_type, body_len_bytes);
+	snprintf(*response, header_len + 1, "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n", status_code, content_type,
+			 body_len_bytes);
+	// CWS_LOG_DEBUG("response: %s", *response);
 
 	/* Only append body if we have it */
 	if (body && body_len_bytes > 0) {
 		memcpy(*response + header_len, body, body_len_bytes);
 	}
+	// CWS_LOG_DEBUG("response: %s", *response);
 
 	(*response)[total_len] = '\0';
 

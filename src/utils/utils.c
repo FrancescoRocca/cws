@@ -1,6 +1,8 @@
 #include "utils/utils.h"
 
+#include <arpa/inet.h>
 #include <fcntl.h>
+#include <netinet/in.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,6 +71,6 @@ bool my_int_equal_fn(const void *a, const void *b) {
 
 void my_int_free_key_fn(void *key) {
 	int fd = *(int *)key;
-	sock_close(fd);
+	close(fd);
 	free(key);
 }

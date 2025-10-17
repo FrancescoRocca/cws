@@ -7,6 +7,7 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 
+#include "server/epoll_utils.h"
 #include "server/worker.h"
 #include "utils/debug.h"
 #include "utils/utils.h"
@@ -131,8 +132,9 @@ cws_server_ret cws_server_start(cws_server_s *server) {
 					continue;
 				}
 
-				/* Add client to worker */
-				write(server->workers[workers_index]->pipefd[1], &client_fd, sizeof(int));
+				/* Add client to a worker */
+				cws_fd_set_nonblocking(client_fd);
+				cws_epoll_add(server->workers[workers_index]->epfd, client_fd);
 				workers_index = (workers_index + 1) % CWS_WORKERS_NUM;
 			}
 		}

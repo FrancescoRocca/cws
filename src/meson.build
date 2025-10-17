@@ -1,3 +1,9 @@
-server = files('main.c', 'server/server.c', 'server/worker.c')
-server += files('utils/utils.c', 'utils/config.c')
+server = files('main.c')
+server += files(
+  'server/epoll_utils.c',
+  'server/server.c',
+  'server/worker.c',
+)
+server += files('config/config.c')
+server += files('utils/utils.c')
 server += files('http/http.c')
