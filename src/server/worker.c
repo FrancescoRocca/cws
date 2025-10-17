@@ -107,7 +107,7 @@ void *cws_worker_loop(void *arg) {
 	int nfds;
 
 	while (cws_server_run) {
-		nfds = epoll_wait(worker->epfd, events, 64, -1);
+		nfds = epoll_wait(worker->epfd, events, 64, 250);
 
 		if (nfds < 0) {
 			continue;
