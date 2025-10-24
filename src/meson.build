@@ -5,5 +5,5 @@ server += files(
   'server/worker.c',
 )
 server += files('config/config.c')
-server += files('utils/utils.c')
+server += files('utils/socket.c', 'utils/utils.c')
 server += files('http/http.c')
