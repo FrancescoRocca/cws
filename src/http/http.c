@@ -132,11 +132,13 @@ static cws_server_ret http_send_resource(cws_http_s *request) {
 	char *response;
 	size_t content_length = file_data(request->location_path->data, &data);
 
-	size_t response_len = http_response_builder(&response, HTTP_OK, content_type, data, content_length);
+	size_t response_len =
+		http_response_builder(&response, HTTP_OK, content_type, data, content_length);
 
 	size_t total_sent = 0;
 	while (total_sent < response_len) {
-		ssize_t sent = send(request->sockfd, response + total_sent, response_len - total_sent, MSG_NOSIGNAL);
+		ssize_t sent =
+			send(request->sockfd, response + total_sent, response_len - total_sent, MSG_NOSIGNAL);
 		if (sent < 0) {
 			if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				continue;
@@ -153,7 +155,8 @@ static cws_server_ret http_send_resource(cws_http_s *request) {
 	return CWS_SERVER_OK;
 }
 
-static size_t http_simple_html(char **response, cws_http_status_e status, char *title, char *description) {
+static size_t http_simple_html(char **response, cws_http_status_e status, char *title,
+							   char *description) {
 	char body[512];
 	memset(body, 0, sizeof body);
 
@@ -241,7 +244,8 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 
 	/* Parse headers until a \r\n */
 	request->headers =
-		hm_new(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn, sizeof(char) * CWS_HTTP_HEADER_MAX, sizeof(char) * CWS_HTTP_HEADER_CONTENT_MAX);
+		hm_new(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn,
+			   sizeof(char) * CWS_HTTP_HEADER_MAX, sizeof(char) * CWS_HTTP_HEADER_CONTENT_MAX);
 	char *header_colon;
 	while (pch) {
 		/* Get header line */
@@ -289,7 +293,8 @@ static size_t http_header_len(char *status_code, char *content_type, size_t body
 	return len;
 }
 
-size_t http_response_builder(char **response, cws_http_status_e status, char *content_type, char *body, size_t body_len_bytes) {
+size_t http_response_builder(char **response, cws_http_status_e status, char *content_type,
+							 char *body, size_t body_len_bytes) {
 	char *status_code = http_status_string(status);
 
 	size_t header_len = http_header_len(status_code, content_type, body_len_bytes);
@@ -300,8 +305,9 @@ size_t http_response_builder(char **response, cws_http_status_e status, char *co
 		return 0;
 	}
 
-	snprintf(*response, header_len + 1, "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n", status_code, content_type,
-			 body_len_bytes);
+	snprintf(*response, header_len + 1,
+			 "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n",
+			 status_code, content_type, body_len_bytes);
 	// CWS_LOG_DEBUG("response: %s", *response);
 
 	/* Only append body if we have it */
@@ -323,13 +329,15 @@ void cws_http_send_response(cws_http_s *request, cws_http_status_e status) {
 			http_send_resource(request);
 			break;
 		case HTTP_NOT_FOUND: {
-			size_t len = http_simple_html(&response, HTTP_NOT_FOUND, "404 Not Found", "Resource not found, 404.");
+			size_t len = http_simple_html(&response, HTTP_NOT_FOUND, "404 Not Found",
+										  "Resource not found, 404.");
 			sock_writeall(request->sockfd, response, len);
 
 			break;
 		}
 		case HTTP_NOT_IMPLEMENTED: {
-			size_t len = http_simple_html(&response, HTTP_NOT_IMPLEMENTED, "501 Not Implemented", "Method not implemented, 501.");
+			size_t len = http_simple_html(&response, HTTP_NOT_IMPLEMENTED, "501 Not Implemented",
+										  "Method not implemented, 501.");
 			sock_writeall(request->sockfd, response, len);
 
 			break;

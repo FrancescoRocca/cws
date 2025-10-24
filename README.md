@@ -49,6 +49,15 @@ And then open the `docs/html/index.html`.
 
 This test was performed using `wrk`.
 
+<details>
+    <summary>wrk command</summary>
+
+```bash
+$ wrk -t12 -c400 -d30s http://127.0.0.1:3030/index.html
+```
+
+</details>
+
 ```bash
 Running 30s test @ http://localhost:3030
   12 threads and 400 connections

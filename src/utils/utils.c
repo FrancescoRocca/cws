@@ -11,7 +11,9 @@
 
 volatile sig_atomic_t cws_server_run = 1;
 
-static void cws_utils_convert_ip(int family, void *addr, char *ip, size_t ip_len) { inet_ntop(family, addr, ip, ip_len); }
+static void cws_utils_convert_ip(int family, void *addr, char *ip, size_t ip_len) {
+	inet_ntop(family, addr, ip, ip_len);
+}
 
 void cws_utils_get_client_ip(struct sockaddr_storage *sa, char *ip) {
 	if (sa->ss_family == AF_INET) {
@@ -54,9 +56,13 @@ bool my_str_equal_fn(const void *a, const void *b) {
 	return false;
 }
 
-void my_str_free_fn(void *value) { free(value); }
+void my_str_free_fn(void *value) {
+	free(value);
+}
 
-unsigned int my_int_hash_fn(const void *key) { return *(int *)key; }
+unsigned int my_int_hash_fn(const void *key) {
+	return *(int *)key;
+}
 
 bool my_int_equal_fn(const void *a, const void *b) {
 	int ai = *(int *)a;

@@ -10,7 +10,9 @@
 #include "server/server.h"
 #include "utils/debug.h"
 
-void cws_signal_handler(int) { cws_server_run = 0; }
+void cws_signal_handler(int) {
+	cws_server_run = 0;
+}
 
 int main(void) {
 	struct sigaction act = {.sa_handler = cws_signal_handler, .sa_flags = 0, .sa_mask = {{0}}};
@@ -33,7 +35,8 @@ int main(void) {
 
 	CWS_LOG_INFO("Virtual hosts count: %d", config->virtual_hosts_count);
 	for (size_t i = 0; i < config->virtual_hosts_count; ++i) {
-		CWS_LOG_DEBUG("%s (ssl: %d)", config->virtual_hosts[i].domain, config->virtual_hosts[i].ssl);
+		CWS_LOG_DEBUG("%s (ssl: %d)", config->virtual_hosts[i].domain,
+					  config->virtual_hosts[i].ssl);
 	}
 
 	cws_server_s server;
