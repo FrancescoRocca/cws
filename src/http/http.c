@@ -1,16 +1,15 @@
-#define _XOPEN_SOURCE 1
-
 #include "http/http.h"
 
 #include <errno.h>
 #include <fcntl.h>
-#include <myclib/mysocket.h>
+#include <myclib/mystring.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "utils/debug.h"
+#include "utils/socket.h"
 #include "utils/utils.h"
 
 static cws_http_s *http_new() {
@@ -135,19 +134,8 @@ static cws_server_ret http_send_resource(cws_http_s *request) {
 	size_t response_len =
 		http_response_builder(&response, HTTP_OK, content_type, data, content_length);
 
-	size_t total_sent = 0;
-	while (total_sent < response_len) {
-		ssize_t sent =
-			send(request->sockfd, response + total_sent, response_len - total_sent, MSG_NOSIGNAL);
-		if (sent < 0) {
-			if (errno == EAGAIN || errno == EWOULDBLOCK) {
-				continue;
-			}
-			break;
-		}
-		total_sent += sent;
-	}
-	CWS_LOG_DEBUG("Sent %zd bytes", total_sent);
+	ssize_t sent = cws_send_data(request->sockfd, response, response_len, 0);
+	CWS_LOG_DEBUG("Sent %zd bytes", sent);
 
 	free(response);
 	free(data);
@@ -178,7 +166,7 @@ static size_t http_simple_html(char **response, cws_http_status_e status, char *
 }
 
 cws_http_s *cws_http_parse(string_s *request_str) {
-	if (!request_str) {
+	if (!request_str || !request_str->data) {
 		return NULL;
 	}
 
@@ -187,43 +175,50 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 		return NULL;
 	}
 
-	char *request_copy = strdup(request_str->data);
-	if (request_copy == NULL) {
+	char *str = strdup(request_str->data);
+	if (!str) {
 		cws_http_free(request);
 		return NULL;
 	}
-
-	char *saveptr = NULL;
-	char *pch = NULL;
+	char *str_free = str;
 
 	/* Parse HTTP method */
-	pch = strtok_r(request_copy, " ", &saveptr);
-	if (pch == NULL) {
+	str += strspn(str, " ");
+	if (*str == '\0') {
+		free(str_free);
 		cws_http_free(request);
-		free(request_copy);
 		return NULL;
 	}
-	CWS_LOG_DEBUG("method: %s", pch);
-
-	request->method = http_parse_method(pch);
-	if (request->method == HTTP_UNKNOWN) {
+	size_t len = strcspn(str, " ");
+	if (str[len] == '\0') {
+		free(str_free);
 		cws_http_free(request);
-		free(request_copy);
 		return NULL;
 	}
+	str[len] = '\0';
+	CWS_LOG_DEBUG("method: %s", str);
+	request->method = http_parse_method(str);
+	str += len + 1;
 
 	/* Parse location */
-	pch = strtok_r(NULL, " ", &saveptr);
-	if (pch == NULL) {
+	str += strspn(str, " ");
+	if (*str == '\0') {
+		free(str_free);
 		cws_http_free(request);
-		free(request_copy);
 		return NULL;
 	}
-	string_append(request->location, pch);
+	len = strcspn(str, " ");
+	if (str[len] == '\0') {
+		free(str_free);
+		cws_http_free(request);
+		return NULL;
+	}
+	str[len] = '\0';
+	string_append(request->location, str);
+	str += len + 1;
 
 	/* Adjust location path */
 	string_append(request->location_path, "www");
-
 	if (strcmp(request->location->data, "/") == 0) {
 		string_append(request->location_path, "/index.html");
 	} else {
@@ -232,51 +227,68 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 	CWS_LOG_DEBUG("location path: %s", request->location_path->data);
 
 	/* Parse HTTP version */
-	pch = strtok_r(NULL, " \r\n", &saveptr);
-	if (pch == NULL) {
-		free(request_copy);
+	str += strspn(str, " \t");
+	if (*str == '\0') {
+		free(str_free);
 		cws_http_free(request);
-
 		return NULL;
 	}
-	CWS_LOG_DEBUG("version: %s", pch);
-	string_append(request->http_version, pch);
+	len = strcspn(str, "\r\n");
+	if (len == 0) {
+		free(str_free);
+		cws_http_free(request);
+		return NULL;
+	}
+	str[len] = '\0';
+	CWS_LOG_DEBUG("version: %s", str);
+	string_append(request->http_version, str);
+	str += len;
 
-	/* Parse headers until a \r\n */
+	/* Parse headers until a blank line (\r\n\r\n) */
 	request->headers =
 		hm_new(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn,
 			   sizeof(char) * CWS_HTTP_HEADER_MAX, sizeof(char) * CWS_HTTP_HEADER_CONTENT_MAX);
-	char *header_colon;
-	while (pch) {
-		/* Get header line */
-		pch = strtok_r(NULL, "\r\n", &saveptr);
-		if (pch == NULL) {
+
+	str += strspn(str, "\r\n");
+
+	while (*str != '\0' && *str != '\r') {
+		char *line_end = strstr(str, "\r\n");
+		if (!line_end) {
 			break;
 		}
-		/* Find ":" */
-		header_colon = strchr(pch, ':');
-		if (header_colon != NULL) {
-			*header_colon = '\0';
-		} else {
-			break;
+		*line_end = '\0';
+
+		char *colon = strchr(str, ':');
+		if (!colon) {
+			str = line_end + 2;
+			continue;
 		}
+
+		*colon = '\0';
+
+		char *header_key = str;
+		char *header_value = colon + 1;
+		header_value += strspn(header_value, " \t");
 
 		char hk[CWS_HTTP_HEADER_MAX];
 		char hv[CWS_HTTP_HEADER_CONTENT_MAX];
 
-		/* Header key */
-		strncpy(hk, pch, sizeof(hk));
-		/* Header value (starting from ": ") */
-		char *hvalue = header_colon + 2;
-		strncpy(hv, hvalue, sizeof(hv));
+		strncpy(hk, header_key, sizeof(hk) - 1);
+		hk[sizeof(hk) - 1] = '\0';
 
-		// CWS_LOG_DEBUG("hkey: %s -> %s", hk, hv);
+		strncpy(hv, header_value, sizeof(hv) - 1);
+		hv[sizeof(hv) - 1] = '\0';
+
 		hm_set(request->headers, hk, hv);
+
+		/* Move to the next line */
+		str = line_end + 2;
 	}
 
-	free(request_copy);
+	free(str_free);
 
 	/* TODO: Parse body */
+	/* str is at the beginning of the body */
 
 	return request;
 }
@@ -308,13 +320,11 @@ size_t http_response_builder(char **response, cws_http_status_e status, char *co
 	snprintf(*response, header_len + 1,
 			 "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n",
 			 status_code, content_type, body_len_bytes);
-	// CWS_LOG_DEBUG("response: %s", *response);
 
 	/* Only append body if we have it */
 	if (body && body_len_bytes > 0) {
 		memcpy(*response + header_len, body, body_len_bytes);
 	}
-	// CWS_LOG_DEBUG("response: %s", *response);
 
 	(*response)[total_len] = '\0';
 
@@ -331,14 +341,14 @@ void cws_http_send_response(cws_http_s *request, cws_http_status_e status) {
 		case HTTP_NOT_FOUND: {
 			size_t len = http_simple_html(&response, HTTP_NOT_FOUND, "404 Not Found",
 										  "Resource not found, 404.");
-			sock_writeall(request->sockfd, response, len);
+			cws_send_data(request->sockfd, response, len, 0);
 
 			break;
 		}
 		case HTTP_NOT_IMPLEMENTED: {
 			size_t len = http_simple_html(&response, HTTP_NOT_IMPLEMENTED, "501 Not Implemented",
 										  "Method not implemented, 501.");
-			sock_writeall(request->sockfd, response, len);
+			cws_send_data(request->sockfd, response, len, 0);
 
 			break;
 		}

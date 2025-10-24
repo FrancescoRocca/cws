@@ -1,6 +1,5 @@
 #include "server/worker.h"
 
-#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,6 +9,7 @@
 
 #include "http/http.h"
 #include "server/epoll_utils.h"
+#include "utils/socket.h"
 #include "utils/utils.h"
 
 static cws_server_ret cws_worker_setup_epoll(cws_worker_s *worker) {
@@ -19,26 +19,6 @@ static cws_server_ret cws_worker_setup_epoll(cws_worker_s *worker) {
 	}
 
 	return CWS_SERVER_OK;
-}
-
-static ssize_t cws_read_data(int sockfd, string_s *str) {
-	char tmp[4096] = {0};
-
-	ssize_t n = recv(sockfd, tmp, sizeof tmp, MSG_PEEK);
-	if (n < 0) {
-		if (errno == EAGAIN || errno == EWOULDBLOCK) {
-			return 0;
-		}
-		return -1;
-	}
-
-	if (n == 0) {
-		/* Connection closed */
-		return -1;
-	}
-
-	string_append(str, tmp);
-	return n;
 }
 
 cws_worker_s **cws_worker_new(size_t workers_num, cws_config_s *config) {
