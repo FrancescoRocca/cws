@@ -24,12 +24,14 @@
 #endif
 
 #ifdef EVELOPER
-#define CWS_LOG_DEBUG(msg, ...) fprintf(stdout, _DEBUG " [%s:%d] " msg "\n", __FILE__, __LINE__, ##__VA_ARGS__)
+#define CWS_LOG_DEBUG(msg, ...) \
+	fprintf(stdout, _DEBUG " [%s:%d] " msg "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 #else
 #define CWS_LOG_DEBUG(msg, ...)
 #endif
 
-#define CWS_LOG_ERROR(msg, ...) fprintf(stderr, _ERR " [%s:%d] " msg "\n", __FILE__, __LINE__, ##__VA_ARGS__)
+#define CWS_LOG_ERROR(msg, ...) \
+	fprintf(stderr, _ERR " [%s:%d] " msg "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 #define CWS_LOG_WARNING(msg, ...) fprintf(stdout, _WARNING " " msg "\n", ##__VA_ARGS__)
 #define CWS_LOG_INFO(msg, ...) fprintf(stdout, _INFO " " msg "\n", ##__VA_ARGS__)
 
