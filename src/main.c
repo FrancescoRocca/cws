@@ -1,5 +1,3 @@
-#define _XOPEN_SOURCE 1
-
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,14 +13,8 @@ void cws_signal_handler(int) {
 }
 
 int main(void) {
-	struct sigaction act = {.sa_handler = cws_signal_handler, .sa_flags = 0, .sa_mask = {{0}}};
-	if (sigaction(SIGINT, &act, NULL)) {
-		CWS_LOG_ERROR("sigaction()");
-		return EXIT_FAILURE;
-	}
-
-	if (sigaction(SIGTERM, &act, NULL)) {
-		CWS_LOG_ERROR("sigaction()");
+	if (signal(SIGINT, cws_signal_handler) == SIG_ERR) {
+		CWS_LOG_ERROR("signal()");
 		return EXIT_FAILURE;
 	}
 
