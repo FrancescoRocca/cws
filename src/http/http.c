@@ -38,6 +38,12 @@ static cws_http_method_e http_parse_method(const char *method) {
 	return HTTP_UNKNOWN;
 }
 
+static mimetype mimetypes[] = {{"html", "text/html"},
+							   {"css", "text/css"},
+							   {"js", "application/javascript"},
+							   {"jpg", "image/jpeg"},
+							   {"png", "image/png"}};
+
 static int http_get_content_type(char *location_path, char *content_type) {
 	/* Find last occurrence of a string */
 	char *ptr = strrchr(location_path, '.');
@@ -46,17 +52,11 @@ static int http_get_content_type(char *location_path, char *content_type) {
 	}
 	ptr += 1;
 
-	char ct[32] = {0};
-
-	if (strcmp(ptr, "html") == 0 || strcmp(ptr, "css") == 0 || strcmp(ptr, "javascript") == 0) {
-		strncpy(ct, "text", sizeof ct);
+	for (size_t i = 0; i < ARR_SIZE(mimetypes); ++i) {
+		if (!strcmp(ptr, mimetypes[i].ext)) {
+			snprintf(content_type, CWS_HTTP_CONTENT_TYPE - 1, "%s", mimetypes[i].type);
+		}
 	}
-
-	if (strcmp(ptr, "jpg") == 0 || strcmp(ptr, "png") == 0) {
-		strncpy(ct, "image", sizeof ct);
-	}
-
-	snprintf(content_type, 1024, "%s/%s", ct, ptr);
 
 	return 0;
 }
@@ -122,8 +122,9 @@ static size_t file_data(const char *path, char **data) {
 
 static cws_server_ret http_send_resource(cws_http_s *request) {
 	/* Retrieve correct Content-Type */
-	char content_type[1024];
+	char content_type[CWS_HTTP_CONTENT_TYPE];
 	http_get_content_type(request->location_path->data, content_type);
+	CWS_LOG_DEBUG("content-type: %s", content_type);
 
 	/* TODO: Check for keep-alive */
 
@@ -218,6 +219,7 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 	str += len + 1;
 
 	/* Adjust location path */
+	/* @TODO: fix path traversal */
 	string_append(request->location_path, "www");
 	if (strcmp(request->location->data, "/") == 0) {
 		string_append(request->location_path, "/index.html");

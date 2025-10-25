@@ -5,8 +5,11 @@
 #include <myclib/mystring.h>
 #include <stddef.h>
 
+#define ARR_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
+
 #define CWS_HTTP_HEADER_MAX 512
 #define CWS_HTTP_HEADER_CONTENT_MAX 1024
+#define CWS_HTTP_CONTENT_TYPE 64
 
 typedef enum cws_http_method {
 	HTTP_GET,
@@ -22,6 +25,11 @@ typedef enum cws_http_status {
 	HTTP_NOT_FOUND,
 	HTTP_NOT_IMPLEMENTED,
 } cws_http_status_e;
+
+typedef struct mimetype {
+	const char *ext;
+	const char *type;
+} mimetype;
 
 typedef struct cws_http {
 	int sockfd;
