@@ -1,11 +1,9 @@
 #include "core/server.h"
 
 #include <errno.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/epoll.h>
-#include <unistd.h>
 
 #include "core/epoll_utils.h"
 #include "core/worker.h"

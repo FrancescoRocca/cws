@@ -1,11 +1,8 @@
 #include "http/request.h"
 
-#include <fcntl.h>
-#include <myclib/mystring.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "utils/debug.h"
 #include "utils/hash_utils.h"
