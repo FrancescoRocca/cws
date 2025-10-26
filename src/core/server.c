@@ -10,6 +10,7 @@
 #include "utils/debug.h"
 #include "utils/error.h"
 #include "utils/net.h"
+#include <unistd.h>
 
 static void cws_server_setup_hints(struct addrinfo *hints, const char *hostname) {
 	memset(hints, 0, sizeof *hints);
@@ -125,17 +126,15 @@ cws_server_ret cws_server_start(cws_server_s *server) {
 		}
 
 		for (int i = 0; i < nfds; ++i) {
-			if (events[i].data.fd == server->sockfd) {
-				client_fd = cws_server_handle_new_client(server->sockfd);
-				if (client_fd < 0) {
-					continue;
-				}
-
-				/* Add client to a worker */
-				cws_fd_set_nonblocking(client_fd);
-				cws_epoll_add(server->workers[workers_index]->epfd, client_fd);
-				workers_index = (workers_index + 1) % CWS_WORKERS_NUM;
+			client_fd = cws_server_handle_new_client(server->sockfd);
+			if (client_fd < 0) {
+				continue;
 			}
+
+			/* Add client to a worker */
+			cws_fd_set_nonblocking(client_fd);
+			cws_epoll_add(server->workers[workers_index]->epfd, client_fd);
+			workers_index = (workers_index + 1) % CWS_WORKERS_NUM;
 		}
 	}
 
@@ -176,11 +175,11 @@ void cws_server_shutdown(cws_server_s *server) {
 	}
 
 	if (server->sockfd > 0) {
-		sock_close(server->sockfd);
+		close(server->sockfd);
 	}
 
 	if (server->epfd > 0) {
-		sock_close(server->epfd);
+		close(server->epfd);
 	}
 
 	if (server->workers) {

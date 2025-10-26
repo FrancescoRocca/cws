@@ -20,6 +20,7 @@ int http_get_content_type(char *location_path, char *content_type) {
 	for (size_t i = 0; i < ARR_SIZE(mimetypes); ++i) {
 		if (!strcmp(ptr, mimetypes[i].ext)) {
 			snprintf(content_type, CWS_HTTP_CONTENT_TYPE - 1, "%s", mimetypes[i].type);
+			return 0;
 		}
 	}
 
