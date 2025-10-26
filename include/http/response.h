@@ -9,6 +9,6 @@ size_t http_simple_html(char **response, cws_http_status_e status, char *title, 
 size_t http_response_builder(char **response, cws_http_status_e status, char *content_type,
 							 char *body, size_t body_len_bytes);
 
-void cws_http_send_response(cws_http_s *request, cws_http_status_e status);
+void cws_http_send_response(cws_request_s *request, cws_http_status_e status);
 
 #endif

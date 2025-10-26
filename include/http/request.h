@@ -24,17 +24,17 @@ typedef enum cws_http_status {
 	HTTP_NOT_IMPLEMENTED,
 } cws_http_status_e;
 
-typedef struct cws_http {
+typedef struct cws_request {
 	int sockfd;
 	cws_http_method_e method;
 	string_s *location;
 	string_s *location_path;
 	string_s *http_version;
 	hashmap_s *headers;
-} cws_http_s;
+} cws_request_s;
 
-cws_http_s *cws_http_parse(string_s *request_str);
+cws_request_s *cws_http_parse(string_s *request_str);
 
-void cws_http_free(cws_http_s *request);
+void cws_http_free(cws_request_s *request);
 
 #endif

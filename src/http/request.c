@@ -8,8 +8,8 @@
 #include "utils/debug.h"
 #include "utils/hash.h"
 
-static cws_http_s *http_new() {
-	cws_http_s *request = malloc(sizeof(cws_http_s));
+static cws_request_s *http_new() {
+	cws_request_s *request = malloc(sizeof *request);
 	if (!request) {
 		return NULL;
 	}
@@ -34,7 +34,7 @@ static cws_http_method_e http_parse_method(const char *method) {
 	return HTTP_UNKNOWN;
 }
 
-static bool parse_method(cws_http_s *req, char **cursor) {
+static bool parse_method(cws_request_s *req, char **cursor) {
 	char *s = *cursor + strspn(*cursor, " ");
 	size_t len = strcspn(s, " ");
 	if (len == 0 || s[len] == '\0') {
@@ -49,7 +49,7 @@ static bool parse_method(cws_http_s *req, char **cursor) {
 	return true;
 }
 
-static bool parse_location(cws_http_s *req, char **cursor) {
+static bool parse_location(cws_request_s *req, char **cursor) {
 	char *s = *cursor + strspn(*cursor, " ");
 	size_t len = strcspn(s, " ");
 	if (len == 0 || s[len] == '\0') {
@@ -64,7 +64,7 @@ static bool parse_location(cws_http_s *req, char **cursor) {
 	return true;
 }
 
-static bool parse_version(cws_http_s *req, char **cursor) {
+static bool parse_version(cws_request_s *req, char **cursor) {
 	char *s = *cursor + strspn(*cursor, " \t");
 	size_t len = strcspn(s, "\r\n");
 	if (len == 0 || s[len] == '\0') {
@@ -79,7 +79,7 @@ static bool parse_version(cws_http_s *req, char **cursor) {
 	return true;
 }
 
-static bool parse_headers(cws_http_s *req, char **cursor) {
+static bool parse_headers(cws_request_s *req, char **cursor) {
 	req->headers =
 		hm_new(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn,
 			   sizeof(char) * CWS_HTTP_HEADER_MAX, sizeof(char) * CWS_HTTP_HEADER_CONTENT_MAX);
@@ -125,12 +125,12 @@ static bool parse_headers(cws_http_s *req, char **cursor) {
 	return true;
 }
 
-cws_http_s *cws_http_parse(string_s *request_str) {
+cws_request_s *cws_http_parse(string_s *request_str) {
 	if (!request_str || !request_str->data) {
 		return NULL;
 	}
 
-	cws_http_s *request = http_new();
+	cws_request_s *request = http_new();
 	if (!request) {
 		return NULL;
 	}
@@ -173,7 +173,7 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 	return request;
 }
 
-void cws_http_free(cws_http_s *request) {
+void cws_http_free(cws_request_s *request) {
 	if (!request) {
 		return;
 	}

@@ -43,7 +43,7 @@ static int cws_server_handle_client_data(int epfd, int client_fd) {
 		return CWS_SERVER_CLIENT_DISCONNECTED_ERROR;
 	}
 
-	cws_http_s *request = cws_http_parse(data);
+	cws_request_s *request = cws_http_parse(data);
 	string_free(data);
 	if (request == NULL) {
 		cws_server_close_client(epfd, client_fd);
@@ -54,7 +54,7 @@ static int cws_server_handle_client_data(int epfd, int client_fd) {
 	cws_http_send_response(request, HTTP_OK);
 
 	cws_http_free(request);
-	// cws_server_close_client(epfd, client_fd);
+	cws_server_close_client(epfd, client_fd);
 
 	return CWS_SERVER_OK;
 }

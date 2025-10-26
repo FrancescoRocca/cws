@@ -1,6 +1,7 @@
 #include "http/response.h"
 
 #include "http/mime.h"
+#include "http/request.h"
 #include "utils/debug.h"
 #include <core/socket.h>
 #include <errno.h>
@@ -99,8 +100,7 @@ static size_t file_data(const char *path, char **data) {
 	return content_length;
 }
 
-static void http_send_resource(cws_http_s *request) {
-	/* Retrieve correct Content-Type */
+static void http_send_resource(cws_request_s *request) {
 	char content_type[CWS_HTTP_CONTENT_TYPE];
 	http_get_content_type(request->location_path->data, content_type);
 
@@ -146,7 +146,7 @@ size_t http_response_builder(char **response, cws_http_status_e status, char *co
 	return total_len;
 }
 
-void cws_http_send_response(cws_http_s *request, cws_http_status_e status) {
+void cws_http_send_response(cws_request_s *request, cws_http_status_e status) {
 	char *response = NULL;
 
 	switch (status) {
