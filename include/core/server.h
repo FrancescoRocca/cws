@@ -7,7 +7,7 @@
 
 #include "config/config.h"
 #include "core/worker.h"
-#include "utils/net_utils.h"
+#include "utils/error.h"
 
 /* Clients max queue */
 #define CWS_SERVER_BACKLOG 128

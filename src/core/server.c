@@ -5,10 +5,10 @@
 #include <string.h>
 #include <sys/epoll.h>
 
-#include "core/epoll_utils.h"
+#include "core/epoll.h"
 #include "core/worker.h"
 #include "utils/debug.h"
-#include "utils/net_utils.h"
+#include "utils/net.h"
 
 static void cws_server_setup_hints(struct addrinfo *hints, const char *hostname) {
 	memset(hints, 0, sizeof *hints);

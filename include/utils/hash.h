@@ -1,5 +1,5 @@
-#ifndef CWS_HASH_UTILS_H
-#define CWS_HASH_UTILS_H
+#ifndef CWS_HASH_H
+#define CWS_HASH_H
 
 unsigned int my_str_hash_fn(const void *key);
 

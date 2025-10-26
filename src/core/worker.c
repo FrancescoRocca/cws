@@ -5,16 +5,56 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 
-#include "core/epoll_utils.h"
-#include "core/socket_utils.h"
+#include "core/epoll.h"
+#include "core/socket.h"
 #include "http/request.h"
-#include "utils/net_utils.h"
+#include "http/response.h"
+#include "utils/error.h"
 
 static cws_server_ret cws_worker_setup_epoll(cws_worker_s *worker) {
 	worker->epfd = epoll_create1(0);
 	if (worker->epfd == -1) {
 		return CWS_SERVER_EPOLL_CREATE_ERROR;
 	}
+
+	return CWS_SERVER_OK;
+}
+
+static void cws_server_close_client(int epfd, int client_fd) {
+	cws_epoll_del(epfd, client_fd);
+	close(client_fd);
+}
+
+static int cws_server_handle_client_data(int epfd, int client_fd) {
+	string_s *data = string_new("", 4096);
+
+	ssize_t total_bytes = cws_read_data(client_fd, data);
+	if (total_bytes == 0) {
+		/* Request not completed yet */
+		string_free(data);
+		return CWS_SERVER_OK;
+	}
+
+	if (total_bytes <= 0) {
+		/* Something happened, close connection */
+		string_free(data);
+		cws_server_close_client(epfd, client_fd);
+
+		return CWS_SERVER_CLIENT_DISCONNECTED_ERROR;
+	}
+
+	cws_http_s *request = cws_http_parse(data);
+	string_free(data);
+	if (request == NULL) {
+		cws_server_close_client(epfd, client_fd);
+		return CWS_SERVER_HTTP_PARSE_ERROR;
+	}
+	request->sockfd = client_fd;
+
+	cws_http_send_response(request, HTTP_OK);
+
+	cws_http_free(request);
+	cws_server_close_client(epfd, client_fd);
 
 	return CWS_SERVER_OK;
 }
@@ -97,43 +137,4 @@ void *cws_worker_loop(void *arg) {
 	}
 
 	return NULL;
-}
-
-void cws_server_close_client(int epfd, int client_fd) {
-	cws_epoll_del(epfd, client_fd);
-	close(client_fd);
-}
-
-cws_server_ret cws_server_handle_client_data(int epfd, int client_fd) {
-	string_s *data = string_new("", 4096);
-
-	ssize_t total_bytes = cws_read_data(client_fd, data);
-	if (total_bytes == 0) {
-		/* Request not completed yet */
-		string_free(data);
-		return CWS_SERVER_OK;
-	}
-
-	if (total_bytes <= 0) {
-		/* Something happened, close connection */
-		string_free(data);
-		cws_server_close_client(epfd, client_fd);
-
-		return CWS_SERVER_CLIENT_DISCONNECTED_ERROR;
-	}
-
-	cws_http_s *request = cws_http_parse(data);
-	string_free(data);
-	if (request == NULL) {
-		cws_server_close_client(epfd, client_fd);
-		return CWS_SERVER_HTTP_PARSE_ERROR;
-	}
-	request->sockfd = client_fd;
-
-	cws_http_send_response(request, HTTP_OK);
-
-	cws_http_free(request);
-	cws_server_close_client(epfd, client_fd);
-
-	return CWS_SERVER_OK;
 }

@@ -6,7 +6,6 @@
 #include <signal.h>
 
 #include "config/config.h"
-#include "utils/net_utils.h"
 
 extern volatile sig_atomic_t cws_server_run;
 
@@ -22,9 +21,5 @@ cws_worker_s **cws_worker_new(size_t workers_num, cws_config_s *config);
 void cws_worker_free(cws_worker_s **workers, size_t workers_num);
 
 void *cws_worker_loop(void *arg);
-
-void cws_server_close_client(int epfd, int client_fd);
-
-cws_server_ret cws_server_handle_client_data(int epfd, int client_fd);
 
 #endif

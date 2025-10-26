@@ -1,5 +1,5 @@
-#ifndef CWS_HTTP_H
-#define CWS_HTTP_H
+#ifndef CWS_REQUEST_H
+#define CWS_REQUEST_H
 
 #include <myclib/myhashmap.h>
 #include <myclib/mystring.h>
@@ -34,11 +34,6 @@ typedef struct cws_http {
 } cws_http_s;
 
 cws_http_s *cws_http_parse(string_s *request_str);
-
-void cws_http_send_response(cws_http_s *request, cws_http_status_e status);
-
-size_t http_response_builder(char **response, cws_http_status_e status, char *content_type,
-							 char *body, size_t body_len_bytes);
 
 void cws_http_free(cws_http_s *request);
 

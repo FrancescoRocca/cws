@@ -1,8 +1,5 @@
-#ifndef CWS_UTILS_H
-#define CWS_UTILS_H
-
-#include <stdbool.h>
-#include <sys/socket.h>
+#ifndef CWS_ERROR_H
+#define CWS_ERROR_H
 
 typedef enum cws_server_ret {
 	CWS_SERVER_OK,
@@ -28,9 +25,5 @@ typedef enum cws_server_ret {
 	CWS_SERVER_EPOLL_CREATE_ERROR,
 	CWS_SERVER_WORKER_ERROR,
 } cws_server_ret;
-
-cws_server_ret cws_fd_set_nonblocking(int sockfd);
-
-void cws_utils_get_client_ip(struct sockaddr_storage *sa, char *ip);
 
 #endif

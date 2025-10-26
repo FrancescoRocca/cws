@@ -2,7 +2,7 @@
 
 #include "http/mime.h"
 #include "utils/debug.h"
-#include <core/socket_utils.h>
+#include <core/socket.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -5,7 +5,7 @@
 #include <string.h>
 
 #include "utils/debug.h"
-#include "utils/hash_utils.h"
+#include "utils/hash.h"
 
 static cws_http_s *http_new() {
 	cws_http_s *request = malloc(sizeof(cws_http_s));
