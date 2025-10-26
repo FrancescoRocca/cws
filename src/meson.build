@@ -1,12 +1,16 @@
 server = files('main.c')
 server += files(
-  'core/epoll_utils.c',
+  'core/epoll.c',
   'core/server.c',
-  'core/socket_utils.c',
+  'core/socket.c',
   'core/worker.c',
 )
 server += files('config/config.c')
-server += files('utils/hash_utils.c', 'utils/net_utils.c')
+server += files(
+  'utils/error.c',
+  'utils/hash.c',
+  'utils/net.c',
+)
 server += files(
   'http/mime.c',
   'http/request.c',
