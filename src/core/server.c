@@ -8,6 +8,7 @@
 #include "core/epoll.h"
 #include "core/worker.h"
 #include "utils/debug.h"
+#include "utils/error.h"
 #include "utils/net.h"
 
 static void cws_server_setup_hints(struct addrinfo *hints, const char *hostname) {
@@ -45,7 +46,7 @@ static cws_server_ret cws_server_setup_epoll(int server_fd, int *epfd_out) {
 
 cws_server_ret cws_server_setup(cws_server_s *server, cws_config_s *config) {
 	if (!config || !config->hostname || !config->port) {
-		return CWS_SERVER_CONFIG;
+		return CWS_SERVER_CONFIG_ERROR;
 	}
 
 	memset(server, 0, sizeof *server);
