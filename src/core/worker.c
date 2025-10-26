@@ -35,7 +35,7 @@ static int cws_server_handle_client_data(int epfd, int client_fd) {
 		return CWS_SERVER_OK;
 	}
 
-	if (total_bytes <= 0) {
+	if (total_bytes < 0) {
 		/* Something happened, close connection */
 		string_free(data);
 		cws_server_close_client(epfd, client_fd);
@@ -54,7 +54,7 @@ static int cws_server_handle_client_data(int epfd, int client_fd) {
 	cws_http_send_response(request, HTTP_OK);
 
 	cws_http_free(request);
-	cws_server_close_client(epfd, client_fd);
+	// cws_server_close_client(epfd, client_fd);
 
 	return CWS_SERVER_OK;
 }
