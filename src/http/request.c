@@ -1,5 +1,6 @@
 #include "http/request.h"
 
+#include <myclib/mystring.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,109 +34,73 @@ static cws_http_method_e http_parse_method(const char *method) {
 	return HTTP_UNKNOWN;
 }
 
-cws_http_s *cws_http_parse(string_s *request_str) {
-	if (!request_str || !request_str->data) {
-		return NULL;
+static bool parse_method(cws_http_s *req, char **cursor) {
+	char *s = *cursor + strspn(*cursor, " ");
+	size_t len = strcspn(s, " ");
+	if (len == 0 || s[len] == '\0') {
+		return false;
 	}
 
-	cws_http_s *request = http_new();
-	if (request == NULL) {
-		return NULL;
+	s[len] = '\0';
+	CWS_LOG_DEBUG("method: %s", s);
+	req->method = http_parse_method(s);
+	*cursor = s + len + 1;
+
+	return true;
+}
+
+static bool parse_location(cws_http_s *req, char **cursor) {
+	char *s = *cursor + strspn(*cursor, " ");
+	size_t len = strcspn(s, " ");
+	if (len == 0 || s[len] == '\0') {
+		return false;
 	}
 
-	char *str = strdup(request_str->data);
-	if (!str) {
-		cws_http_free(request);
-		return NULL;
-	}
-	char *str_free = str;
+	s[len] = '\0';
+	CWS_LOG_DEBUG("location: %s", s);
+	string_append(req->location, s);
+	*cursor = s + len + 1;
 
-	/* Parse HTTP method */
-	str += strspn(str, " ");
-	if (*str == '\0') {
-		free(str_free);
-		cws_http_free(request);
-		return NULL;
-	}
-	size_t len = strcspn(str, " ");
-	if (str[len] == '\0') {
-		free(str_free);
-		cws_http_free(request);
-		return NULL;
-	}
-	str[len] = '\0';
-	CWS_LOG_DEBUG("method: %s", str);
-	request->method = http_parse_method(str);
-	str += len + 1;
+	return true;
+}
 
-	/* Parse location */
-	str += strspn(str, " ");
-	if (*str == '\0') {
-		free(str_free);
-		cws_http_free(request);
-		return NULL;
+static bool parse_version(cws_http_s *req, char **cursor) {
+	char *s = *cursor + strspn(*cursor, " \t");
+	size_t len = strcspn(s, "\r\n");
+	if (len == 0 || s[len] == '\0') {
+		return false;
 	}
-	len = strcspn(str, " ");
-	if (str[len] == '\0') {
-		free(str_free);
-		cws_http_free(request);
-		return NULL;
-	}
-	str[len] = '\0';
-	string_append(request->location, str);
-	str += len + 1;
 
-	/* Adjust location path */
-	/* @TODO: fix path traversal */
-	string_append(request->location_path, "www");
-	if (strcmp(request->location->data, "/") == 0) {
-		string_append(request->location_path, "/index.html");
-	} else {
-		string_append(request->location_path, request->location->data);
-	}
-	CWS_LOG_DEBUG("location path: %s", request->location_path->data);
+	s[len] = '\0';
+	CWS_LOG_DEBUG("version: %s", s);
+	string_append(req->http_version, s);
+	*cursor = s + len + 1;
 
-	/* Parse HTTP version */
-	str += strspn(str, " \t");
-	if (*str == '\0') {
-		free(str_free);
-		cws_http_free(request);
-		return NULL;
-	}
-	len = strcspn(str, "\r\n");
-	if (len == 0) {
-		free(str_free);
-		cws_http_free(request);
-		return NULL;
-	}
-	str[len] = '\0';
-	CWS_LOG_DEBUG("version: %s", str);
-	string_append(request->http_version, str);
-	str += len;
+	return true;
+}
 
-	/* Parse headers until a blank line (\r\n\r\n) */
-	request->headers =
+static bool parse_headers(cws_http_s *req, char **cursor) {
+	req->headers =
 		hm_new(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn,
 			   sizeof(char) * CWS_HTTP_HEADER_MAX, sizeof(char) * CWS_HTTP_HEADER_CONTENT_MAX);
 
-	str += strspn(str, "\r\n");
-
-	while (*str != '\0' && *str != '\r') {
-		char *line_end = strstr(str, "\r\n");
+	char *s = *cursor + strspn(*cursor, "\r\n");
+	while (*s != '\0' && *s != '\r') {
+		char *line_end = strstr(s, "\r\n");
 		if (!line_end) {
 			break;
 		}
 		*line_end = '\0';
 
-		char *colon = strchr(str, ':');
+		char *colon = strchr(s, ':');
 		if (!colon) {
-			str = line_end + 2;
+			s = line_end + 2;
 			continue;
 		}
 
 		*colon = '\0';
 
-		char *header_key = str;
+		char *header_key = s;
 		char *header_value = colon + 1;
 		header_value += strspn(header_value, " \t");
 
@@ -148,16 +113,62 @@ cws_http_s *cws_http_parse(string_s *request_str) {
 		strncpy(hv, header_value, sizeof(hv) - 1);
 		hv[sizeof(hv) - 1] = '\0';
 
-		hm_set(request->headers, hk, hv);
+		// CWS_LOG_DEBUG("%s:%s", hk, hv);
+		hm_set(req->headers, hk, hv);
 
 		/* Move to the next line */
-		str = line_end + 2;
+		s = line_end + 2;
 	}
 
-	free(str_free);
+	*cursor = s;
+
+	return true;
+}
+
+cws_http_s *cws_http_parse(string_s *request_str) {
+	if (!request_str || !request_str->data) {
+		return NULL;
+	}
+
+	cws_http_s *request = http_new();
+	if (!request) {
+		return NULL;
+	}
+
+	char *str = strdup(request_str->data);
+	if (!str) {
+		cws_http_free(request);
+		return NULL;
+	}
+	char *orig = str;
+
+	/* Parse HTTP method */
+	parse_method(request, &str);
+
+	/* Parse location */
+	parse_location(request, &str);
+
+	/* Adjust location path */
+	/* @TODO: fix path traversal */
+	string_append(request->location_path, "www");
+	if (strcmp(request->location->data, "/") == 0) {
+		string_append(request->location_path, "/index.html");
+	} else {
+		string_append(request->location_path, request->location->data);
+	}
+	CWS_LOG_DEBUG("location path: %s", request->location_path->data);
+
+	/* Parse HTTP version */
+	parse_version(request, &str);
+
+	/* Parse headers */
+	parse_headers(request, &str);
 
 	/* TODO: Parse body */
-	/* str is at the beginning of the body */
+	/* orig is at the beginning of the body */
+
+	/* Free the original string */
+	free(orig);
 
 	return request;
 }

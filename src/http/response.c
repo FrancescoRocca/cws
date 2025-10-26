@@ -103,7 +103,6 @@ static void http_send_resource(cws_http_s *request) {
 	/* Retrieve correct Content-Type */
 	char content_type[CWS_HTTP_CONTENT_TYPE];
 	http_get_content_type(request->location_path->data, content_type);
-	CWS_LOG_DEBUG("content-type: %s", content_type);
 
 	/* TODO: Check for keep-alive */
 
