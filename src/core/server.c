@@ -1,4 +1,4 @@
-#include "server/server.h"
+#include "core/server.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -7,10 +7,10 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 
-#include "server/epoll_utils.h"
-#include "server/worker.h"
+#include "core/epoll_utils.h"
+#include "core/worker.h"
 #include "utils/debug.h"
-#include "utils/utils.h"
+#include "utils/net_utils.h"
 
 static void cws_server_setup_hints(struct addrinfo *hints, const char *hostname) {
 	memset(hints, 0, sizeof *hints);

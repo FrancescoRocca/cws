@@ -6,8 +6,8 @@
 #include <signal.h>
 
 #include "config/config.h"
-#include "utils/utils.h"
-#include "worker.h"
+#include "core/worker.h"
+#include "utils/net_utils.h"
 
 /* Clients max queue */
 #define CWS_SERVER_BACKLOG 128

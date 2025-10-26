@@ -5,8 +5,8 @@
 #include <pthread.h>
 #include <signal.h>
 
-#include "../config/config.h"
-#include "../utils/utils.h"
+#include "config/config.h"
+#include "utils/net_utils.h"
 
 extern volatile sig_atomic_t cws_server_run;
 

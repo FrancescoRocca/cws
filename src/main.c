@@ -5,7 +5,7 @@
 #include <unistd.h>
 
 #include "config/config.h"
-#include "server/server.h"
+#include "core/server.h"
 #include "utils/debug.h"
 
 void cws_signal_handler(int) {

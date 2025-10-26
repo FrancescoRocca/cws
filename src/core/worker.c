@@ -1,4 +1,4 @@
-#include "server/worker.h"
+#include "core/worker.h"
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -7,10 +7,10 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 
-#include "http/http.h"
-#include "server/epoll_utils.h"
-#include "utils/socket.h"
-#include "utils/utils.h"
+#include "core/epoll_utils.h"
+#include "core/socket_utils.h"
+#include "http/request.h"
+#include "utils/net_utils.h"
 
 static cws_server_ret cws_worker_setup_epoll(cws_worker_s *worker) {
 	worker->epfd = epoll_create1(0);
