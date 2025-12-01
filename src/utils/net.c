@@ -1,4 +1,5 @@
 #include "utils/net.h"
+#include "utils/error.h"
 
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -20,12 +21,12 @@ void cws_utils_get_client_ip(struct sockaddr_storage *sa, char *ip) {
 	}
 }
 
-cws_server_ret cws_fd_set_nonblocking(int sockfd) {
+cws_return cws_fd_set_nonblocking(int sockfd) {
 	const int status = fcntl(sockfd, F_SETFL, O_NONBLOCK);
 
 	if (status == -1) {
-		return CWS_SERVER_FD_NONBLOCKING_ERROR;
+		return CWS_FD_NONBLOCKING_ERROR;
 	}
 
-	return CWS_SERVER_OK;
+	return CWS_OK;
 }

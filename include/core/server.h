@@ -31,9 +31,9 @@ typedef struct cws_server {
 	cws_config_s *config;
 } cws_server_s;
 
-cws_server_ret cws_server_setup(cws_server_s *server, cws_config_s *config);
+cws_return cws_server_setup(cws_server_s *server, cws_config_s *config);
 
-cws_server_ret cws_server_start(cws_server_s *server);
+cws_return cws_server_start(cws_server_s *server);
 
 void cws_server_shutdown(cws_server_s *server);
 

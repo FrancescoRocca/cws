@@ -27,27 +27,27 @@ static void cws_server_setup_hints(struct addrinfo *hints, const char *hostname)
 	}
 }
 
-static cws_server_ret cws_server_setup_epoll(int server_fd, int *epfd_out) {
+static cws_return cws_server_setup_epoll(int server_fd, int *epfd_out) {
 	int epfd = epoll_create1(0);
 	if (epfd < 0) {
 		return epfd;
 	}
 
-	cws_server_ret ret;
+	cws_return ret;
 	ret = cws_fd_set_nonblocking(server_fd);
-	if (ret != CWS_SERVER_OK) {
+	if (ret != CWS_OK) {
 		return ret;
 	}
 
 	cws_epoll_add(epfd, server_fd);
 	*epfd_out = epfd;
 
-	return CWS_SERVER_OK;
+	return CWS_OK;
 }
 
-cws_server_ret cws_server_setup(cws_server_s *server, cws_config_s *config) {
+cws_return cws_server_setup(cws_server_s *server, cws_config_s *config) {
 	if (!config || !config->hostname || !config->port) {
-		return CWS_SERVER_CONFIG_ERROR;
+		return CWS_CONFIG_ERROR;
 	}
 
 	memset(server, 0, sizeof *server);
@@ -61,52 +61,52 @@ cws_server_ret cws_server_setup(cws_server_s *server, cws_config_s *config) {
 	int status = getaddrinfo(config->hostname, config->port, &hints, &res);
 	if (status != 0) {
 		CWS_LOG_ERROR("getaddrinfo() error: %s", gai_strerror(status));
-		return CWS_SERVER_GETADDRINFO_ERROR;
+		return CWS_GETADDRINFO_ERROR;
 	}
 
 	server->sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	if (server->sockfd < 0) {
 		CWS_LOG_ERROR("socket(): %s", strerror(errno));
-		return CWS_SERVER_SOCKET_ERROR;
+		return CWS_SOCKET_ERROR;
 	}
 
 	const int opt = 1;
 	status = setsockopt(server->sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
 	if (status != 0) {
 		CWS_LOG_ERROR("setsockopt(): %s", strerror(errno));
-		return CWS_SERVER_SETSOCKOPT_ERROR;
+		return CWS_SETSOCKOPT_ERROR;
 	}
 
 	status = bind(server->sockfd, res->ai_addr, res->ai_addrlen);
 	if (status != 0) {
 		CWS_LOG_ERROR("bind(): %s", strerror(errno));
-		return CWS_SERVER_BIND_ERROR;
+		return CWS_BIND_ERROR;
 	}
 
 	status = listen(server->sockfd, CWS_SERVER_BACKLOG);
 	if (status != 0) {
 		CWS_LOG_ERROR("listen(): %s", strerror(errno));
-		return CWS_SERVER_LISTEN_ERROR;
+		return CWS_LISTEN_ERROR;
 	}
 
 	freeaddrinfo(res);
 
 	/* Setup epoll */
-	cws_server_ret ret = cws_server_setup_epoll(server->sockfd, &server->epfd);
-	if (ret != CWS_SERVER_OK) {
+	cws_return ret = cws_server_setup_epoll(server->sockfd, &server->epfd);
+	if (ret != CWS_OK) {
 		return ret;
 	}
 
 	/* Setup workers */
 	server->workers = cws_worker_new(CWS_WORKERS_NUM, config);
 	if (server->workers == NULL) {
-		return CWS_SERVER_WORKER_ERROR;
+		return CWS_WORKER_ERROR;
 	}
 
-	return CWS_SERVER_OK;
+	return CWS_OK;
 }
 
-cws_server_ret cws_server_start(cws_server_s *server) {
+cws_return cws_server_start(cws_server_s *server) {
 	struct epoll_event events[128];
 	memset(events, 0, sizeof events);
 	int client_fd = 0;
@@ -138,7 +138,7 @@ cws_server_ret cws_server_start(cws_server_s *server) {
 		}
 	}
 
-	return CWS_SERVER_OK;
+	return CWS_OK;
 }
 
 int cws_server_handle_new_client(int server_fd) {
