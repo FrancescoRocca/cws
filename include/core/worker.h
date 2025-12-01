@@ -20,6 +20,4 @@ cws_worker_s **cws_worker_new(size_t workers_num, cws_config_s *config);
 
 void cws_worker_free(cws_worker_s **workers, size_t workers_num);
 
-void *cws_worker_loop(void *arg);
-
 #endif
