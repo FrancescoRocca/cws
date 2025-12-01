@@ -8,6 +8,6 @@ typedef struct mimetype {
 	const char *type;
 } mimetype;
 
-int http_get_content_type(char *location_path, char *content_type);
+int http_get_content_type(const char *location_path, char *content_type);
 
 #endif

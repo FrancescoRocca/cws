@@ -9,7 +9,7 @@ static mimetype mimetypes[] = {
 	{"html", "text/html"}, {"css", "text/css"},	 {"js", "application/javascript"},
 	{"jpg", "image/jpeg"}, {"png", "image/png"}, {"ico", "image/x-icon"}};
 
-int http_get_content_type(char *location_path, char *content_type) {
+int http_get_content_type(const char *location_path, char *content_type) {
 	/* Find last occurrence of a string */
 	char *ptr = strrchr(location_path, '.');
 	if (ptr == NULL) {
