@@ -5,9 +5,8 @@
 
 #include "http/request.h"
 
-static mimetype mimetypes[] = {
-	{"html", "text/html"}, {"css", "text/css"},	 {"js", "application/javascript"},
-	{"jpg", "image/jpeg"}, {"png", "image/png"}, {"ico", "image/x-icon"}};
+static mimetype mimetypes[] = {{"html", "text/html"}, {"css", "text/css"},	{"js", "application/javascript"},
+							   {"jpg", "image/jpeg"}, {"png", "image/png"}, {"ico", "image/x-icon"}};
 
 int http_get_content_type(const char *location_path, char *content_type) {
 	/* Find last occurrence of a string */

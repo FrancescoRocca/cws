@@ -7,11 +7,16 @@
 
 #include "config/config.h"
 
+/* Blocking timeout for epoll_wait in ms */
+#define WORKER_EPOLL_TIMEOUT 250
+
+/* Max number of epoll events processed per iteration */
+#define WORKER_EPOLL_MAX_EVENTS 64
+
 extern volatile sig_atomic_t cws_server_run;
 
 typedef struct cws_worker {
 	int epfd;
-	size_t clients_num;
 	pthread_t thread;
 	cws_config_s *config;
 } cws_worker_s;

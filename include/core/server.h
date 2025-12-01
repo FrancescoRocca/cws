@@ -9,26 +9,29 @@
 #include "core/worker.h"
 #include "utils/error.h"
 
-/* Clients max queue */
+/* Maximum queue of pending client connections */
 #define CWS_SERVER_BACKLOG 128
 
-/* Size of the epoll_event array */
+/* Max number of epoll events processed per iteration */
 #define CWS_SERVER_EPOLL_MAXEVENTS 64
 
+/* Blocking timeout for epoll_wait in ms */
 #define CWS_SERVER_EPOLL_TIMEOUT 3000
 
+/* Maximum allowed HTTP request size */
 #define CWS_SERVER_MAX_REQUEST_SIZE (16 * 1024) /* 16KB */
 
+/* Number of worker threads */
 #define CWS_WORKERS_NUM 6
 
-/* Main server loop */
+/* Global flag used to stop server */
 extern volatile sig_atomic_t cws_server_run;
 
 typedef struct cws_server {
-	int epfd;
-	int sockfd;
-	cws_worker_s **workers;
-	cws_config_s *config;
+	int epfd;				/* epoll instance for incoming connections */
+	int sockfd;				/* listening socket */
+	cws_worker_s **workers; /* worker thread pool */
+	cws_config_s *config;	/* config pointer */
 } cws_server_s;
 
 cws_return cws_server_setup(cws_server_s *server, cws_config_s *config);

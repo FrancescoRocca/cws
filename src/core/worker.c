@@ -11,31 +11,37 @@
 #include "http/response.h"
 #include "utils/error.h"
 
+/* Create epoll instance for a worker */
 static cws_return worker_setup_epoll(cws_worker_s *worker) {
 	worker->epfd = epoll_create1(0);
 	if (worker->epfd == -1) {
 		return CWS_EPOLL_CREATE_ERROR;
 	}
-
 	return CWS_OK;
 }
 
+/* Remove client from epoll and close socket */
 static void worker_close_client(int epfd, int client_fd) {
 	cws_epoll_del(epfd, client_fd);
 	close(client_fd);
 }
 
+/* Read client request data; 0 = incomplete, <0 = disconnect */
 static cws_return worker_read_data(int epfd, int client_fd, string_s *data) {
 	ssize_t total_bytes = cws_read_data(client_fd, data);
+
 	if (total_bytes == 0) {
-		/* Request not completed yet */
+		/* Partial request; wait for more data */
+		/*
+		 * TODO: do not return CWS_OK
+		 * instead free data and continue
+		 */
 		return CWS_OK;
 	}
 
 	if (total_bytes < 0) {
-		/* Something happened, close connection */
+		/* Client closed or read error */
 		worker_close_client(epfd, client_fd);
-
 		return CWS_CLIENT_DISCONNECTED_ERROR;
 	}
 
@@ -44,20 +50,24 @@ static cws_return worker_read_data(int epfd, int client_fd, string_s *data) {
 
 static cws_return worker_handle_client_data(int epfd, int client_fd) {
 	string_s *data = string_new("", 4096);
+
 	cws_return ret = worker_read_data(epfd, client_fd, data);
 	if (ret != CWS_OK) {
 		string_free(data);
 		return ret;
 	}
 
+	/* Parse full HTTP request */
 	cws_request_s *request = cws_http_parse(data);
 	string_free(data);
 	if (request == NULL) {
 		worker_close_client(epfd, client_fd);
 		return CWS_HTTP_PARSE_ERROR;
 	}
+
 	request->sockfd = client_fd;
 
+	/* TODO: do not send HTTP_OK */
 	cws_http_send_response(request, HTTP_OK);
 
 	cws_http_free(request);
@@ -66,25 +76,20 @@ static cws_return worker_handle_client_data(int epfd, int client_fd) {
 	return CWS_OK;
 }
 
+/* Worker thread: process events on its epoll instance */
 static void *cws_worker_loop(void *arg) {
 	cws_worker_s *worker = arg;
 	struct epoll_event events[64];
 
-	int nfds;
-
 	while (cws_server_run) {
-		nfds = epoll_wait(worker->epfd, events, 64, 250);
+		/* 250 ms timeout allows periodic shutdown checking */
+		int nfds = epoll_wait(worker->epfd, events, WORKER_EPOLL_MAX_EVENTS, WORKER_EPOLL_TIMEOUT);
 
-		if (nfds < 0) {
-			continue;
-		}
-
-		if (nfds == 0) {
+		if (nfds <= 0) {
 			continue;
 		}
 
 		for (int i = 0; i < nfds; ++i) {
-			/* Handle client's data */
 			int client_fd = events[i].data.fd;
 			worker_handle_client_data(worker->epfd, client_fd);
 		}
@@ -93,20 +98,20 @@ static void *cws_worker_loop(void *arg) {
 	return NULL;
 }
 
+/* Allocate workers, create per-worker epoll, then spawn worker threads */
 cws_worker_s **cws_worker_new(size_t workers_num, cws_config_s *config) {
 	cws_worker_s **workers = malloc(workers_num * sizeof *workers);
-	if (workers == NULL) {
+	if (!workers) {
 		return NULL;
 	}
 	memset(workers, 0, workers_num * sizeof *workers);
 
 	for (size_t i = 0; i < workers_num; ++i) {
 		workers[i] = malloc(sizeof(cws_worker_s));
-		if (workers[i] == NULL) {
+		if (!workers[i]) {
 			for (size_t j = 0; j < i; ++j) {
 				free(workers[j]);
 			}
-
 			free(workers);
 			return NULL;
 		}
@@ -114,18 +119,17 @@ cws_worker_s **cws_worker_new(size_t workers_num, cws_config_s *config) {
 
 		workers[i]->config = config;
 
-		/* Setup worker's epoll */
-		int ret = worker_setup_epoll(workers[i]);
-		if (ret == -1) {
+		/* Create per-worker epoll instance */
+		if (worker_setup_epoll(workers[i]) != CWS_OK) {
 			for (size_t j = 0; j < i; ++j) {
 				free(workers[j]);
 			}
-
 			free(workers);
 			return NULL;
 		}
 	}
 
+	/* Start worker threads */
 	for (size_t i = 0; i < workers_num; ++i) {
 		pthread_create(&workers[i]->thread, NULL, cws_worker_loop, workers[i]);
 	}
@@ -133,6 +137,7 @@ cws_worker_s **cws_worker_new(size_t workers_num, cws_config_s *config) {
 	return workers;
 }
 
+/* Join threads and free worker memory */
 void cws_worker_free(cws_worker_s **workers, size_t workers_num) {
 	if (!workers) {
 		return;
