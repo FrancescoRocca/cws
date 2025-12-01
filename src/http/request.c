@@ -80,9 +80,8 @@ static bool parse_version(cws_request_s *req, char **cursor) {
 }
 
 static bool parse_headers(cws_request_s *req, char **cursor) {
-	req->headers =
-		hm_new(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn,
-			   sizeof(char) * CWS_HTTP_HEADER_MAX, sizeof(char) * CWS_HTTP_HEADER_CONTENT_MAX);
+	req->headers = hm_new(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn,
+						  sizeof(char) * CWS_HTTP_HEADER_MAX, sizeof(char) * CWS_HTTP_HEADER_CONTENT_MAX);
 
 	char *s = *cursor + strspn(*cursor, "\r\n");
 	while (*s != '\0' && *s != '\r') {
