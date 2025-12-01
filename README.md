@@ -37,12 +37,11 @@ And then open the `docs/html/index.html`.
 
 ## Future
 
-- Custom web pages (404)
+- Minimal Templating
 - Logging to file
 - Reverse proxy
 - IPv6 compatible
 - Compression (Gzip)
-- PHP-FPM
 
 ## Performance
 
