@@ -1,32 +1,204 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>cws • home</title>
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --bg: #f3f4f6;
+                --accent: #3b82f6;
+                --accent-soft: rgba(59, 130, 246, 0.08);
+                --text: #0f172a;
+                --muted: #6b7280;
+            }
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>cws</title>
-    <link rel="icon" href="/favicon.ico" />
-    <link rel="stylesheet" href="style.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet" />
-</head>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
 
-<body>
-    <main>
-        <h1>Hello from <span class="highlight">cws</span>!</h1>
-        <p>
-            Open an image
-            <a href="/cws.jpg" target="_blank" rel="noopener noreferrer">here</a>.
-        </p>
-    </main>
+            body {
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background:
+                    radial-gradient(
+                        circle at top left,
+                        #dbeafe 0,
+                        transparent 50%
+                    ),
+                    radial-gradient(
+                        circle at bottom right,
+                        #e5e7eb 0,
+                        transparent 55%
+                    ),
+                    var(--bg);
+                font-family:
+                    "Montserrat",
+                    system-ui,
+                    -apple-system,
+                    BlinkMacSystemFont,
+                    "Segoe UI",
+                    sans-serif;
+                color: var(--text);
+            }
 
-    <footer class="icon-credit">
-        <a target="_blank" href="https://icons8.com/icon/38796/linux">Linux</a>
-        icon by
-        <a target="_blank" href="https://icons8.com">Icons8</a>
-    </footer>
+            .wrapper {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 18px;
+                padding: 24px;
+                width: 100%;
+                text-align: left;
+            }
 
-</body>
+            main {
+                max-width: 560px;
+                width: 100%;
+            }
 
+            .badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                padding: 7px 14px;
+                border-radius: 999px;
+                background: var(--accent-soft);
+                color: var(--accent);
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 0.11em;
+                margin-bottom: 20px;
+                font-weight: 600;
+            }
+
+            .badge-dot {
+                width: 9px;
+                height: 9px;
+                border-radius: 999px;
+                background: var(--accent);
+                box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.22);
+            }
+
+            h1 {
+                font-size: 32px;
+                line-height: 1.2;
+                margin-bottom: 8px;
+            }
+
+            .highlight {
+                background: linear-gradient(115deg, #38bdf8, #3b82f6, #818cf8);
+                -webkit-background-clip: text;
+                color: transparent;
+            }
+
+            p {
+                font-size: 15px;
+                color: var(--muted);
+                margin-bottom: 16px;
+                line-height: 1.7;
+            }
+
+            .lead {
+                font-size: 16px;
+                margin-bottom: 10px;
+            }
+
+            .bg-orbit {
+                position: absolute;
+                width: 240px;
+                height: 240px;
+                border-radius: 50%;
+                border: 1px dashed rgba(148, 163, 184, 0.5);
+                top: -100px;
+                right: -60px;
+                opacity: 0.7;
+                pointer-events: none;
+            }
+
+            .bg-orbit-dot {
+                position: absolute;
+                width: 9px;
+                height: 9px;
+                border-radius: 50%;
+                background: #38bdf8;
+                box-shadow: 0 0 12px rgba(56, 189, 248, 0.9);
+                top: 32%;
+                left: 12%;
+            }
+
+            footer.icon-credit {
+                font-size: 11px;
+                color: var(--muted);
+                text-align: center;
+                opacity: 0.9;
+            }
+
+            footer.icon-credit a {
+                color: var(--muted);
+                font-weight: 500;
+                text-decoration: none;
+            }
+
+            footer.icon-credit a:hover {
+                color: var(--accent);
+                text-decoration: underline;
+            }
+
+            @media (max-width: 480px) {
+                h1 {
+                    font-size: 26px;
+                }
+
+                .lead {
+                    font-size: 15px;
+                }
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="bg-orbit">
+            <div class="bg-orbit-dot"></div>
+        </div>
+
+        <div class="wrapper">
+            <main>
+                <div class="badge">
+                    <span class="badge-dot"></span>
+                    <span>cws is running</span>
+                </div>
+
+                <h1>Hello from <span class="highlight">cws</span>!</h1>
+                <p class="lead">
+                    Your lightweight C web server is up and ready.
+                </p>
+                <p>
+                    You’re seeing the default homepage served by
+                    <strong>cws</strong>. Replace this file or point your
+                    virtual host to a different root directory to serve your own
+                    content.
+                </p>
+            </main>
+
+            <footer class="icon-credit">
+                <a target="_blank" href="https://icons8.com/icon/38796/linux"
+                    >Linux</a
+                >
+                icon by
+                <a target="_blank" href="https://icons8.com">Icons8</a>
+            </footer>
+        </div>
+    </body>
 </html>

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>404 • Page not found</title>
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <style>
+            :root {
+                --bg: #f9fafb;
+                --accent: #f97316;
+                --accent-soft: rgba(249, 115, 22, 0.14);
+                --text: #0f172a;
+                --muted: #6b7280;
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background:
+                    radial-gradient(circle at top, #ffedd5 0, transparent 55%),
+                    var(--bg);
+                font-family:
+                    system-ui,
+                    -apple-system,
+                    BlinkMacSystemFont,
+                    "Segoe UI",
+                    sans-serif;
+                color: var(--text);
+                padding: 16px;
+            }
+
+            .wrap {
+                max-width: 520px;
+                width: 100%;
+                text-align: center;
+            }
+
+            .badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 6px 12px;
+                border-radius: 999px;
+                background: var(--accent-soft);
+                color: var(--accent);
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
+                margin-bottom: 20px;
+            }
+
+            .badge-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: var(--accent);
+                box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.35);
+            }
+
+            .code {
+                font-size: 60px;
+                font-weight: 900;
+                letter-spacing: 0.18em;
+                margin-bottom: 10px;
+                text-transform: uppercase;
+                background: linear-gradient(120deg, #fbbf24, #f97316, #ec4899);
+                -webkit-background-clip: text;
+                color: transparent;
+            }
+
+            h1 {
+                font-size: 28px;
+                margin-bottom: 10px;
+            }
+
+            p {
+                font-size: 15px;
+                color: var(--muted);
+                margin-bottom: 24px;
+                line-height: 1.6;
+            }
+
+            .actions {
+                display: flex;
+                justify-content: center;
+            }
+
+            .btn-primary {
+                display: inline-flex;
+                justify-content: center;
+                align-items: center;
+                border-radius: 999px;
+                padding: 10px 18px;
+                font-size: 13px;
+                font-weight: 600;
+                text-decoration: none;
+                border: none;
+                cursor: pointer;
+                background: linear-gradient(135deg, #f97316, #ec4899);
+                color: #fff7ed;
+                box-shadow: 0 10px 22px rgba(236, 72, 153, 0.3);
+                transition:
+                    transform 120ms ease,
+                    box-shadow 120ms ease,
+                    filter 120ms ease;
+            }
+
+            .btn-primary:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 14px 30px rgba(236, 72, 153, 0.4);
+                filter: brightness(1.03);
+            }
+
+            @media (max-width: 480px) {
+                .code {
+                    font-size: 50px;
+                }
+                h1 {
+                    font-size: 24px;
+                }
+                p {
+                    font-size: 14px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="wrap">
+            <div class="badge">
+                <span class="badge-dot"></span>
+                <span>Page not found</span>
+            </div>
+
+            <div class="code">404</div>
+            <h1>You’ve reached an empty corner of the internet.</h1>
+            <p>
+                The page you’re looking for doesn’t exist (anymore). It may have
+                been moved, deleted, or the link is just a bit outdated.
+            </p>
+        </div>
+    </body>
+</html>
