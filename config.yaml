@@ -5,9 +5,17 @@ virtual_hosts:
   - domain: localhost
     root: www
     ssl: false
+    error_pages:
+      - method: 404
+        path: pages/404.html
+      - method: 500
+        path: pages/500.html
 
   - domain: test.local
     root: www
     ssl: true
     cert: cert.pem
     key: key.pem
+    error_pages:
+      - method: 404
+        path: pages/404.html
