@@ -6,11 +6,11 @@
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         <style>
             :root {
-                --bg: #020617;
-                --accent: #38bdf8; /* light blue */
-                --accent-soft: rgba(56, 189, 248, 0.16);
-                --text: #e5e7eb;
-                --muted: #9ca3af;
+                --bg: #f9fafb;
+                --accent: #38bdf8;
+                --accent-soft: rgba(56, 189, 248, 0.14);
+                --text: #0f172a;
+                --muted: #6b7280;
             }
 
             * {
@@ -24,11 +24,9 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                background: radial-gradient(
-                    circle at top,
-                    #0f172a 0,
-                    var(--bg) 60%
-                );
+                background:
+                    radial-gradient(circle at top, #ffedd5 0, transparent 55%),
+                    var(--bg);
                 font-family:
                     system-ui,
                     -apple-system,
@@ -43,21 +41,20 @@
                 max-width: 520px;
                 width: 100%;
                 text-align: center;
-                position: relative;
             }
 
             .badge {
                 display: inline-flex;
                 align-items: center;
                 gap: 8px;
-                padding: 6px 13px;
+                padding: 6px 12px;
                 border-radius: 999px;
                 background: var(--accent-soft);
                 color: var(--accent);
                 font-size: 11px;
                 text-transform: uppercase;
-                letter-spacing: 0.14em;
-                margin-bottom: 22px;
+                letter-spacing: 0.12em;
+                margin-bottom: 20px;
             }
 
             .badge-dot {
@@ -69,86 +66,34 @@
             }
 
             .code {
-                font-size: 64px;
+                font-size: 60px;
                 font-weight: 900;
-                letter-spacing: 0.22em;
-                margin-bottom: 14px;
+                letter-spacing: 0.18em;
+                margin-bottom: 10px;
                 text-transform: uppercase;
-                background: linear-gradient(120deg, #e0f2fe, #38bdf8, #818cf8);
+                background: linear-gradient(120deg, #bae6fd, #38bdf8, #818cf8);
                 -webkit-background-clip: text;
                 color: transparent;
             }
 
             h1 {
-                font-size: 32px;
-                margin-bottom: 12px;
+                font-size: 28px;
+                margin-bottom: 10px;
             }
 
             p {
                 font-size: 15px;
                 color: var(--muted);
-                margin-bottom: 26px;
-                line-height: 1.7;
-            }
-
-            .actions {
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-                max-width: 260px;
-                margin: 0 auto;
-            }
-
-            .btn-primary,
-            .btn-ghost {
-                display: inline-flex;
-                justify-content: center;
-                align-items: center;
-                border-radius: 999px;
-                padding: 11px 18px;
-                font-size: 13px;
-                font-weight: 600;
-                text-decoration: none;
-                border: none;
-                cursor: pointer;
-                transition:
-                    transform 120ms ease,
-                    box-shadow 120ms ease,
-                    background 120ms ease,
-                    color 120ms ease,
-                    border-color 120ms ease;
-                outline: none;
-            }
-
-            .btn-primary {
-                background: linear-gradient(135deg, #38bdf8, #818cf8);
-                color: #020617;
-                box-shadow: 0 12px 26px rgba(56, 189, 248, 0.5);
-            }
-
-            .btn-primary:hover {
-                transform: translateY(-1px) scale(1.01);
-                box-shadow: 0 16px 34px rgba(56, 189, 248, 0.6);
-            }
-
-            .btn-ghost {
-                background: transparent;
-                color: var(--muted);
-                border: 1px solid rgba(148, 163, 184, 0.5);
-            }
-
-            .btn-ghost:hover {
-                background: rgba(15, 23, 42, 0.9);
-                color: var(--text);
-                border-color: rgba(148, 163, 184, 0.85);
+                margin-bottom: 24px;
+                line-height: 1.6;
             }
 
             @media (max-width: 480px) {
                 .code {
-                    font-size: 52px;
+                    font-size: 50px;
                 }
                 h1 {
-                    font-size: 26px;
+                    font-size: 24px;
                 }
                 p {
                     font-size: 14px;
