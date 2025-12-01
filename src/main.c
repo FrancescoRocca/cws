@@ -28,8 +28,13 @@ int main(void) {
 
 	CWS_LOG_INFO("Virtual hosts count: %d", config->virtual_hosts_count);
 	for (size_t i = 0; i < config->virtual_hosts_count; ++i) {
-		CWS_LOG_DEBUG("%s (ssl: %d)", config->virtual_hosts[i].domain,
-					  config->virtual_hosts[i].ssl);
+		cws_vhost_s *vh = config->virtual_hosts;
+		CWS_LOG_DEBUG("%s (ssl: %d)", vh[i].domain, vh[i].ssl);
+
+		for (size_t j = 0; j < vh[i].error_pages_count; j++) {
+			cws_error_page *ep = &vh->error_pages[j];
+			CWS_LOG_DEBUG("Error %u -> %s", ep->method, ep->path);
+		}
 	}
 
 	cws_server_s server;
