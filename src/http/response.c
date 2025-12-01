@@ -101,14 +101,20 @@ static size_t file_data(const char *path, char **data) {
 }
 
 static void http_send_resource(cws_request_s *request) {
+	char *data = NULL;
+	size_t content_length = file_data(request->location_path->data, &data);
+	if (content_length == 0) {
+		/* File not found */
+		cws_http_send_response(request, HTTP_NOT_FOUND);
+		return;
+	}
+
 	char content_type[CWS_HTTP_CONTENT_TYPE];
 	http_get_content_type(request->location_path->data, content_type);
 
 	/* TODO: Check for keep-alive */
 
-	char *data = NULL;
-	char *response;
-	size_t content_length = file_data(request->location_path->data, &data);
+	char *response = NULL;
 
 	size_t response_len =
 		http_response_builder(&response, HTTP_OK, content_type, data, content_length);
