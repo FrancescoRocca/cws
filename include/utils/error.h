@@ -16,6 +16,7 @@ typedef enum cws_ret {
 	CWS_BIND_ERROR,
 	CWS_LISTEN_ERROR,
 	CWS_WORKER_ERROR,
+	CWS_CONTENT_TYPE_ERROR,
 	CWS_UNKNOWN_ERROR,
 } cws_return;
 

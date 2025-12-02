@@ -14,6 +14,7 @@ static const cws_error_s errors[] = {{CWS_OK, "No error"},
 									 {CWS_BIND_ERROR, "bind() failed"},
 									 {CWS_LISTEN_ERROR, "listen() failed"},
 									 {CWS_WORKER_ERROR, "Worker thread initialization failed"},
+									 {CWS_CONTENT_TYPE_ERROR, "Unable to get content type"},
 									 {CWS_UNKNOWN_ERROR, "Unknown error"}};
 
 const char *cws_error_str(cws_return code) {
