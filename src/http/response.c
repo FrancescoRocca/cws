@@ -13,18 +13,6 @@
 #define CHUNK_SIZE 8192
 #define HEADERS_LEN 512
 
-static size_t http_header_len(const char *status_code, char *content_type, size_t body_len) {
-	size_t len = snprintf(NULL, 0,
-						  "HTTP/1.1 %s\r\n"
-						  "Content-Type: %s\r\n"
-						  "Content-Length: %zu\r\n"
-						  "Connection: close\r\n"
-						  "\r\n",
-						  status_code, content_type, body_len);
-
-	return len;
-}
-
 static const char *http_status_string(cws_http_status_e status) {
 	switch (status) {
 		case HTTP_OK: {
@@ -75,7 +63,7 @@ static void http_send_file(cws_request_s *request) {
 	size_t file_size = st.st_size;
 
 	char content_tye[CWS_HTTP_CONTENT_TYPE];
-	http_get_content_type(path, content_tye);
+	mime_get_content_type(path, content_tye);
 
 	/* Send headers */
 	http_send_headers(request->sockfd, http_status_string(HTTP_OK), content_tye, file_size);
@@ -111,32 +99,6 @@ void http_send_simple_html(cws_request_s *request, cws_http_status_e status, con
 		cws_send_data(request->sockfd, body, body_len, 0);
 		free(body);
 	}
-}
-
-size_t http_response_builder(char **response, cws_http_status_e status, char *content_type, char *body,
-							 size_t body_len_bytes) {
-	const char *status_code = http_status_string(status);
-
-	size_t header_len = http_header_len(status_code, content_type, body_len_bytes);
-	size_t total_len = header_len + body_len_bytes;
-
-	*response = malloc(total_len + 1);
-	if (*response == NULL) {
-		return 0;
-	}
-
-	snprintf(*response, header_len + 1,
-			 "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n", status_code,
-			 content_type, body_len_bytes);
-
-	/* Only append body if we have it */
-	if (body && body_len_bytes > 0) {
-		memcpy(*response + header_len, body, body_len_bytes);
-	}
-
-	(*response)[total_len] = '\0';
-
-	return total_len;
 }
 
 void cws_http_send_response(cws_request_s *request, cws_http_status_e status) {
