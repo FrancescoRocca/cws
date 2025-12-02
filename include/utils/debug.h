@@ -31,4 +31,9 @@
 #define CWS_LOG_WARNING(msg, ...) fprintf(stdout, _WARNING " " msg "\n", ##__VA_ARGS__)
 #define CWS_LOG_INFO(msg, ...) fprintf(stdout, _INFO " " msg "\n", ##__VA_ARGS__)
 
+void cws_log_init(void);
+void cws_log_info(const char *fmt, ...);
+void cws_log_error(const char *fmt, ...);
+void cws_log_shutdown(void);
+
 #endif

@@ -14,13 +14,18 @@ void cws_signal_handler(int) {
 }
 
 int main(void) {
+	cws_log_info("Running cws...");
+
 	if (signal(SIGINT, cws_signal_handler) == SIG_ERR) {
+		cws_log_error("signal()");
 		CWS_LOG_ERROR("signal()");
+
 		return EXIT_FAILURE;
 	}
 
 	cws_config_s *config = cws_config_init();
 	if (!config) {
+		cws_log_error("Unable to read config file");
 		CWS_LOG_ERROR("Unable to read config file");
 
 		return EXIT_FAILURE;
@@ -42,12 +47,17 @@ int main(void) {
 
 	ret = cws_server_setup(&server, config);
 	if (ret != CWS_OK) {
+		cws_log_error("Unable to setup web server: %s", cws_error_str(ret));
 		CWS_LOG_ERROR("Unable to setup web server: %s", cws_error_str(ret));
+		cws_config_free(config);
+
+		return EXIT_FAILURE;
 	}
 
 	CWS_LOG_INFO("Running cws on http://%s:%s...", config->hostname, config->port);
 	ret = cws_server_start(&server);
 	if (ret != CWS_OK) {
+		cws_log_error("Unable to start web server: %s", cws_error_str(ret));
 		CWS_LOG_ERROR("Unable to start web server: %s", cws_error_str(ret));
 	}
 

@@ -7,6 +7,7 @@ server += files(
 )
 server += files('config/config.c')
 server += files(
+  'utils/debug.c',
   'utils/error.c',
   'utils/hash.c',
   'utils/net.c',
