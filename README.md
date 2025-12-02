@@ -38,7 +38,6 @@ And then open the `docs/html/index.html`.
 ## Future
 
 - Minimal Templating
-- Logging to file
 - Reverse proxy
 - IPv6 compatible
 - Compression (Gzip)
