@@ -1,5 +1,6 @@
 #include "http/request.h"
 
+#include <myclib/myhashmap.h>
 #include <myclib/mystring.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,15 +10,16 @@
 #include "utils/hash.h"
 
 static cws_request_s *http_new() {
-	cws_request_s *request = malloc(sizeof *request);
+	cws_request_s *request = malloc(sizeof(*request));
 	if (!request) {
 		return NULL;
 	}
-	memset(request, 0, sizeof *request);
+	memset(request, 0, sizeof(*request));
 
 	request->http_version = string_new("", 16);
-	request->location = string_new("", 128);
-	request->location_path = string_new("", 128);
+	request->path = string_new("", 256);
+	request->query_string = NULL;
+	request->body = NULL;
 
 	return request;
 }
@@ -26,9 +28,17 @@ static cws_http_method_e http_parse_method(const char *method) {
 	if (strcmp(method, "GET") == 0) {
 		return HTTP_GET;
 	}
-
 	if (strcmp(method, "POST") == 0) {
 		return HTTP_POST;
+	}
+	if (strcmp(method, "PUT") == 0) {
+		return HTTP_PUT;
+	}
+	if (strcmp(method, "DELETE") == 0) {
+		return HTTP_DELETE;
+	}
+	if (strcmp(method, "HEAD") == 0) {
+		return HTTP_HEAD;
 	}
 
 	return HTTP_UNKNOWN;
@@ -58,7 +68,7 @@ static bool parse_location(cws_request_s *req, char **cursor) {
 
 	s[len] = '\0';
 	CWS_LOG_DEBUG("location: %s", s);
-	string_append(req->location, s);
+	string_append(req->path, s);
 	*cursor = s + len + 1;
 
 	return true;
@@ -112,7 +122,6 @@ static bool parse_headers(cws_request_s *req, char **cursor) {
 		strncpy(hv, header_value, sizeof(hv) - 1);
 		hv[sizeof(hv) - 1] = '\0';
 
-		// CWS_LOG_DEBUG("%s:%s", hk, hv);
 		hm_set(req->headers, hk, hv);
 
 		/* Move to the next line */
@@ -125,7 +134,7 @@ static bool parse_headers(cws_request_s *req, char **cursor) {
 }
 
 cws_request_s *cws_http_parse(string_s *request_str) {
-	if (!request_str || !request_str->data) {
+	if (!request_str || !string_cstr(request_str)) {
 		return NULL;
 	}
 
@@ -134,7 +143,7 @@ cws_request_s *cws_http_parse(string_s *request_str) {
 		return NULL;
 	}
 
-	char *str = strdup(request_str->data);
+	char *str = string_copy(request_str);
 	if (!str) {
 		cws_http_free(request);
 		return NULL;
@@ -142,31 +151,33 @@ cws_request_s *cws_http_parse(string_s *request_str) {
 	char *orig = str;
 
 	/* Parse HTTP method */
-	parse_method(request, &str);
-
-	/* Parse location */
-	parse_location(request, &str);
-
-	/* Adjust location path */
-	/* @TODO: fix path traversal */
-	string_append(request->location_path, "www");
-	if (strcmp(request->location->data, "/") == 0) {
-		string_append(request->location_path, "/index.html");
-	} else {
-		string_append(request->location_path, request->location->data);
+	if (!parse_method(request, &str)) {
+		free(orig);
+		cws_http_free(request);
+		return NULL;
 	}
-	CWS_LOG_DEBUG("location path: %s", request->location_path->data);
+
+	/* Parse location (URL path) */
+	if (!parse_location(request, &str)) {
+		free(orig);
+		cws_http_free(request);
+		return NULL;
+	}
 
 	/* Parse HTTP version */
-	parse_version(request, &str);
+	if (!parse_version(request, &str)) {
+		free(orig);
+		cws_http_free(request);
+		return NULL;
+	}
 
 	/* Parse headers */
-	parse_headers(request, &str);
+	if (!parse_headers(request, &str)) {
+		free(orig);
+		cws_http_free(request);
+		return NULL;
+	}
 
-	/* TODO: Parse body */
-	/* orig is at the beginning of the body */
-
-	/* Free the original string */
 	free(orig);
 
 	return request;
@@ -185,12 +196,16 @@ void cws_http_free(cws_request_s *request) {
 		string_free(request->http_version);
 	}
 
-	if (request->location) {
-		string_free(request->location);
+	if (request->path) {
+		string_free(request->path);
 	}
 
-	if (request->location_path) {
-		string_free(request->location_path);
+	if (request->query_string) {
+		string_free(request->query_string);
+	}
+
+	if (request->body) {
+		string_free(request->body);
 	}
 
 	free(request);
