@@ -13,7 +13,9 @@ server += files(
   'utils/net.c',
 )
 server += files(
+  'http/handler.c',
   'http/mime.c',
   'http/request.c',
   'http/response.c',
+  'http/types.c',
 )
