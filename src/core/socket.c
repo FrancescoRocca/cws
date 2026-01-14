@@ -3,10 +3,10 @@
 #include <errno.h>
 #include <sys/socket.h>
 
-ssize_t cws_read_data(int sockfd, string_s *str) {
+size_t cws_socket_read(int sockfd, string_s *str) {
 	char tmp[4096] = {0};
 
-	ssize_t n = recv(sockfd, tmp, sizeof tmp, 0);
+	size_t n = recv(sockfd, tmp, sizeof tmp, 0);
 	if (n < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK) {
 			/* No data available right now */
@@ -26,9 +26,9 @@ ssize_t cws_read_data(int sockfd, string_s *str) {
 	return n;
 }
 
-ssize_t cws_send_data(int sockfd, char *buffer, int len, int flags) {
-	ssize_t total_sent = 0;
-	ssize_t n;
+size_t cws_socket_send(int sockfd, char *buffer, size_t len, int flags) {
+	size_t total_sent = 0;
+	size_t n;
 
 	while (total_sent < len) {
 		n = send(sockfd, buffer + total_sent, len - total_sent, flags);

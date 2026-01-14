@@ -4,8 +4,8 @@
 #include <myclib/mystring.h>
 #include <sys/types.h>
 
-ssize_t cws_read_data(int sockfd, string_s *str);
+size_t cws_socket_read(int sockfd, string_s *str);
 
-ssize_t cws_send_data(int sockfd, char *buffer, int len, int flags);
+size_t cws_socket_send(int sockfd, char *buffer, size_t len, int flags);
 
 #endif
