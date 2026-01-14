@@ -50,9 +50,8 @@ cws_response_s *cws_handler_static_file(cws_request_s *request, cws_handler_conf
 	}
 
 	cws_response_set_body_file(response, path);
-	string_free(filepath);
-
 	CWS_LOG_DEBUG("Serving file: %s (%zu bytes)", path, response->content_length);
+	string_free(filepath);
 
 	return response;
 }
