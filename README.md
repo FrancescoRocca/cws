@@ -8,7 +8,7 @@ A minimal web server. This is a personal project; it is not intended to be a pro
 - libcyaml
 - myclib (on my profile)
 - [doxygen](https://www.doxygen.nl/)
-    - Optional, just to build the docs. It requires `dot`.
+  - Optional, just to build the docs. It requires `dot`.
 
 ## How to build
 
@@ -31,11 +31,12 @@ And then open the `docs/html/index.html`.
 
 ## Roadmap
 
-- HTTPS support with TLS
+### Doing
+
 - Support for virtual hosts
 - CLI args
 
-## Future
+## Todo
 
 - Minimal Templating
 - Reverse proxy
