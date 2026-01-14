@@ -10,7 +10,6 @@ static mimetype mimetypes[] = {{"html", "text/html"}, {"css", "text/css"},	{"js"
 							   {"jpg", "image/jpeg"}, {"png", "image/png"}, {"ico", "image/x-icon"}};
 
 int cws_mime_get_ct(const char *location_path, char *content_type) {
-	/* Find last occurrence of a string */
 	char *ptr = strrchr(location_path, '.');
 	if (ptr == NULL) {
 		return CWS_CONTENT_TYPE_ERROR;

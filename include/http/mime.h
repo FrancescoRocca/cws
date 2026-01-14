@@ -8,9 +8,7 @@ typedef struct mimetype {
 	const char *type;
 } mimetype;
 
-/*
- * Retrieve Content Type
- */
+/* Retrieve Content Type */
 int cws_mime_get_ct(const char *location_path, char *content_type);
 
 #endif
