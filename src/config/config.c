@@ -57,7 +57,7 @@ cws_config_s *cws_config_init(void) {
 
 	cyaml_err_t err = cyaml_load_file(path, &cyaml_config, &top_schema, (cyaml_data_t **)&config, NULL);
 	if (err != CYAML_OK) {
-		CWS_LOG_ERROR("%s", cyaml_strerror(err));
+		cws_log_error("%s", cyaml_strerror(err));
 
 		return NULL;
 	}

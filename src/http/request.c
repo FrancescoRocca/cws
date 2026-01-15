@@ -9,7 +9,7 @@
 #include "utils/debug.h"
 #include "utils/hash.h"
 
-static cws_request_s *http_new() {
+static cws_request_s *http_new(void) {
 	cws_request_s *request = malloc(sizeof(*request));
 	if (!request) {
 		return NULL;
@@ -52,7 +52,7 @@ static bool parse_method(cws_request_s *req, char **cursor) {
 	}
 
 	s[len] = '\0';
-	CWS_LOG_DEBUG("Method: %s", s);
+	cws_log_debug("Method: %s", s);
 	req->method = http_parse_method(s);
 	*cursor = s + len + 1;
 
@@ -67,7 +67,7 @@ static bool parse_location(cws_request_s *req, char **cursor) {
 	}
 
 	s[len] = '\0';
-	CWS_LOG_DEBUG("Location: %s", s);
+	cws_log_debug("Location: %s", s);
 	string_append(req->path, s);
 	*cursor = s + len + 1;
 
@@ -82,7 +82,7 @@ static bool parse_version(cws_request_s *req, char **cursor) {
 	}
 
 	s[len] = '\0';
-	CWS_LOG_DEBUG("Version: %s", s);
+	cws_log_debug("Version: %s", s);
 	string_append(req->http_version, s);
 	*cursor = s + len + 1;
 

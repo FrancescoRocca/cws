@@ -36,7 +36,7 @@ cws_response_s *cws_handler_static_file(cws_request_s *request, cws_handler_conf
 	string_s *filepath = resolve_file_path(string_cstr(request->path), config);
 	const char *path = string_cstr(filepath);
 
-	CWS_LOG_DEBUG("Resolved path: %s", path);
+	cws_log_debug("Resolved path: %s", path);
 
 	if (!file_exists(path)) {
 		string_free(filepath);
@@ -50,7 +50,7 @@ cws_response_s *cws_handler_static_file(cws_request_s *request, cws_handler_conf
 	}
 
 	cws_response_set_body_file(response, path);
-	CWS_LOG_DEBUG("Serving file: %s (%zu bytes)", path, response->content_length);
+	cws_log_debug("Serving file: %s (%zu bytes)", path, response->content_length);
 	string_free(filepath);
 
 	return response;

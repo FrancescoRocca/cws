@@ -1,5 +1,4 @@
 #include <signal.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -8,21 +7,24 @@
 #include "utils/debug.h"
 #include "utils/error.h"
 
-void cws_signal_handler(int) {
+void cws_signal_handler(int signo) {
+	(void)signo;
 	cws_server_run = 0;
 }
 
 int main(void) {
+	cws_log_init();
 	cws_log_info("Running cws...");
 
 	if (signal(SIGINT, cws_signal_handler) == SIG_ERR) {
-		CWS_LOG_ERROR("signal()");
+		cws_log_error("signal()");
 		return EXIT_FAILURE;
 	}
 
 	cws_config_s *config = cws_config_init();
 	if (!config) {
-		CWS_LOG_ERROR("Unable to read config file");
+		cws_log_error("Unable to read config file");
+		cws_log_shutdown();
 		return EXIT_FAILURE;
 	}
 
@@ -31,20 +33,22 @@ int main(void) {
 
 	ret = cws_server_setup(&server, config);
 	if (ret != CWS_OK) {
-		CWS_LOG_ERROR("Unable to setup web server: %s", cws_error_str(ret));
+		cws_log_error("Unable to setup web server: %s", cws_error_str(ret));
 		cws_config_free(config);
+		cws_log_shutdown();
 		return EXIT_FAILURE;
 	}
 
-	CWS_LOG_INFO("Running cws on http://%s:%s", config->hostname, config->port);
+	cws_log_info("Running cws on http://%s:%s", config->hostname, config->port);
 	ret = cws_server_start(&server);
 	if (ret != CWS_OK) {
-		CWS_LOG_ERROR("Unable to start web server: %s", cws_error_str(ret));
+		cws_log_error("Unable to start web server: %s", cws_error_str(ret));
 	}
 
-	CWS_LOG_INFO("Shutting down cws");
+	cws_log_info("Shutting down cws");
 	cws_server_shutdown(&server);
 	cws_config_free(config);
+	cws_log_shutdown();
 
 	return EXIT_SUCCESS;
 }

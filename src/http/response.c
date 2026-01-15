@@ -90,7 +90,7 @@ void cws_response_set_body_file(cws_response_s *response, const char *filepath) 
 
 	FILE *fp = fopen(filepath, "rb");
 	if (!fp) {
-		CWS_LOG_ERROR("Cannot open file: %s", filepath);
+		cws_log_error("Cannot open file: %s", filepath);
 		return;
 	}
 

@@ -53,32 +53,32 @@ cws_return cws_server_setup(cws_server_s *server, cws_config_s *config) {
 
 	int status = getaddrinfo(config->hostname, config->port, &hints, &res);
 	if (status != 0) {
-		CWS_LOG_ERROR("getaddrinfo() error: %s", gai_strerror(status));
+		cws_log_error("getaddrinfo() error: %s", gai_strerror(status));
 		return CWS_GETADDRINFO_ERROR;
 	}
 
 	server->sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	if (server->sockfd < 0) {
-		CWS_LOG_ERROR("socket(): %s", strerror(errno));
+		cws_log_error("socket(): %s", strerror(errno));
 		return CWS_SOCKET_ERROR;
 	}
 
 	const int opt = 1;
 	status = setsockopt(server->sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
 	if (status != 0) {
-		CWS_LOG_ERROR("setsockopt(): %s", strerror(errno));
+		cws_log_error("setsockopt(): %s", strerror(errno));
 		return CWS_SETSOCKOPT_ERROR;
 	}
 
 	status = bind(server->sockfd, res->ai_addr, res->ai_addrlen);
 	if (status != 0) {
-		CWS_LOG_ERROR("bind(): %s", strerror(errno));
+		cws_log_error("bind(): %s", strerror(errno));
 		return CWS_BIND_ERROR;
 	}
 
 	status = listen(server->sockfd, CWS_SERVER_BACKLOG);
 	if (status != 0) {
-		CWS_LOG_ERROR("listen(): %s", strerror(errno));
+		cws_log_error("listen(): %s", strerror(errno));
 		return CWS_LISTEN_ERROR;
 	}
 
@@ -139,7 +139,7 @@ int cws_server_handle_new_client(int server_fd) {
 	}
 
 	cws_utils_get_client_ip(&their_sa, ip);
-	CWS_LOG_INFO("Client (%s) (fd: %d) connected", ip, client_fd);
+	cws_log_info("Client (%s) (fd: %d) connected", ip, client_fd);
 
 	return client_fd;
 }
@@ -151,7 +151,7 @@ int cws_server_accept_client(int server_fd, struct sockaddr_storage *their_sa) {
 
 	if (client_fd == -1) {
 		if (errno != EWOULDBLOCK) {
-			CWS_LOG_ERROR("accept(): %s", strerror(errno));
+			cws_log_error("accept(): %s", strerror(errno));
 		}
 	}
 
