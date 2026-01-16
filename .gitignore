@@ -1,3 +1,6 @@
+# Skip files
+*.skip
+
 build/
 .cache/
 docs/
