@@ -55,7 +55,11 @@ static cws_return worker_handle_client_data(int epfd, int client_fd) {
 	}
 
 	/* Configure handler */
-	cws_handler_config_s config = {.root_dir = "www", .index_file = "index.html"};
+	/* TODO: use vhosts */
+	cws_handler_config_s config = {
+		.root_dir = "www",
+		.index_file = "index.html",
+	};
 
 	/* Handle request and generate response */
 	cws_response_s *response = cws_handler_static_file(request, &config);
@@ -68,6 +72,8 @@ static cws_return worker_handle_client_data(int epfd, int client_fd) {
 
 	/* Cleanup */
 	cws_http_free(request);
+
+	/* TODO: check Connection: keep-alive */
 	worker_close_client(epfd, client_fd);
 
 	return CWS_OK;

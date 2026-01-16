@@ -36,8 +36,6 @@ cws_response_s *cws_handler_static_file(cws_request_s *request, cws_handler_conf
 	string_s *filepath = resolve_file_path(string_cstr(request->path), config);
 	const char *path = string_cstr(filepath);
 
-	cws_log_debug("Resolved path: %s", path);
-
 	if (!file_exists(path)) {
 		string_free(filepath);
 		return cws_handler_not_found(request);

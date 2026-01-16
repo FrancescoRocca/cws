@@ -14,7 +14,7 @@ void cws_signal_handler(int signo) {
 
 int main(void) {
 	cws_log_init();
-	cws_log_info("Running cws...");
+	cws_log_debug("Starting cws");
 
 	if (signal(SIGINT, cws_signal_handler) == SIG_ERR) {
 		cws_log_error("signal()");
@@ -23,7 +23,6 @@ int main(void) {
 
 	cws_config_s *config = cws_config_init();
 	if (!config) {
-		cws_log_error("Unable to read config file");
 		cws_log_shutdown();
 		return EXIT_FAILURE;
 	}
