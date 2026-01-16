@@ -11,9 +11,6 @@ typedef struct cws_error_page {
 typedef struct cws_vhost {
 	char *domain;
 	char *root;
-	bool ssl;
-	char *cert;
-	char *key;
 	cws_error_page *error_pages;
 	unsigned error_pages_count;
 } cws_vhost_s;

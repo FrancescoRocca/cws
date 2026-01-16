@@ -1,7 +1,7 @@
 #include "config/config.h"
 
 #include <cyaml/cyaml.h>
-#include <stdio.h>
+#include <string.h>
 
 #include "utils/debug.h"
 
@@ -24,14 +24,8 @@ static cyaml_schema_value_t error_page_schema = {
 static const cyaml_schema_field_t virtual_hosts_fields[] = {
 	CYAML_FIELD_STRING_PTR("domain", CYAML_FLAG_POINTER, struct cws_vhost, domain, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_STRING_PTR("root", CYAML_FLAG_POINTER, struct cws_vhost, root, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_BOOL("ssl", CYAML_FLAG_DEFAULT, struct cws_vhost, ssl),
-	CYAML_FIELD_STRING_PTR("cert", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, struct cws_vhost, cert, 0,
-						   CYAML_UNLIMITED),
-	CYAML_FIELD_STRING_PTR("key", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, struct cws_vhost, key, 0, CYAML_UNLIMITED),
-
 	CYAML_FIELD_SEQUENCE("error_pages", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, struct cws_vhost, error_pages,
 						 &error_page_schema, 0, CYAML_UNLIMITED),
-
 	CYAML_FIELD_END,
 };
 
@@ -51,13 +45,31 @@ static cyaml_schema_value_t top_schema = {
 	CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER, struct cws_config, top_schema_fields),
 };
 
+static bool find_default_hostname(cws_config_s *config) {
+	for (unsigned i = 0; i < config->virtual_hosts_count; ++i) {
+		if (strcmp(config->hostname, config->virtual_hosts[i].domain) == 0) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 cws_config_s *cws_config_init(void) {
-	char *path = "config.yaml";
+	const char *path = "config.yaml";
 	cws_config_s *config;
 
 	cyaml_err_t err = cyaml_load_file(path, &cyaml_config, &top_schema, (cyaml_data_t **)&config, NULL);
 	if (err != CYAML_OK) {
 		cws_log_error("%s", cyaml_strerror(err));
+
+		return NULL;
+	}
+
+	bool found = find_default_hostname(config);
+	if (!found) {
+		cws_log_error("Default hostname not found in config.yaml");
+		cws_config_free(config);
 
 		return NULL;
 	}
