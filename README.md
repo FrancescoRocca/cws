@@ -1,57 +1,46 @@
 # cws
 
-A minimal web server. This is a personal project; it is not intended to be a production-ready tool, nor will it ever be. Use it at your own risk.
+A minimal HTTP web server written in C.
+
+> **Note**: This is a personal project; it is not intended to be a production-ready tool, nor will it ever be. Use it at your own risk.
 
 ## Requirements
 
-- [meson](https://mesonbuild.com/index.html)
-- libcyaml
+- [libcyaml](https://github.com/tlsa/libcyaml)
 - myclib (on my profile)
-- [doxygen](https://www.doxygen.nl/)
-  - Optional, just to build the docs. It requires `dot`.
+- [doxygen](https://www.doxygen.nl/) (optional, for documentation only - requires `dot`)
 
-## How to build
-
-```bash
-$ meson setup build
-$ cd build
-$ meson compile
-```
-
-And then run `cws`!
-
-## Docs
+## Build
 
 ```bash
-$ git submodule update --init
-$ doxygen
+meson setup build
+meson compile -C build
 ```
 
-And then open the `docs/html/index.html`.
+## Usage
+
+1. Copy `config.yaml` and `www/` directory to your working directory
+2. Run `./build/cws`
+3. Open `http://localhost:3030` in your browser
+
+## Documentation
+
+```bash
+git submodule update --init
+doxygen
+```
+
+Then open `docs/html/index.html`.
 
 ## Roadmap
 
-### Doing
-
-- Support for virtual hosts
-
-## Todo
-
-- Minimal Templating
-- IPv6 compatible
+- [ ] Virtual hosts support
+- [ ] Minimal templating engine
+- [ ] IPv6 compatibility
 
 ## Performance
 
-This test was performed using [goku](https://github.com/jcaromiq/goku).
-
-<details>
-    <summary>goku command</summary>
-
-```bash
-$ goku -t http://localhost:3030 -c 400 -d 30
-```
-
-</details>
+Tested with [goku](https://github.com/jcaromiq/goku) (`-c 400 -d 30`):
 
 ```bash
 Concurrency level 400
