@@ -34,36 +34,33 @@ And then open the `docs/html/index.html`.
 ### Doing
 
 - Support for virtual hosts
-- CLI args
 
 ## Todo
 
 - Minimal Templating
-- Reverse proxy
 - IPv6 compatible
-- Compression (Gzip)
 
 ## Performance
 
-This test was performed using `wrk`.
+This test was performed using [goku](https://github.com/jcaromiq/goku).
 
 <details>
-    <summary>wrk command</summary>
+    <summary>goku command</summary>
 
 ```bash
-$ wrk -t12 -c400 -d30s http://127.0.0.1:3030/index.html
+$ goku -t http://localhost:3030 -c 400 -d 30
 ```
 
 </details>
 
 ```bash
-Running 30s test @ http://localhost:3030
-  12 threads and 400 connections
-  Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     3.45ms    2.37ms  91.92ms   95.45%
-    Req/Sec    10.08k     1.33k   19.57k    82.30%
-  3621422 requests in 32.47s, 2.55GB read
-  Socket errors: connect 0, read 0, write 0, timeout 395
-Requests/sec: 111514.25
-Transfer/sec:     80.51MB
+Concurrency level 400
+Time taken 31 seconds
+Total requests  365363
+Mean request time 22.665250723253322 ms
+Max request time 2067 ms
+Min request time 0 ms
+95'th percentile: 20 ms
+99.9'th percentile: 1078 ms
+200 OK 365363
 ```
