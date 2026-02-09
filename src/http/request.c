@@ -9,7 +9,7 @@
 #include "utils/debug.h"
 #include "utils/hash.h"
 
-static cws_request_s *http_new(void) {
+static cws_request_s *http_request_new(void) {
 	cws_request_s *request = malloc(sizeof(*request));
 	if (!request) {
 		return NULL;
@@ -138,7 +138,7 @@ cws_request_s *cws_http_parse(string_s *request_str) {
 		return NULL;
 	}
 
-	cws_request_s *request = http_new();
+	cws_request_s *request = http_request_new();
 	if (!request) {
 		return NULL;
 	}
