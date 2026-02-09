@@ -21,11 +21,17 @@
 #define _DEBUG "[DEBUG]"
 #endif
 
+void _cws_log_info_internal(const char *file, int line, const char *fmt, ...);
+void _cws_log_warning_internal(const char *file, int line, const char *fmt, ...);
+void _cws_log_error_internal(const char *file, int line, const char *fmt, ...);
+void _cws_log_debug_internal(const char *file, int line, const char *fmt, ...);
+
+#define cws_log_info(fmt, ...) _cws_log_info_internal(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define cws_log_warning(fmt, ...) _cws_log_warning_internal(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define cws_log_error(fmt, ...) _cws_log_error_internal(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define cws_log_debug(fmt, ...) _cws_log_debug_internal(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
+
 void cws_log_init(void);
-void cws_log_info(const char *fmt, ...);
-void cws_log_debug(const char *fmt, ...);
-void cws_log_warning(const char *fmt, ...);
-void cws_log_error(const char *fmt, ...);
 void cws_log_shutdown(void);
 
 #endif
