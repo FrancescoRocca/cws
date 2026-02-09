@@ -14,7 +14,6 @@ void cws_signal_handler(int signo) {
 
 int main(void) {
 	cws_log_init();
-	cws_log_debug("Starting cws");
 
 	if (signal(SIGINT, cws_signal_handler) == SIG_ERR) {
 		cws_log_error("signal()");

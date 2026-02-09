@@ -6,8 +6,8 @@
 
 /* Configuration for static file serving */
 typedef struct cws_handler_config {
-	const char *root_dir;	/*< "www" */
-	const char *index_file; /*< "index.html" */
+	const char *root_dir;
+	const char *index_file;
 } cws_handler_config_s;
 
 /* Static file handler */
