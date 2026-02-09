@@ -11,12 +11,11 @@ subdir('src')
 
 incdir = include_directories('include')
 
-libyaml = dependency('yaml-0.1')
-libcyaml = dependency('libcyaml')
+libtomlc17 = dependency('libtomlc17', required: true)
 libmath = cc.find_library('m', required: true)
 libmyclib = cc.find_library('myclib', required: true)
 
-deps = [libyaml, libcyaml, libmath, libmyclib]
+deps = [libtomlc17, libmath, libmyclib]
 
 add_global_arguments('-DUSE_COLORS', language: 'c')
 add_global_arguments('-DEVELOPER', language: 'c')

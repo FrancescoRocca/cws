@@ -38,7 +38,7 @@ int main(void) {
 		return EXIT_FAILURE;
 	}
 
-	cws_log_info("Running cws on http://%s:%s", config->hostname, config->port);
+	cws_log_info("Running cws on http://%s:%s", config->host, config->port);
 	ret = cws_server_start(&server);
 	if (ret != CWS_OK) {
 		cws_log_error("Unable to start web server: %s", cws_error_str(ret));

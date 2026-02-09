@@ -1,85 +1,160 @@
 #include "config/config.h"
 
-#include <cyaml/cyaml.h>
+#include <stdlib.h>
 #include <string.h>
+#include <tomlc17.h>
 
 #include "utils/debug.h"
 
-static const cyaml_config_t cyaml_config = {
-	.log_fn = cyaml_log,
-	.mem_fn = cyaml_mem,
-	.log_level = CYAML_LOG_WARNING,
-};
+static char *cws_strdup(const char *str) {
+	if (!str) {
+		return NULL;
+	}
 
-static const cyaml_schema_field_t error_page_fields[] = {
-	CYAML_FIELD_INT("method", CYAML_FLAG_DEFAULT, cws_error_page, method),
-	CYAML_FIELD_STRING_PTR("path", CYAML_FLAG_POINTER, cws_error_page, path, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END,
-};
+	size_t len = strlen(str) + 1;
+	char *copy = malloc(sizeof *copy * len);
+	if (!copy) {
+		return NULL;
+	}
 
-static cyaml_schema_value_t error_page_schema = {
-	CYAML_VALUE_MAPPING(CYAML_FLAG_DEFAULT, cws_error_page, error_page_fields),
-};
+	memcpy(copy, str, len);
 
-static const cyaml_schema_field_t virtual_hosts_fields[] = {
-	CYAML_FIELD_STRING_PTR("domain", CYAML_FLAG_POINTER, struct cws_vhost, domain, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_STRING_PTR("root", CYAML_FLAG_POINTER, struct cws_vhost, root, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_SEQUENCE("error_pages", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, struct cws_vhost, error_pages,
-						 &error_page_schema, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END,
-};
+	return copy;
+}
 
-static cyaml_schema_value_t virtual_hosts_schema = {
-	CYAML_VALUE_MAPPING(CYAML_FLAG_DEFAULT, struct cws_vhost, virtual_hosts_fields),
-};
+static bool parse_vhosts(cws_config_s *config, toml_result_t result) {
+	toml_datum_t vhosts = toml_seek(result.toptab, "virtual_hosts");
+	config->virtual_hosts_count = vhosts.u.arr.size;
+	config->virtual_hosts = malloc(sizeof *config->virtual_hosts * config->virtual_hosts_count);
+	if (!config->virtual_hosts) {
+		return false;
+	}
 
-static const cyaml_schema_field_t top_schema_fields[] = {
-	CYAML_FIELD_STRING_PTR("hostname", CYAML_FLAG_POINTER, struct cws_config, hostname, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_STRING_PTR("port", CYAML_FLAG_POINTER, struct cws_config, port, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_SEQUENCE("virtual_hosts", CYAML_FLAG_POINTER, struct cws_config, virtual_hosts, &virtual_hosts_schema,
-						 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END,
-};
+	for (int i = 0; i < vhosts.u.arr.size; ++i) {
+		cws_vhost_s *vh = &config->virtual_hosts[i];
+		toml_datum_t elem = vhosts.u.arr.elem[i];
+		toml_datum_t domain = toml_seek(elem, "domain");
+		vh->domain = cws_strdup(domain.u.str.ptr);
+		if (!vh->domain) {
+			return false;
+		}
 
-static cyaml_schema_value_t top_schema = {
-	CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER, struct cws_config, top_schema_fields),
-};
+		toml_datum_t root = toml_seek(elem, "root");
+		vh->root = cws_strdup(root.u.str.ptr);
+		if (!vh->root) {
+			return false;
+		}
 
-static bool find_default_hostname(cws_config_s *config) {
-	for (unsigned i = 0; i < config->virtual_hosts_count; ++i) {
-		if (strcmp(config->hostname, config->virtual_hosts[i].domain) == 0) {
-			return true;
+		/* Pages */
+		toml_datum_t pages = toml_seek(elem, "pages");
+		vh->error_pages_count = pages.u.arr.size;
+		vh->error_pages = malloc(sizeof *vh->error_pages * vh->error_pages_count);
+		if (!vh->error_pages) {
+			return false;
+		}
+
+		for (int j = 0; j < pages.u.arr.size; ++j) {
+			toml_datum_t page = pages.u.arr.elem[i];
+			toml_datum_t status = toml_seek(page, "status");
+			vh->error_pages[i].status = cws_strdup(status.u.str.ptr);
+			if (!vh->error_pages[i].status) {
+				return false;
+			}
+
+			toml_datum_t path = toml_seek(page, "path");
+			vh->error_pages[i].path = cws_strdup(path.u.str.ptr);
+			if (!vh->error_pages[i].path) {
+				return false;
+			}
 		}
 	}
 
-	return false;
+	return true;
+}
+
+static bool parse_toml(cws_config_s *config) {
+	const char *path = "config.toml";
+
+	toml_result_t result = toml_parse_file_ex(path);
+	if (!result.ok) {
+		cws_log_error("Unable to parse config.toml");
+
+		return false;
+	}
+
+	toml_datum_t host = toml_seek(result.toptab, "server.host");
+	config->host = cws_strdup(host.u.str.ptr);
+	if (!config->host) {
+		return false;
+	}
+
+	toml_datum_t port = toml_seek(result.toptab, "server.port");
+	config->port = cws_strdup(port.u.str.ptr);
+	if (!config->port) {
+		return false;
+	}
+
+	toml_datum_t root = toml_seek(result.toptab, "server.root");
+	config->root = cws_strdup(root.u.str.ptr);
+	if (!config->root) {
+		return false;
+	}
+
+	parse_vhosts(config, result);
+
+	toml_free(result);
+
+	return true;
 }
 
 cws_config_s *cws_config_init(void) {
-	const char *path = "config.yaml";
-	cws_config_s *config;
-
-	cyaml_err_t err = cyaml_load_file(path, &cyaml_config, &top_schema, (cyaml_data_t **)&config, NULL);
-	if (err != CYAML_OK) {
-		cws_log_error("%s", cyaml_strerror(err));
-
+	cws_config_s *config = malloc(sizeof *config);
+	if (!config) {
 		return NULL;
 	}
 
-	bool found = find_default_hostname(config);
-	if (!found) {
-		cws_log_error("Default hostname not found in config.yaml");
-		cws_config_free(config);
-
-		return NULL;
-	}
+	parse_toml(config);
 
 	return config;
 }
 
 void cws_config_free(cws_config_s *config) {
-	cyaml_err_t err = cyaml_free(&cyaml_config, &top_schema, config, 0);
-	if (err != CYAML_OK) {
+	if (!config) {
 		return;
 	}
+
+	if (config->host) {
+		free(config->host);
+	}
+
+	if (config->port) {
+		free(config->port);
+	}
+
+	if (config->root) {
+		free(config->root);
+	}
+
+	for (unsigned i = 0; i < config->virtual_hosts_count; ++i) {
+		cws_vhost_s *vh = &config->virtual_hosts[i];
+		if (vh->domain) {
+			free(vh->domain);
+		}
+
+		if (vh->root) {
+			free(vh->root);
+		}
+
+		for (unsigned j = 0; j < vh->error_pages_count; ++j) {
+			if (vh->error_pages[i].path) {
+				free(vh->error_pages[i].path);
+			}
+
+			if (vh->error_pages[i].status) {
+				free(vh->error_pages[i].status);
+			}
+		}
+	}
+
+	free(config);
 }

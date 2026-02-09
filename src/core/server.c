@@ -41,7 +41,7 @@ static cws_return cws_server_setup_epoll(int server_fd, int *epfd_out) {
 }
 
 cws_return cws_server_setup(cws_server_s *server, cws_config_s *config) {
-	if (!config || !config->hostname || !config->port) {
+	if (!config || !config->host || !config->port) {
 		return CWS_CONFIG_ERROR;
 	}
 
@@ -49,9 +49,9 @@ cws_return cws_server_setup(cws_server_s *server, cws_config_s *config) {
 
 	struct addrinfo hints;
 	struct addrinfo *res;
-	cws_server_setup_hints(&hints, config->hostname);
+	cws_server_setup_hints(&hints, config->host);
 
-	int status = getaddrinfo(config->hostname, config->port, &hints, &res);
+	int status = getaddrinfo(config->host, config->port, &hints, &res);
 	if (status != 0) {
 		cws_log_error("getaddrinfo() error: %s", gai_strerror(status));
 		return CWS_GETADDRINFO_ERROR;

@@ -3,21 +3,22 @@
 
 #include <stdbool.h>
 
-typedef struct cws_error_page {
-	unsigned method;
-	const char *path;
-} cws_error_page;
+typedef struct cws_page {
+	char *status;
+	char *path;
+} cws_page_s;
 
 typedef struct cws_vhost {
 	char *domain;
 	char *root;
-	cws_error_page *error_pages;
+	cws_page_s *error_pages;
 	unsigned error_pages_count;
 } cws_vhost_s;
 
 typedef struct cws_config {
-	char *hostname;
+	char *host;
 	char *port;
+	char *root;
 	cws_vhost_s *virtual_hosts;
 	unsigned virtual_hosts_count;
 } cws_config_s;

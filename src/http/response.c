@@ -30,6 +30,7 @@ cws_response_s *cws_response_new(cws_http_status_e status) {
 	resp->body_file = NULL;
 	resp->content_length = 0;
 
+	/* TODO: get the value from connection */
 	cws_response_set_header(resp, "Connection", "close");
 
 	return resp;

@@ -6,8 +6,8 @@ A minimal HTTP web server written in C.
 
 ## Requirements
 
-- [libcyaml](https://github.com/tlsa/libcyaml)
 - myclib (on my profile)
+- [tomlc17](https://github.com/cktan/tomlc17)
 - [doxygen](https://www.doxygen.nl/) (optional, for documentation only - requires `dot`)
 
 ## Build

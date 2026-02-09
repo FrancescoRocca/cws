@@ -1,0 +1,22 @@
+# Default server values
+[server]
+host = "localhost"
+port = "3030"
+# Root folder in case there are no virtual hosts
+root = "www"
+
+[[virtual_hosts]]
+domain = "localhost"
+root = "www"
+
+[[virtual_hosts.pages]]
+status = "404"
+path = "www/pages/404.html"
+
+[[virtual_hosts.pages]]
+status = "505"
+path = "www/pages/505.html"
+
+[[virtual_hosts]]
+domain = "example.com"
+root = "example_site"
