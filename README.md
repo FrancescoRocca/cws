@@ -23,15 +23,6 @@ meson compile -C build
 2. Run `./build/cws`
 3. Open `http://localhost:3030` in your browser
 
-## Documentation
-
-```bash
-git submodule update --init
-doxygen
-```
-
-Then open `docs/html/index.html`.
-
 ## Roadmap
 
 - [ ] Virtual hosts support
