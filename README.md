@@ -19,7 +19,7 @@ meson compile -C build
 
 ## Usage
 
-1. Copy `config.yaml` and `www/` directory to your working directory
+1. Copy `config.toml` and `www/` directory to your working directory
 2. Run `./build/cws`
 3. Open `http://localhost:3030` in your browser
 

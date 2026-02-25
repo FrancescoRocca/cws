@@ -72,6 +72,17 @@ static bool parse_vhosts(cws_config_s *config, toml_result_t result) {
 	return true;
 }
 
+static bool find_default(cws_config_s *config) {
+	for (unsigned i = 0; i < config->virtual_hosts_count; ++i) {
+		cws_vhost_s *vh = config->virtual_hosts;
+		if (!strcmp(vh[i].domain, "default")) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 static bool parse_toml(cws_config_s *config) {
 	const char *path = "config.toml";
 
@@ -104,7 +115,7 @@ static bool parse_toml(cws_config_s *config) {
 
 	toml_free(result);
 
-	return true;
+	return find_default(config);
 }
 
 cws_config_s *cws_config_init(void) {
@@ -113,7 +124,9 @@ cws_config_s *cws_config_init(void) {
 		return NULL;
 	}
 
-	parse_toml(config);
+	if (!parse_toml(config)) {
+		return NULL;
+	}
 
 	return config;
 }
@@ -156,5 +169,7 @@ void cws_config_free(cws_config_s *config) {
 		}
 	}
 
-	free(config);
+	if (config) {
+		free(config);
+	}
 }

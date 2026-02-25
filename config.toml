@@ -6,7 +6,8 @@ port = "3030"
 root = "www"
 
 [[virtual_hosts]]
-domain = "localhost"
+# "default" domain is required
+domain = "default"
 root = "www"
 
 [[virtual_hosts.pages]]

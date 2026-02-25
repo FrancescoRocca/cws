@@ -183,6 +183,15 @@ cws_request_s *cws_http_parse(string_s *request_str) {
 	return request;
 }
 
+char *cws_http_get_host(cws_request_s *request) {
+	bucket_s *host = hm_get(request->headers, "Host");
+	if (!host) {
+		return "default";
+	}
+
+	return (char *)host->value;
+}
+
 void cws_http_free(cws_request_s *request) {
 	if (!request) {
 		return;

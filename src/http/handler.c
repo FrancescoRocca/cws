@@ -6,11 +6,12 @@
 
 /* Sanitize and resolve file path */
 static string_s *resolve_file_path(const char *url_path, cws_handler_config_s *config) {
-	string_s *full_path = string_new(config->root_dir, 256);
+	string_s *full_path = string_new(config->root, 256);
 
 	if (strcmp(url_path, "/") == 0) {
 		string_append(full_path, "/");
-		string_append(full_path, config->index_file);
+		/* Use vhost index file */
+		string_append(full_path, "index.html");
 		return full_path;
 	}
 
@@ -24,13 +25,21 @@ static bool file_exists(const char *filepath) {
 	return stat(filepath, &st) == 0 && S_ISREG(st.st_mode);
 }
 
+static cws_response_s *cws_handler_not_found(void) {
+	return cws_response_error(HTTP_NOT_FOUND, "The requested resource was not found.");
+}
+
+static cws_response_s *cws_handler_not_implemented(void) {
+	return cws_response_error(HTTP_NOT_IMPLEMENTED, "Method not implemented.");
+}
+
 cws_response_s *cws_handler_static_file(cws_request_s *request, cws_handler_config_s *config) {
 	if (!request || !config) {
 		return cws_response_error(HTTP_INTERNAL_ERROR, "Invalid request or configuration");
 	}
 
 	if (request->method != HTTP_GET) {
-		return cws_handler_not_implemented(request);
+		return cws_handler_not_implemented();
 	}
 
 	string_s *filepath = resolve_file_path(string_cstr(request->path), config);
@@ -38,7 +47,7 @@ cws_response_s *cws_handler_static_file(cws_request_s *request, cws_handler_conf
 
 	if (!file_exists(path)) {
 		string_free(filepath);
-		return cws_handler_not_found(request);
+		return cws_handler_not_found();
 	}
 
 	cws_response_s *response = cws_response_new(HTTP_OK);
@@ -52,14 +61,4 @@ cws_response_s *cws_handler_static_file(cws_request_s *request, cws_handler_conf
 	string_free(filepath);
 
 	return response;
-}
-
-cws_response_s *cws_handler_not_found(cws_request_s *request) {
-	(void)request;
-	return cws_response_error(HTTP_NOT_FOUND, "The requested resource was not found.");
-}
-
-cws_response_s *cws_handler_not_implemented(cws_request_s *request) {
-	(void)request;
-	return cws_response_error(HTTP_NOT_IMPLEMENTED, "Method not implemented.");
 }

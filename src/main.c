@@ -22,6 +22,7 @@ int main(void) {
 
 	cws_config_s *config = cws_config_init();
 	if (!config) {
+		cws_log_error("Unable to parse config");
 		cws_log_shutdown();
 		return EXIT_FAILURE;
 	}
