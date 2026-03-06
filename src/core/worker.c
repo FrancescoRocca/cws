@@ -35,7 +35,7 @@ static cws_vhost_s *get_vhost(cws_config_s *config, char *host) {
 		}
 	}
 
-	/* ?? */
+	/* This should not happen */
 	return NULL;
 }
 

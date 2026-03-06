@@ -8,7 +8,6 @@ A minimal HTTP web server written in C.
 
 - myclib (on my profile)
 - [tomlc17](https://github.com/cktan/tomlc17)
-- [doxygen](https://www.doxygen.nl/) (optional, for documentation only - requires `dot`)
 
 ## Build
 
