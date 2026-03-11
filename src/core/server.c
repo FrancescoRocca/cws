@@ -89,7 +89,7 @@ cws_return cws_server_setup(cws_server_s *server, cws_config_s *config) {
 		return ret;
 	}
 
-	server->workers = cws_worker_new(CWS_WORKERS_NUM, config);
+	server->workers = cws_worker_new(config->workers, config);
 	if (server->workers == NULL) {
 		return CWS_WORKER_ERROR;
 	}
@@ -104,7 +104,7 @@ cws_return cws_server_start(cws_server_s *server) {
 	size_t workers_index = 0;
 
 	while (cws_server_run) {
-		int nfds = epoll_wait(server->epfd, events, 128, -1);
+		int nfds = epoll_wait(server->epfd, events, CWS_SERVER_EPOLL_MAXEVENTS, CWS_SERVER_EPOLL_TIMEOUT);
 
 		if (nfds < 0) {
 			continue;
@@ -122,7 +122,7 @@ cws_return cws_server_start(cws_server_s *server) {
 
 			cws_fd_set_nonblocking(client_fd);
 			cws_epoll_add(server->workers[workers_index]->epfd, client_fd);
-			workers_index = (workers_index + 1) % CWS_WORKERS_NUM;
+			workers_index = (workers_index + 1) % server->config->workers;
 		}
 	}
 
@@ -172,6 +172,6 @@ void cws_server_shutdown(cws_server_s *server) {
 	}
 
 	if (server->workers) {
-		cws_worker_free(server->workers, CWS_WORKERS_NUM);
+		cws_worker_free(server->workers, server->config->workers);
 	}
 }

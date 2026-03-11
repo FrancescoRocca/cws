@@ -13,16 +13,10 @@
 #define CWS_SERVER_BACKLOG 128
 
 /* Max number of epoll events processed per iteration */
-#define CWS_SERVER_EPOLL_MAXEVENTS 64
+#define CWS_SERVER_EPOLL_MAXEVENTS 128
 
 /* Blocking timeout for epoll_wait in ms */
 #define CWS_SERVER_EPOLL_TIMEOUT 3000
-
-/* Maximum allowed HTTP request size */
-#define CWS_SERVER_MAX_REQUEST_SIZE (16 * 1024) /* 16KB */
-
-/* Number of worker threads */
-#define CWS_WORKERS_NUM 6
 
 /* Global flag used to stop server */
 extern volatile sig_atomic_t cws_server_run;

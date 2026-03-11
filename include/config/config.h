@@ -19,6 +19,7 @@ typedef struct cws_config {
 	char *host;
 	char *port;
 	char *root;
+	int workers;
 	cws_vhost_s *virtual_hosts;
 	unsigned virtual_hosts_count;
 } cws_config_s;

@@ -4,6 +4,7 @@ host = "localhost"
 port = "3030"
 # Root folder in case there are no virtual hosts
 root = "www"
+workers = 6
 
 [[virtual_hosts]]
 # "default" domain is required
