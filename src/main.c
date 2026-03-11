@@ -20,6 +20,11 @@ int main(void) {
 		return EXIT_FAILURE;
 	}
 
+	if (signal(SIGTERM, cws_signal_handler) == SIG_ERR) {
+		cws_log_error("signal()");
+		return EXIT_FAILURE;
+	}
+
 	cws_config_s *config = cws_config_init();
 	if (!config) {
 		cws_log_error("Unable to parse config");
