@@ -2,25 +2,10 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <string.h>
 #include <tomlc17.h>
 
 #include "utils/debug.h"
-
-static char *cws_strdup(const char *str) {
-	if (!str) {
-		return NULL;
-	}
-
-	size_t len = strlen(str) + 1;
-	char *copy = malloc(sizeof *copy * len);
-	if (!copy) {
-		return NULL;
-	}
-
-	memcpy(copy, str, len);
-
-	return copy;
-}
 
 static bool parse_vhosts(cws_config_s *config, toml_result_t result) {
 	toml_datum_t vhosts = toml_seek(result.toptab, "virtual_hosts");
@@ -34,13 +19,13 @@ static bool parse_vhosts(cws_config_s *config, toml_result_t result) {
 		cws_vhost_s *vh = &config->virtual_hosts[i];
 		toml_datum_t elem = vhosts.u.arr.elem[i];
 		toml_datum_t domain = toml_seek(elem, "domain");
-		vh->domain = cws_strdup(domain.u.str.ptr);
+		vh->domain = strdup(domain.u.str.ptr);
 		if (!vh->domain) {
 			return false;
 		}
 
 		toml_datum_t root = toml_seek(elem, "root");
-		vh->root = cws_strdup(root.u.str.ptr);
+		vh->root = strdup(root.u.str.ptr);
 		if (!vh->root) {
 			return false;
 		}
@@ -56,13 +41,13 @@ static bool parse_vhosts(cws_config_s *config, toml_result_t result) {
 		for (int j = 0; j < pages.u.arr.size; ++j) {
 			toml_datum_t page = pages.u.arr.elem[i];
 			toml_datum_t status = toml_seek(page, "status");
-			vh->error_pages[i].status = cws_strdup(status.u.str.ptr);
+			vh->error_pages[j].status = strdup(status.u.str.ptr);
 			if (!vh->error_pages[i].status) {
 				return false;
 			}
 
 			toml_datum_t path = toml_seek(page, "path");
-			vh->error_pages[i].path = cws_strdup(path.u.str.ptr);
+			vh->error_pages[j].path = strdup(path.u.str.ptr);
 			if (!vh->error_pages[i].path) {
 				return false;
 			}
@@ -94,22 +79,25 @@ static bool parse_toml(cws_config_s *config) {
 	}
 
 	toml_datum_t host = toml_seek(result.toptab, "server.host");
-	config->host = cws_strdup(host.u.str.ptr);
+	config->host = strdup(host.u.str.ptr);
 	if (!config->host) {
 		return false;
 	}
 
 	toml_datum_t port = toml_seek(result.toptab, "server.port");
-	config->port = cws_strdup(port.u.str.ptr);
+	config->port = strdup(port.u.str.ptr);
 	if (!config->port) {
 		return false;
 	}
 
 	toml_datum_t root = toml_seek(result.toptab, "server.root");
-	config->root = cws_strdup(root.u.str.ptr);
+	config->root = strdup(root.u.str.ptr);
 	if (!config->root) {
 		return false;
 	}
+
+	toml_datum_t workers = toml_seek(result.toptab, "server.workers");
+	config->workers = workers.u.int64;
 
 	parse_vhosts(config, result);
 
