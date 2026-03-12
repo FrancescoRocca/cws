@@ -2,7 +2,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <string.h>
 #include <tomlc17.h>
 
 #include "utils/debug.h"

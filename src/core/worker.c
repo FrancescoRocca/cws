@@ -35,8 +35,9 @@ static cws_vhost_s *get_vhost(cws_config_s *config, char *host) {
 		}
 	}
 
-	/* This should not happen */
-	return NULL;
+	/* Return first domain */
+	/* TODO: return default domain */
+	return &config->virtual_hosts[0];
 }
 
 static cws_return worker_handle_client_data(int epfd, int client_fd, cws_config_s *config) {

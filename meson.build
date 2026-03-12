@@ -1,8 +1,8 @@
 project(
-  'cws',
-  'c',
-  version: '0.1.0',
-  default_options: ['c_std=gnu23', 'warning_level=3'],
+    'cws',
+    'c',
+    version: '0.1.0',
+    default_options: ['c_std=gnu23', 'warning_level=3'],
 )
 
 add_global_arguments('-Wno-pedantic', language: 'c')
@@ -23,4 +23,12 @@ add_global_arguments('-DUSE_COLORS', language: 'c')
 add_global_arguments('-DEVELOPER', language: 'c')
 add_global_arguments('-D_POSIX_C_SOURCE=200809L', language: 'c')
 
-executable('cws', server, include_directories: incdir, dependencies: deps)
+exe = executable('cws', server, include_directories: incdir, dependencies: deps)
+
+# Test
+test_src = files('test/server.c')
+test_curl_dep = dependency('libcurl', required: false)
+test_deps = [test_curl_dep]
+test_exec = executable('test_http', test_src, dependencies: test_deps)
+
+test('index get', test_exec, args: [exe.full_path()])

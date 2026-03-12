@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 
 /* Sanitize and resolve file path */
+/* TODO: fix path traversal */
 static string_s *resolve_file_path(const char *url_path, cws_handler_config_s *config) {
 	string_s *full_path = string_new(config->root, 256);
 
