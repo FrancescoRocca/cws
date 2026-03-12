@@ -43,6 +43,8 @@ int main(void) {
 		return EXIT_FAILURE;
 	}
 
+	server.config = config;
+
 	cws_log_info("Running cws on http://%s:%s", config->host, config->port);
 	ret = cws_server_start(&server);
 	if (ret != CWS_OK) {
