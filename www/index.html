@@ -4,199 +4,151 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>cws • home</title>
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap"
+            href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400&family=DM+Sans:wght@300;400&display=swap"
             rel="stylesheet"
         />
         <style>
-            :root {
-                --bg: #f3f4f6;
-                --accent: #3b82f6;
-                --accent-soft: rgba(59, 130, 246, 0.08);
-                --text: #0f172a;
-                --muted: #6b7280;
-            }
-
-            * {
+            *,
+            *::before,
+            *::after {
                 box-sizing: border-box;
                 margin: 0;
                 padding: 0;
             }
 
-            body {
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background:
-                    radial-gradient(
-                        circle at top left,
-                        #dbeafe 0,
-                        transparent 50%
-                    ),
-                    radial-gradient(
-                        circle at bottom right,
-                        #e5e7eb 0,
-                        transparent 55%
-                    ),
-                    var(--bg);
-                font-family:
-                    "Montserrat",
-                    system-ui,
-                    -apple-system,
-                    BlinkMacSystemFont,
-                    "Segoe UI",
-                    sans-serif;
-                color: var(--text);
-                font-size: 18px; /* increased base text size */
+            :root {
+                --bg: #0a0a0a;
+                --fg: #f0ede8;
+                --muted: #4a4a4a;
+                --line: #1e1e1e;
+                --accent: #e8e0d0;
             }
 
-            .wrapper {
+            body {
+                background: var(--bg);
+                color: var(--fg);
+                font-family: "DM Sans", sans-serif;
+                font-weight: 300;
+                min-height: 100vh;
+                display: grid;
+                place-items: center;
+                padding: 40px 24px;
+                overflow: hidden;
+            }
+
+            /* subtle grid */
+            body::before {
+                content: "";
+                position: fixed;
+                inset: 0;
+                background-image:
+                    linear-gradient(var(--line) 1px, transparent 1px),
+                    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+                background-size: 60px 60px;
+                pointer-events: none;
+                opacity: 0.5;
+            }
+
+            .container {
+                position: relative;
+                max-width: 600px;
+                width: 100%;
+                text-align: center;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                gap: 18px;
-                padding: 24px;
-                width: 100%;
-                text-align: left;
+                opacity: 0;
+                transform: translateY(16px);
+                animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
             }
 
-            main {
-                max-width: 560px;
-                width: 100%;
+            @keyframes rise {
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
             }
 
-            .badge {
+            .status {
                 display: inline-flex;
                 align-items: center;
-                gap: 10px;
-                padding: 7px 14px;
-                border-radius: 999px;
-                background: var(--accent-soft);
-                color: var(--accent);
-                font-size: 13px; /* slightly larger */
+                gap: 8px;
+                font-family: "DM Mono", monospace;
+                font-size: 11px;
+                letter-spacing: 0.12em;
                 text-transform: uppercase;
-                letter-spacing: 0.11em;
-                margin-bottom: 20px;
-                font-weight: 600;
+                color: #888;
+                margin-bottom: 40px;
             }
 
-            .badge-dot {
-                width: 9px;
-                height: 9px;
-                border-radius: 999px;
-                background: var(--accent);
-                box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.22);
+            .dot {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: #4ade80;
+                box-shadow: 0 0 8px #4ade8099;
+                animation: pulse 2.5s ease-in-out infinite;
+            }
+
+            @keyframes pulse {
+                0%,
+                100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.4;
+                }
             }
 
             h1 {
-                font-size: 36px; /* increased */
-                line-height: 1.2;
-                margin-bottom: 8px;
+                font-size: clamp(42px, 8vw, 64px);
+                font-weight: 300;
+                line-height: 1.05;
+                letter-spacing: -0.03em;
+                margin-bottom: 28px;
+                color: var(--fg);
+                white-space: nowrap;
             }
 
-            .highlight {
-                background: linear-gradient(115deg, #38bdf8, #3b82f6, #818cf8);
-                -webkit-background-clip: text;
-                color: transparent;
+            h1 em {
+                font-style: normal;
+                font-family: "DM Mono", monospace;
+                font-weight: 300;
+                color: var(--muted);
+            }
+
+            .divider {
+                width: 32px;
+                height: 1px;
+                background: var(--muted);
+                margin-bottom: 28px;
+                opacity: 0;
+                animation: rise 0.5s ease 0.5s forwards;
             }
 
             p {
-                font-size: 18px; /* increased */
-                color: var(--muted);
-                margin-bottom: 16px;
-                line-height: 1.7;
-            }
-
-            .lead {
-                font-size: 19px; /* increased */
-                margin-bottom: 10px;
-            }
-
-            .bg-orbit {
-                position: absolute;
-                width: 240px;
-                height: 240px;
-                border-radius: 50%;
-                border: 1px dashed rgba(148, 163, 184, 0.5);
-                top: -100px;
-                right: -60px;
-                opacity: 0.7;
-                pointer-events: none;
-            }
-
-            .bg-orbit-dot {
-                position: absolute;
-                width: 9px;
-                height: 9px;
-                border-radius: 50%;
-                background: #38bdf8;
-                box-shadow: 0 0 12px rgba(56, 189, 248, 0.9);
-                top: 32%;
-                left: 12%;
-            }
-
-            footer.icon-credit {
-                font-size: 13px; /* increased */
-                color: var(--muted);
-                text-align: center;
-                opacity: 0.9;
-            }
-
-            footer.icon-credit a {
-                color: var(--muted);
-                font-weight: 500;
-                text-decoration: none;
-            }
-
-            footer.icon-credit a:hover {
-                color: var(--accent);
-                text-decoration: underline;
-            }
-
-            @media (max-width: 480px) {
-                h1 {
-                    font-size: 30px;
-                }
-
-                .lead {
-                    font-size: 17px;
-                }
+                font-size: 15px;
+                line-height: 1.8;
+                color: #999;
             }
         </style>
     </head>
-
     <body>
-        <div class="bg-orbit">
-            <div class="bg-orbit-dot"></div>
-        </div>
+        <div class="container">
+            <div class="status">
+                <span class="dot"></span>
+                running
+            </div>
 
-        <div class="wrapper">
-            <main>
-                <div class="badge">
-                    <span class="badge-dot"></span>
-                    <span>cws is running</span>
-                </div>
+            <h1>Hello from <em>cws</em></h1>
 
-                <h1>Hello from <span class="highlight">cws</span>!</h1>
-                <p>
-                    You’re seeing the default homepage served by
-                    <strong>cws</strong>. Replace this file or point your
-                    virtual host to a different root directory to serve your own
-                    content.
-                </p>
-            </main>
+            <div class="divider"></div>
 
-            <footer class="icon-credit">
-                <a target="_blank" href="https://icons8.com/icon/38796/linux"
-                    >Linux</a
-                >
-                icon by
-                <a target="_blank" href="https://icons8.com">Icons8</a>
-            </footer>
+            <p>
+                Default homepage. Replace this file or point your virtual host
+                to a different root to serve your own content.
+            </p>
         </div>
     </body>
 </html>
