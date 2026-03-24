@@ -22,6 +22,7 @@ typedef struct cws_config {
 	int workers;
 	cws_vhost_s *virtual_hosts;
 	unsigned virtual_hosts_count;
+	cws_vhost_s *default_vh;
 } cws_config_s;
 
 cws_config_s *cws_config_init(void);
