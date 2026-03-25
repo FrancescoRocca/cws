@@ -9,6 +9,8 @@
 #include "utils/debug.h"
 #include "utils/hash.h"
 
+#include "internal/common.h"
+
 static cws_request_s *http_request_new(void) {
 	cws_request_s *request = malloc(sizeof(*request));
 	if (!request) {
@@ -91,7 +93,7 @@ static bool parse_version(cws_request_s *req, char **cursor) {
 
 static bool parse_headers(cws_request_s *req, char **cursor) {
 	req->headers = hm_new(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn,
-						  sizeof(char) * CWS_HTTP_HEADER_MAX, sizeof(char) * CWS_HTTP_HEADER_CONTENT_MAX);
+						  sizeof(char) * HEADER_KEY_MAX, sizeof(char) * HEADER_VALUE_MAX);
 
 	char *s = *cursor + strspn(*cursor, "\r\n");
 	while (*s != '\0' && *s != '\r') {
@@ -113,8 +115,8 @@ static bool parse_headers(cws_request_s *req, char **cursor) {
 		char *header_value = colon + 1;
 		header_value += strspn(header_value, " \t");
 
-		char hk[CWS_HTTP_HEADER_MAX];
-		char hv[CWS_HTTP_HEADER_CONTENT_MAX];
+		char hk[HEADER_KEY_MAX];
+		char hv[HEADER_VALUE_MAX];
 
 		strncpy(hk, header_key, sizeof(hk) - 1);
 		hk[sizeof(hk) - 1] = '\0';
@@ -133,7 +135,7 @@ static bool parse_headers(cws_request_s *req, char **cursor) {
 	return true;
 }
 
-cws_request_s *cws_http_parse(string_s *request_str) {
+cws_request_s *cws_request_parse(string_s *request_str) {
 	if (!request_str || !string_cstr(request_str)) {
 		return NULL;
 	}
@@ -145,7 +147,7 @@ cws_request_s *cws_http_parse(string_s *request_str) {
 
 	char *str = string_copy(request_str);
 	if (!str) {
-		cws_http_free(request);
+		cws_request_free(request);
 		return NULL;
 	}
 	char *orig = str;
@@ -153,28 +155,28 @@ cws_request_s *cws_http_parse(string_s *request_str) {
 	/* Parse HTTP method */
 	if (!parse_method(request, &str)) {
 		free(orig);
-		cws_http_free(request);
+		cws_request_free(request);
 		return NULL;
 	}
 
 	/* Parse location (URL path) */
 	if (!parse_location(request, &str)) {
 		free(orig);
-		cws_http_free(request);
+		cws_request_free(request);
 		return NULL;
 	}
 
 	/* Parse HTTP version */
 	if (!parse_version(request, &str)) {
 		free(orig);
-		cws_http_free(request);
+		cws_request_free(request);
 		return NULL;
 	}
 
 	/* Parse headers */
 	if (!parse_headers(request, &str)) {
 		free(orig);
-		cws_http_free(request);
+		cws_request_free(request);
 		return NULL;
 	}
 
@@ -183,16 +185,20 @@ cws_request_s *cws_http_parse(string_s *request_str) {
 	return request;
 }
 
-char *cws_http_get_host(cws_request_s *request) {
-	bucket_s *host = hm_get(request->headers, "Host");
-	if (!host) {
-		return "default";
+char *cws_request_get_header(cws_request_s *request, const char *header) {
+	if (!request || !header || !request->headers) {
+		return "";
 	}
 
-	return (char *)host->value;
+	bucket_s *bucket = hm_get(request->headers, (void *)header);
+	if (!bucket) {
+		return "";
+	}
+
+	return (char *)bucket->value;
 }
 
-void cws_http_free(cws_request_s *request) {
+void cws_request_free(cws_request_s *request) {
 	if (!request) {
 		return;
 	}

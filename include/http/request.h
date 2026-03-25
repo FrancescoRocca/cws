@@ -6,10 +6,6 @@
 #include <myclib/mystring.h>
 #include <stddef.h>
 
-#define CWS_HTTP_CONTENT_TYPE 64
-#define CWS_HTTP_HEADER_MAX 512
-#define CWS_HTTP_HEADER_CONTENT_MAX 1024
-
 typedef struct cws_request {
 	cws_http_method_e method;
 	string_s *host;
@@ -20,10 +16,10 @@ typedef struct cws_request {
 	string_s *body;
 } cws_request_s;
 
-cws_request_s *cws_http_parse(string_s *request_str);
+cws_request_s *cws_request_parse(string_s *request_str);
 
-char *cws_http_get_host(cws_request_s *request);
+char *cws_request_get_header(cws_request_s *request, const char *header);
 
-void cws_http_free(cws_request_s *request);
+void cws_request_free(cws_request_s *request);
 
 #endif
