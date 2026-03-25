@@ -9,12 +9,11 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#define CHUNK_SIZE 8192
-#define HEADERS_BUFFER_SIZE 2048
+#include "internal/common.h"
 
 static hashmap_s *response_headers_new(void) {
-	return hm_new(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn, sizeof(char) * 256,
-				  sizeof(char) * 512);
+	return hm_new(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn, sizeof(char) * HEADER_KEY_MAX,
+				  sizeof(char) * HEADER_VALUE_MAX);
 }
 
 cws_response_s *cws_response_new(cws_http_status_e status) {
@@ -29,9 +28,6 @@ cws_response_s *cws_response_new(cws_http_status_e status) {
 	resp->body_string = NULL;
 	resp->body_file = NULL;
 	resp->content_length = 0;
-
-	/* TODO: get the value from connection */
-	cws_response_set_header(resp, "Connection", "close");
 
 	return resp;
 }
@@ -61,7 +57,7 @@ void cws_response_set_header(cws_response_s *response, const char *key, const ch
 		return;
 	}
 
-	char k[256], v[512];
+	char k[HEADER_KEY_MAX], v[HEADER_VALUE_MAX];
 	strncpy(k, key, sizeof(k) - 1);
 	k[sizeof(k) - 1] = '\0';
 	strncpy(v, value, sizeof(v) - 1);
@@ -101,7 +97,7 @@ void cws_response_set_body_file(cws_response_s *response, const char *filepath) 
 		return;
 	}
 
-	char content_type[64];
+	char content_type[CONTENT_TYPE_MAX];
 	cws_mime_get_ct(filepath, content_type);
 	cws_response_set_header(response, "Content-Type", content_type);
 

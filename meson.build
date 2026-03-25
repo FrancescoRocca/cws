@@ -9,9 +9,12 @@ add_global_arguments('-Wno-pedantic', language: 'c')
 
 cc = meson.get_compiler('c')
 
-subdir('src')
-
 incdir = include_directories('include')
+srcdir = include_directories('src')
+
+include_dirs = [incdir, srcdir]
+
+subdir('src')
 
 libtomlc17 = dependency('libtomlc17', required: true)
 libmath = cc.find_library('m', required: true)
@@ -23,7 +26,7 @@ add_global_arguments('-DUSE_COLORS', language: 'c')
 add_global_arguments('-DEVELOPER', language: 'c')
 add_global_arguments('-D_POSIX_C_SOURCE=200809L', language: 'c')
 
-exe = executable('cws', server, include_directories: incdir, dependencies: deps)
+exe = executable('cws', server, include_directories: include_dirs, dependencies: deps)
 
 # Test
 test_src = files('test/server.c')
