@@ -1,7 +1,7 @@
 project(
     'cws',
     'c',
-    version: '0.1.0',
+    version: '0.1.1',
     default_options: ['c_std=gnu23', 'warning_level=3'],
 )
 
@@ -17,10 +17,9 @@ include_dirs = [incdir, srcdir]
 subdir('src')
 
 libtomlc17 = dependency('libtomlc17', required: true)
-libmath = cc.find_library('m', required: true)
 libmyclib = cc.find_library('myclib', required: true)
 
-deps = [libtomlc17, libmath, libmyclib]
+deps = [libtomlc17, libmyclib]
 
 add_global_arguments('-DUSE_COLORS', language: 'c')
 add_global_arguments('-DEVELOPER', language: 'c')
