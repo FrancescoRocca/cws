@@ -10,6 +10,7 @@
 #include "http/handler.h"
 #include "http/request.h"
 #include "http/response.h"
+#include "utils/debug.h"
 #include "utils/error.h"
 
 /* Create epoll instance for a worker */
@@ -43,23 +44,32 @@ static cws_return worker_handle_client_data(int epfd, int client_fd, cws_config_
 	string_s *data = string_new("", 4096);
 
 	/* Read data from socket */
-	ssize_t total_bytes = cws_socket_read(client_fd, data);
+	int total_bytes = cws_socket_read(client_fd, data);
 
-	if (total_bytes == 0) {
-		/* Partial request; wait for more data */
+	/* Partial request, wait for more data */
+	if (total_bytes == -2) {
 		string_free(data);
 
 		return CWS_OK;
 	}
 
-	if (total_bytes < 0) {
+	/* Connection closed */
+	if (total_bytes == 0) {
+		cws_log_info("Client (fd: %d) disconnected", client_fd);
+		worker_close_client(epfd, client_fd);
+		string_free(data);
+		return CWS_CLIENT_DISCONNECTED_ERROR;
+	}
+
+	/* Client error */
+	if (total_bytes == -1) {
 		worker_close_client(epfd, client_fd);
 		string_free(data);
 		return CWS_CLIENT_DISCONNECTED_ERROR;
 	}
 
 	/* Parse HTTP request */
-	cws_request_s *request = cws_http_parse(data);
+	cws_request_s *request = cws_request_parse(data);
 	string_free(data);
 	if (request == NULL) {
 		worker_close_client(epfd, client_fd);
@@ -67,7 +77,7 @@ static cws_return worker_handle_client_data(int epfd, int client_fd, cws_config_
 	}
 
 	/* Configure handler */
-	char *host = cws_http_get_host(request);
+	char *host = cws_request_get_header(request, "host");
 	cws_vhost_s *vh = get_vhost(config, host);
 	cws_handler_config_s conf = {
 		.domain = vh->domain,
@@ -83,11 +93,14 @@ static cws_return worker_handle_client_data(int epfd, int client_fd, cws_config_
 		cws_response_free(response);
 	}
 
-	/* Cleanup */
-	cws_http_free(request);
+	/* Close connection if requested */
+	/* keep-alive by default (http/1.1) */
+	if (!strcmp(cws_request_get_header(request, "Connection"), "close")) {
+		worker_close_client(epfd, client_fd);
+	}
 
-	/* TODO: check Connection: keep-alive */
-	worker_close_client(epfd, client_fd);
+	/* Cleanup */
+	cws_request_free(request);
 
 	return CWS_OK;
 }

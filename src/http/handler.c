@@ -51,11 +51,17 @@ cws_response_s *cws_handler_static_file(cws_request_s *request, cws_handler_conf
 		return cws_handler_not_found();
 	}
 
+	/* Allocate a response object */
+	/* @TODO: do not use http 200 ok as default */
 	cws_response_s *response = cws_response_new(HTTP_OK);
 	if (!response) {
 		string_free(filepath);
 		return cws_response_error(HTTP_INTERNAL_ERROR, "Failed to create response");
 	}
+
+	/* Retrieve Connection header and set it in the response */
+	const char *conn = cws_request_get_header(request, "Connection");
+	cws_response_set_header(response, "Connection", conn);
 
 	cws_response_set_body_file(response, path);
 	cws_log_debug("Serving file: %s (%zu bytes)", path, response->content_length);
