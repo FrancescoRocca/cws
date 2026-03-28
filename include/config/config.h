@@ -29,4 +29,6 @@ cws_config_s *cws_config_init(void);
 
 void cws_config_free(cws_config_s *config);
 
+cws_vhost_s *config_get_vhost(cws_config_s *config, char *host);
+
 #endif

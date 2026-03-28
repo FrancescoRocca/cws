@@ -1,18 +1,30 @@
 #include "http/handler.h"
+#include "config/config.h"
 #include "utils/debug.h"
 #include <myclib/mystring.h>
 #include <string.h>
 #include <sys/stat.h>
 
 /* Sanitize and resolve file path */
-/* @TODO: fix path traversal */
 static string_s *resolve_file_path(const char *url_path, cws_handler_config_s *config) {
 	string_s *full_path = string_new(config->root, 256);
+	if (!full_path) {
+		return NULL;
+	}
 
 	if (strcmp(url_path, "/") == 0) {
 		string_append(full_path, "/");
-		/* Use vhost index file */
+		/* @TODO: Use vhost index file */
 		string_append(full_path, "index.html");
+		return full_path;
+	}
+
+	string_s *url_path_string = string_new(url_path, 0);
+	if (!url_path_string) {
+		return NULL;
+	}
+
+	if (string_find(url_path_string, "..")) {
 		return full_path;
 	}
 
@@ -43,6 +55,8 @@ cws_response_s *cws_handler_static_file(cws_request_s *request, cws_handler_conf
 		return cws_handler_not_implemented();
 	}
 
+	/* @TODO: use config_get_vhost */
+	// cws_vhost_s *vhost = config_get_vhost(, request->host);
 	string_s *filepath = resolve_file_path(string_cstr(request->path), config);
 	const char *path = string_cstr(filepath);
 

@@ -28,18 +28,6 @@ static void worker_close_client(int epfd, int client_fd) {
 	close(client_fd);
 }
 
-static cws_vhost_s *get_vhost(cws_config_s *config, char *host) {
-	for (unsigned i = 0; i < config->virtual_hosts_count; ++i) {
-		cws_vhost_s *vh = config->virtual_hosts;
-		if (!strcmp(vh[i].domain, host)) {
-			return &vh[i];
-		}
-	}
-
-	/* Return default domain */
-	return config->default_vh;
-}
-
 static cws_return worker_handle_client_data(int epfd, int client_fd, cws_config_s *config) {
 	string_s *data = string_new("", 4096);
 
@@ -78,7 +66,7 @@ static cws_return worker_handle_client_data(int epfd, int client_fd, cws_config_
 
 	/* Configure handler */
 	char *host = cws_request_get_header(request, "host");
-	cws_vhost_s *vh = get_vhost(config, host);
+	cws_vhost_s *vh = config_get_vhost(config, host);
 	cws_handler_config_s conf = {
 		.domain = vh->domain,
 		.root = vh->root,

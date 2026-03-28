@@ -173,3 +173,15 @@ void cws_config_free(cws_config_s *config) {
 		free(config);
 	}
 }
+
+cws_vhost_s *config_get_vhost(cws_config_s *config, char *host) {
+	for (unsigned i = 0; i < config->virtual_hosts_count; ++i) {
+		cws_vhost_s *vh = config->virtual_hosts;
+		if (!strcmp(vh[i].domain, host)) {
+			return &vh[i];
+		}
+	}
+
+	/* Return default domain */
+	return config->default_vh;
+}
