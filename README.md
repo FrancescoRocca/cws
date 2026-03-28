@@ -22,12 +22,6 @@ meson compile -C build
 2. Run `./build/cws`
 3. Open `http://localhost:3030` in your browser
 
-## Roadmap
-
-- [ ] Virtual hosts support
-- [ ] Minimal templating engine
-- [ ] IPv6 compatibility
-
 ## Performance
 
 Tested with [goku](https://github.com/jcaromiq/goku) (`-c 400 -d 30`):

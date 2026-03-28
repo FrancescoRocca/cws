@@ -3,6 +3,7 @@
 #include "utils/debug.h"
 #include "utils/hash.h"
 #include <core/socket.h>
+#include <myclib/myhashmap.h>
 #include <myclib/mystring.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,6 +15,26 @@
 static hashmap_s *response_headers_new(void) {
 	return hm_new(my_str_hash_fn, my_str_equal_fn, my_str_free_fn, my_str_free_fn, sizeof(char) * HEADER_KEY_MAX,
 				  sizeof(char) * HEADER_VALUE_MAX);
+}
+
+static int response_get_headers(hashmap_s *headers, char *out_headers, size_t len) {
+	size_t keys_len = 0;
+	char **keys = (char **)hm_get_keys(headers, &keys_len);
+	if (!keys) {
+		cws_log_debug("no headers??");
+		return -1;
+	}
+
+	size_t offset = 0;
+	for (size_t i = 0; i < keys_len; ++i) {
+		bucket_s *bucket = hm_get(headers, keys[i]);
+		offset += snprintf(out_headers, *out_headers + offset, "%s: %s", keys[i], (char *)bucket->value);
+		if ((size_t)(headers + offset) >= len) {
+			return -1;
+		}
+	}
+
+	return 0;
 }
 
 cws_response_s *cws_response_new(cws_http_status_e status) {
@@ -137,16 +158,18 @@ int cws_response_send(int sockfd, cws_response_s *response) {
 	}
 
 	char headers[HEADERS_BUFFER_SIZE];
+
+	response_get_headers(response->headers, headers, sizeof headers);
 	int offset = snprintf(headers, sizeof(headers), "HTTP/1.1 %s\r\n", cws_http_status_string(response->status));
 
 	char content_length_str[32];
 	snprintf(content_length_str, sizeof(content_length_str), "%zu", response->content_length);
-	cws_response_set_header(response, "Content-Length", content_length_str);
 
-	offset += snprintf(headers + offset, sizeof(headers) - offset,
-					   "Content-Length: %zu\r\n"
-					   "Connection: close\r\n",
-					   response->content_length);
+	/* @TODO: I can do this in the response_get_header() but I need to check
+	 * if I have space left for \r\n
+	 */
+	cws_response_set_header(response, "Content-Length", content_length_str);
+	offset += snprintf(headers + offset, sizeof(headers) - offset, "Content-Length: %zu\r\n", response->content_length);
 
 	offset += snprintf(headers + offset, sizeof(headers) - offset, "\r\n");
 

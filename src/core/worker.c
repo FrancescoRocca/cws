@@ -151,6 +151,7 @@ cws_worker_s **cws_worker_new(size_t workers_num, cws_config_s *config) {
 		/* Create per-worker epoll instance */
 		if (worker_setup_epoll(workers[i]) != CWS_OK) {
 			for (size_t j = 0; j < i; ++j) {
+				close(workers[j]->epfd);
 				free(workers[j]);
 			}
 			free(workers);
@@ -174,6 +175,7 @@ void cws_worker_free(cws_worker_s **workers, size_t workers_num) {
 
 	for (size_t i = 0; i < workers_num; ++i) {
 		pthread_join(workers[i]->thread, NULL);
+		close(workers[i]->epfd);
 		free(workers[i]);
 	}
 

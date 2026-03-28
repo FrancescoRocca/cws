@@ -32,7 +32,7 @@ int main(void) {
 		return EXIT_FAILURE;
 	}
 
-	cws_server_s server;
+	cws_server_s server = {0};
 	cws_return ret;
 
 	ret = cws_server_setup(&server, config);

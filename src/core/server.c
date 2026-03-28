@@ -1,6 +1,7 @@
 #include "core/server.h"
 
 #include <errno.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/epoll.h>
@@ -45,56 +46,74 @@ cws_return cws_server_setup(cws_server_s *server, cws_config_s *config) {
 		return CWS_CONFIG_ERROR;
 	}
 
-	memset(server, 0, sizeof *server);
+	cws_return returncode = CWS_OK;
 
-	struct addrinfo hints;
-	struct addrinfo *res;
+	struct addrinfo hints = {0};
+	struct addrinfo *res = {0};
 	cws_server_setup_hints(&hints, config->host);
 
 	int status = getaddrinfo(config->host, config->port, &hints, &res);
 	if (status != 0) {
 		cws_log_error("getaddrinfo() error: %s", gai_strerror(status));
-		return CWS_GETADDRINFO_ERROR;
+		returncode = CWS_GETADDRINFO_ERROR;
+		goto cleanup;
 	}
 
 	server->sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	if (server->sockfd < 0) {
 		cws_log_error("socket(): %s", strerror(errno));
-		return CWS_SOCKET_ERROR;
+		returncode = CWS_SOCKET_ERROR;
+		goto cleanup;
 	}
 
 	const int opt = 1;
 	status = setsockopt(server->sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
 	if (status != 0) {
 		cws_log_error("setsockopt(): %s", strerror(errno));
-		return CWS_SETSOCKOPT_ERROR;
+		returncode = CWS_SETSOCKOPT_ERROR;
+		goto cleanup;
 	}
 
 	status = bind(server->sockfd, res->ai_addr, res->ai_addrlen);
 	if (status != 0) {
 		cws_log_error("bind(): %s", strerror(errno));
-		return CWS_BIND_ERROR;
+		returncode = CWS_BIND_ERROR;
+		goto cleanup;
 	}
 
 	status = listen(server->sockfd, CWS_SERVER_BACKLOG);
 	if (status != 0) {
 		cws_log_error("listen(): %s", strerror(errno));
-		return CWS_LISTEN_ERROR;
+		returncode = CWS_LISTEN_ERROR;
+		goto cleanup;
 	}
 
 	freeaddrinfo(res);
 
 	cws_return ret = cws_server_setup_epoll(server->sockfd, &server->epfd);
 	if (ret != CWS_OK) {
-		return ret;
+		returncode = ret;
+		goto cleanup;
 	}
 
 	server->workers = cws_worker_new(config->workers, config);
 	if (server->workers == NULL) {
-		return CWS_WORKER_ERROR;
+		returncode = CWS_WORKER_ERROR;
+		goto cleanup;
 	}
 
 	return CWS_OK;
+
+cleanup:
+	if (res) {
+		freeaddrinfo(res);
+	}
+
+	if (server->sockfd >= 0) {
+		close(server->sockfd);
+	}
+
+	return returncode;
 }
 
 cws_return cws_server_start(cws_server_s *server) {
@@ -115,6 +134,10 @@ cws_return cws_server_start(cws_server_s *server) {
 		}
 
 		for (int i = 0; i < nfds; ++i) {
+			if (events[i].data.fd != server->sockfd) {
+				continue;
+			}
+
 			int client_fd = cws_server_handle_new_client(server->sockfd);
 			if (client_fd < 0) {
 				continue;
@@ -163,11 +186,11 @@ void cws_server_shutdown(cws_server_s *server) {
 		return;
 	}
 
-	if (server->sockfd > 0) {
+	if (server->sockfd >= 0) {
 		close(server->sockfd);
 	}
 
-	if (server->epfd > 0) {
+	if (server->epfd >= 0) {
 		close(server->epfd);
 	}
 
