@@ -31,7 +31,7 @@ if clangformat.found()
         'format',
         command: [
             'ninja',
-            '-C', join_paths(meson.current_source_dir()),
+            '-C', join_paths(meson.current_build_dir()),
             'clang-format',
         ],
     )
