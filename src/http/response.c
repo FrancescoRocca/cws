@@ -21,7 +21,7 @@ static int response_get_headers(hashmap_s *headers, char *out_headers, size_t le
 	size_t keys_len = 0;
 	char **keys = (char **)hm_get_keys(headers, &keys_len);
 	if (!keys) {
-		cws_log_debug("no headers??");
+		cws_log_debug("%s", "no headers??");
 		return -1;
 	}
 

@@ -22,6 +22,7 @@ add_global_arguments('-DEVELOPER', language: 'c')
 add_global_arguments('-D_POSIX_C_SOURCE=200809L', language: 'c')
 
 exe = executable('cws', server, include_directories: include_dirs, dependencies: deps)
+subdir('test')
 
 # Commands
 
@@ -36,12 +37,3 @@ if clangformat.found()
         ],
     )
 endif
-
-# Test
-
-test_src = files('test/server.c')
-test_curl_dep = dependency('libcurl', required: false)
-test_deps = [test_curl_dep]
-test_exec = executable('test_http', test_src, dependencies: test_deps)
-
-test('index get', test_exec, args: [exe.full_path()])

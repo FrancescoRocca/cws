@@ -16,18 +16,18 @@ int main(void) {
 	cws_log_init();
 
 	if (signal(SIGINT, cws_signal_handler) == SIG_ERR) {
-		cws_log_error("signal()");
+		cws_log_error("%s", "signal()");
 		return EXIT_FAILURE;
 	}
 
 	if (signal(SIGTERM, cws_signal_handler) == SIG_ERR) {
-		cws_log_error("signal()");
+		cws_log_error("%s", "signal()");
 		return EXIT_FAILURE;
 	}
 
 	cws_config_s *config = cws_config_init();
 	if (!config) {
-		cws_log_error("Unable to parse config");
+		cws_log_error("%s", "Unable to parse config");
 		cws_log_shutdown();
 		return EXIT_FAILURE;
 	}
@@ -51,7 +51,7 @@ int main(void) {
 		cws_log_error("Unable to start web server: %s", cws_error_str(ret));
 	}
 
-	cws_log_info("Shutting down cws");
+	cws_log_info("%s", "Shutting down cws");
 	cws_server_shutdown(&server);
 	cws_config_free(config);
 	cws_log_shutdown();
