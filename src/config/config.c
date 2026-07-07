@@ -62,17 +62,17 @@ static bool parse_vhosts(cws_config_s *config, toml_result_t result) {
 
 		/* Iterate for each page */
 		for (int j = 0; j < pages.u.arr.size; ++j) {
-			toml_datum_t page = pages.u.arr.elem[i];
+			toml_datum_t page = pages.u.arr.elem[j];
 
 			toml_datum_t status = toml_seek(page, "status");
 			vh->error_pages[j].status = strdup(status.u.str.ptr);
-			if (!vh->error_pages[i].status) {
+			if (!vh->error_pages[j].status) {
 				return false;
 			}
 
 			toml_datum_t path = toml_seek(page, "path");
 			vh->error_pages[j].path = strdup(path.u.str.ptr);
-			if (!vh->error_pages[i].path) {
+			if (!vh->error_pages[j].path) {
 				return false;
 			}
 		}
@@ -125,6 +125,7 @@ cws_config_s *cws_config_init(void) {
 	}
 
 	if (!parse_toml(config)) {
+		free(config);
 		return NULL;
 	}
 
@@ -159,14 +160,22 @@ void cws_config_free(cws_config_s *config) {
 		}
 
 		for (unsigned j = 0; j < vh->error_pages_count; ++j) {
-			if (vh->error_pages[i].path) {
-				free(vh->error_pages[i].path);
+			if (vh->error_pages[j].path) {
+				free(vh->error_pages[j].path);
 			}
 
-			if (vh->error_pages[i].status) {
-				free(vh->error_pages[i].status);
+			if (vh->error_pages[j].status) {
+				free(vh->error_pages[j].status);
 			}
 		}
+
+		if (vh->error_pages) {
+			free(vh->error_pages);
+		}
+	}
+
+	if (config->virtual_hosts) {
+		free(config->virtual_hosts);
 	}
 
 	if (config) {
