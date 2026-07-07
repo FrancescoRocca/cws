@@ -5,6 +5,7 @@
 
 int cws_socket_read(int sockfd, string_s *str) {
 	char tmp[4096] = {0};
+	int total = 0;
 
 	for (;;) {
 		ssize_t n = recv(sockfd, tmp, sizeof tmp, 0);
@@ -13,20 +14,24 @@ int cws_socket_read(int sockfd, string_s *str) {
 		if (n > 0) {
 			tmp[n] = '\0';
 			string_append(str, tmp);
-			return n;
+			total += n;
+			continue;
 		}
 
 		/* Client closed */
 		if (n == 0) {
-			return 0;
+			return total > 0 ? total : 0;
 		}
 
 		if (errno == EINTR) {
 			continue;
 		}
 
-		/* No data now */
+		/* No more data available */
 		if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			if (total > 0) {
+				return total;
+			}
 			return -2;
 		}
 
