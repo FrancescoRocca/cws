@@ -27,7 +27,7 @@ static void cws_server_setup_hints(struct addrinfo *hints, const char *hostname)
 static cws_return cws_server_setup_epoll(int server_fd, int *epfd_out) {
 	int epfd = epoll_create1(0);
 	if (epfd < 0) {
-		return epfd;
+		return CWS_EPOLL_CREATE_ERROR;
 	}
 
 	cws_return ret = cws_fd_set_nonblocking(server_fd);
