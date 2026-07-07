@@ -17,24 +17,26 @@ static hashmap_s *response_headers_new(void) {
 				  sizeof(char) * HEADER_VALUE_MAX);
 }
 
+/* Write headers to buffer, returns number of bytes written or -1 on overflow */
 static int response_get_headers(hashmap_s *headers, char *out_headers, size_t len) {
 	size_t keys_len = 0;
 	char **keys = (char **)hm_get_keys(headers, &keys_len);
 	if (!keys) {
-		cws_log_debug("%s", "no headers??");
-		return -1;
+		return 0;
 	}
 
 	size_t offset = 0;
 	for (size_t i = 0; i < keys_len; ++i) {
 		bucket_s *bucket = hm_get(headers, keys[i]);
-		offset += snprintf(out_headers, *out_headers + offset, "%s: %s", keys[i], (char *)bucket->value);
-		if ((size_t)(headers + offset) >= len) {
+		int written =
+			snprintf(out_headers + offset, len - offset, "%s: %s\r\n", (char *)keys[i], (char *)bucket->value);
+		if (written < 0 || (size_t)written >= len - offset) {
 			return -1;
 		}
+		offset += (size_t)written;
 	}
 
-	return 0;
+	return (int)offset;
 }
 
 cws_response_s *cws_response_new(cws_http_status_e status) {
@@ -159,18 +161,22 @@ int cws_response_send(int sockfd, cws_response_s *response) {
 
 	char headers[HEADERS_BUFFER_SIZE];
 
-	response_get_headers(response->headers, headers, sizeof headers);
+	/* Status line */
 	int offset = snprintf(headers, sizeof(headers), "HTTP/1.1 %s\r\n", cws_http_status_string(response->status));
 
+	/* Ensure Content-Length is set */
 	char content_length_str[32];
 	snprintf(content_length_str, sizeof(content_length_str), "%zu", response->content_length);
-
-	/* @TODO: I can do this in the response_get_header() but I need to check
-	 * if I have space left for \r\n
-	 */
 	cws_response_set_header(response, "Content-Length", content_length_str);
-	offset += snprintf(headers + offset, sizeof(headers) - offset, "Content-Length: %zu\r\n", response->content_length);
 
+	/* Append all headers */
+	int hdr_len = response_get_headers(response->headers, headers + offset, sizeof(headers) - offset);
+	if (hdr_len < 0) {
+		return -1;
+	}
+	offset += hdr_len;
+
+	/* Final CRLF to end header section */
 	offset += snprintf(headers + offset, sizeof(headers) - offset, "\r\n");
 
 	if (cws_socket_send(sockfd, headers, offset, 0) < 0) {
