@@ -19,7 +19,7 @@ deps = [libtomlc17, libmyclib]
 
 add_global_arguments('-DUSE_COLORS', language: 'c')
 add_global_arguments('-DEVELOPER', language: 'c')
-add_global_arguments('-D_POSIX_C_SOURCE=200809L', language: 'c')
+add_global_arguments('-D_GNU_SOURCE', language: 'c')
 
 exe = executable('cws', server, include_directories: include_dirs, dependencies: deps)
 subdir('test')

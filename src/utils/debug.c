@@ -16,7 +16,7 @@ void _cws_log_info_internal(const char *file, int line, const char *fmt, ...) {
 	fprintf(stdout, "\n");
 
 	va_start(args, fmt);
-	syslog(LOG_INFO, fmt, args);
+	vsyslog(LOG_INFO, fmt, args);
 	va_end(args);
 }
 
@@ -29,7 +29,7 @@ void _cws_log_warning_internal(const char *file, int line, const char *fmt, ...)
 	fprintf(stdout, "\n");
 
 	va_start(args, fmt);
-	syslog(LOG_WARNING, fmt, args);
+	vsyslog(LOG_WARNING, fmt, args);
 	va_end(args);
 }
 
@@ -42,7 +42,7 @@ void _cws_log_error_internal(const char *file, int line, const char *fmt, ...) {
 	fprintf(stdout, "\n");
 
 	va_start(args, fmt);
-	syslog(LOG_ERR, fmt, args);
+	vsyslog(LOG_ERR, fmt, args);
 	va_end(args);
 }
 
@@ -56,7 +56,7 @@ void _cws_log_debug_internal(const char *file, int line, const char *fmt, ...) {
 	fprintf(stdout, "\n");
 
 	va_start(args, fmt);
-	syslog(LOG_DEBUG, fmt, args);
+	vsyslog(LOG_DEBUG, fmt, args);
 	va_end(args);
 }
 #else
