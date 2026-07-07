@@ -1,5 +1,4 @@
 #include "http/handler.h"
-#include "config/config.h"
 #include "utils/debug.h"
 #include <myclib/mystring.h>
 #include <string.h>
@@ -21,14 +20,19 @@ static string_s *resolve_file_path(const char *url_path, cws_handler_config_s *c
 
 	string_s *url_path_string = string_new(url_path, 0);
 	if (!url_path_string) {
+		string_free(full_path);
 		return NULL;
 	}
 
+	/* Block directory traversal attempts */
 	if (string_find(url_path_string, "..")) {
-		return full_path;
+		string_free(url_path_string);
+		string_free(full_path);
+		return NULL;
 	}
 
 	string_append(full_path, url_path);
+	string_free(url_path_string);
 
 	return full_path;
 }
@@ -58,8 +62,11 @@ cws_response_s *cws_handler_static_file(cws_request_s *request, cws_handler_conf
 	/* @TODO: use config_get_vhost */
 	// cws_vhost_s *vhost = config_get_vhost(, request->host);
 	string_s *filepath = resolve_file_path(string_cstr(request->path), config);
-	const char *path = string_cstr(filepath);
+	if (!filepath) {
+		return cws_handler_not_found();
+	}
 
+	const char *path = string_cstr(filepath);
 	if (!file_exists(path)) {
 		string_free(filepath);
 		return cws_handler_not_found();
