@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/epoll.h>
 #include <unistd.h>
 
@@ -67,6 +68,13 @@ static cws_return worker_handle_client_data(int epfd, int client_fd, cws_config_
 	/* Configure handler */
 	char *host = cws_request_get_header(request, "host");
 	cws_vhost_s *vh = config_get_vhost(config, host);
+	if (!vh) {
+		cws_log_warning("No virtual host found for '%s', closing connection", host);
+		cws_request_free(request);
+		worker_close_client(epfd, client_fd);
+		return CWS_OK;
+	}
+
 	cws_handler_config_s conf = {
 		.domain = vh->domain,
 		.root = vh->root,
@@ -81,9 +89,24 @@ static cws_return worker_handle_client_data(int epfd, int client_fd, cws_config_
 		cws_response_free(response);
 	}
 
-	/* Close connection if requested */
-	/* keep-alive by default (http/1.1) */
-	if (!strcmp(cws_request_get_header(request, "Connection"), "close")) {
+	/* Connection keep-alive */
+	const char *version = string_cstr(request->http_version);
+	bool close_connection = false;
+
+	if (strstr(version, "HTTP/1.0")) {
+		/* HTTP/1.0: default close, explicit keep-alive to stay open */
+		close_connection = true;
+		if (!strcasecmp(cws_request_get_header(request, "Connection"), "keep-alive")) {
+			close_connection = false;
+		}
+	} else {
+		/* HTTP/1.1 (or unknown): default keep-alive */
+		if (!strcasecmp(cws_request_get_header(request, "Connection"), "close")) {
+			close_connection = true;
+		}
+	}
+
+	if (close_connection) {
 		worker_close_client(epfd, client_fd);
 	}
 
