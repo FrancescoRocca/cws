@@ -10,6 +10,8 @@ workers = 6
 # "default" domain is required
 domain = "default"
 root = "www"
+# Index file served for "/" (optional, defaults to "index.html")
+index = "index.html"
 
 [[virtual_hosts.pages]]
 status = "404"

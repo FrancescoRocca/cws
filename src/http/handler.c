@@ -14,8 +14,7 @@ static string_s *resolve_file_path(const char *url_path, cws_handler_config_s *c
 
 	if (strcmp(url_path, "/") == 0) {
 		string_append(full_path, "/");
-		/* @TODO: Use vhost index file */
-		string_append(full_path, "index.html");
+		string_append(full_path, config->index ? config->index : "index.html");
 		return full_path;
 	}
 
@@ -60,8 +59,6 @@ cws_response_s *cws_handler_static_file(cws_request_s *request, cws_handler_conf
 		return cws_handler_not_implemented();
 	}
 
-	/* @TODO: use config_get_vhost */
-	// cws_vhost_s *vhost = config_get_vhost(, request->host);
 	string_s *filepath = resolve_file_path(string_cstr(request->path), config);
 	if (!filepath) {
 		return cws_handler_not_found();
@@ -74,7 +71,6 @@ cws_response_s *cws_handler_static_file(cws_request_s *request, cws_handler_conf
 	}
 
 	/* Allocate a response object */
-	/* @TODO: do not use http 200 ok as default */
 	cws_response_s *response = cws_response_new(HTTP_OK);
 	if (!response) {
 		string_free(filepath);

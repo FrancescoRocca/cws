@@ -7,6 +7,7 @@
 typedef struct cws_handler_config {
 	char *root;
 	char *domain;
+	const char *index; /* index file served for "/", NULL = "index.html" */
 } cws_handler_config_s;
 
 cws_response_s *cws_handler_static_file(cws_request_s *request, cws_handler_config_s *config);

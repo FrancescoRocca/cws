@@ -11,6 +11,7 @@ typedef struct cws_page {
 typedef struct cws_vhost {
 	char *domain;
 	char *root;
+	char *index; /* optional index file, defaults to "index.html" */
 	cws_page_s *error_pages;
 	unsigned error_pages_count;
 } cws_vhost_s;

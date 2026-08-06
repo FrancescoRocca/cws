@@ -27,6 +27,7 @@ static void config_free_fields(cws_config_s *config) {
 		cws_vhost_s *vh = &config->virtual_hosts[i];
 		free(vh->domain);
 		free(vh->root);
+		free(vh->index);
 
 		for (unsigned j = 0; j < vh->error_pages_count; ++j) {
 			free(vh->error_pages[j].path);
@@ -88,6 +89,18 @@ static bool parse_vhosts(cws_config_s *config, toml_result_t result) {
 		}
 		vh->root = strdup(root.u.str.ptr);
 		if (!vh->root) {
+			return false;
+		}
+
+		/* Index file */
+		toml_datum_t index = toml_seek(elem, "index");
+		if (index.type == TOML_STRING) {
+			vh->index = strdup(index.u.str.ptr);
+			if (!vh->index) {
+				return false;
+			}
+		} else if (index.type != TOML_UNKNOWN) {
+			cws_log_error("config: 'index' of virtual host '%s' must be a string", vh->domain);
 			return false;
 		}
 

@@ -106,9 +106,9 @@ static cws_return worker_handle_request(cws_worker_s *worker, int client_fd, str
 	cws_vhost_s *vh = config_get_vhost(worker->config, host);
 	cws_handler_config_s conf;
 	if (vh) {
-		conf = (cws_handler_config_s){.domain = vh->domain, .root = vh->root};
+		conf = (cws_handler_config_s){.domain = vh->domain, .root = vh->root, .index = vh->index};
 	} else {
-		conf = (cws_handler_config_s){.domain = "default", .root = worker->config->root};
+		conf = (cws_handler_config_s){.domain = "default", .root = worker->config->root, .index = NULL};
 	}
 	free(host);
 
