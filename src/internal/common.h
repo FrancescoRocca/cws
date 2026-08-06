@@ -7,4 +7,10 @@
 #define CHUNK_SIZE 8192
 #define HEADERS_BUFFER_SIZE 2048
 
+/* Maximum request size (headers included) accepted per connection */
+#define MAX_REQUEST_SIZE (64 * 1024)
+
+/* Poll timeout (ms) while waiting for the socket to become writable */
+#define SOCKET_SEND_POLL_TIMEOUT_MS 5000
+
 #endif

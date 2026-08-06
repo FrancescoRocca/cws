@@ -18,6 +18,8 @@ typedef struct cws_request {
 
 cws_request_s *cws_request_parse(string_s *request_str);
 
+/* Returns a heap-allocated copy of the header value, or an empty string
+ * when the header is missing. The caller must free() the result. */
 char *cws_request_get_header(cws_request_s *request, const char *header);
 
 void cws_request_free(cws_request_s *request);

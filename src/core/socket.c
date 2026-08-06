@@ -1,20 +1,29 @@
 #include "core/socket.h"
 
 #include <errno.h>
+#include <poll.h>
 #include <sys/socket.h>
+
+#include "internal/common.h"
 
 int cws_socket_read(int sockfd, string_s *str) {
 	char tmp[4096] = {0};
 	int total = 0;
 
 	for (;;) {
-		ssize_t n = recv(sockfd, tmp, sizeof tmp, 0);
+		/* NUL terminator */
+		ssize_t n = recv(sockfd, tmp, sizeof tmp - 1, 0);
 
 		/* We have some data */
 		if (n > 0) {
 			tmp[n] = '\0';
 			string_append(str, tmp);
 			total += n;
+
+			/* Cap the total buffered request size */
+			if (string_len(str) > MAX_REQUEST_SIZE) {
+				return -1;
+			}
 			continue;
 		}
 
@@ -40,7 +49,7 @@ int cws_socket_read(int sockfd, string_s *str) {
 	}
 }
 
-int cws_socket_send(int sockfd, const char *buffer, size_t len, int flags) {
+ssize_t cws_socket_send(int sockfd, const char *buffer, size_t len, int flags) {
 	size_t total_sent = 0;
 
 	while (total_sent < len) {
@@ -52,16 +61,22 @@ int cws_socket_send(int sockfd, const char *buffer, size_t len, int flags) {
 		}
 
 		if (n == 0) {
-			break;
+			/* Peer closed the connection */
+			return -1;
 		}
 
 		if (errno == EINTR) {
 			continue;
 		}
 
-		/* Partial write */
+		/* Socket buffer full: wait until writable, then retry */
 		if (errno == EAGAIN || errno == EWOULDBLOCK) {
-			break;
+			struct pollfd pfd = {.fd = sockfd, .events = POLLOUT};
+			int pr = poll(&pfd, 1, SOCKET_SEND_POLL_TIMEOUT_MS);
+			if (pr <= 0) {
+				return -1;
+			}
+			continue;
 		}
 
 		return -1;

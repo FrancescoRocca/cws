@@ -70,6 +70,14 @@ static bool parse_location(cws_request_s *req, char **cursor) {
 
 	s[len] = '\0';
 	cws_log_debug("Location: %s", s);
+
+	/* Split the query string from the path */
+	char *qmark = strchr(s, '?');
+	if (qmark) {
+		*qmark = '\0';
+		req->query_string = string_new(qmark + 1, 0);
+	}
+
 	string_append(req->path, s);
 	*cursor = s + len + 1;
 
@@ -187,15 +195,19 @@ cws_request_s *cws_request_parse(string_s *request_str) {
 
 char *cws_request_get_header(cws_request_s *request, const char *header) {
 	if (!request || !header || !request->headers) {
-		return "";
+		return strdup("");
 	}
 
 	bucket_s *bucket = hm_get(request->headers, (void *)header);
 	if (!bucket) {
-		return "";
+		return strdup("");
 	}
 
-	return (char *)bucket->value;
+	/* The bucket is a heap copy: duplicate the value, then release it */
+	char *value = strdup((char *)bucket->value);
+	hm_free_bucket(bucket);
+
+	return value;
 }
 
 void cws_request_free(cws_request_s *request) {

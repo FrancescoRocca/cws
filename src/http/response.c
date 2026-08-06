@@ -28,13 +28,20 @@ static int response_get_headers(hashmap_s *headers, char *out_headers, size_t le
 	size_t offset = 0;
 	for (size_t i = 0; i < keys_len; ++i) {
 		bucket_s *bucket = hm_get(headers, keys[i]);
+		if (!bucket) {
+			continue;
+		}
 		int written =
 			snprintf(out_headers + offset, len - offset, "%s: %s\r\n", (char *)keys[i], (char *)bucket->value);
+		hm_free_bucket(bucket);
 		if (written < 0 || (size_t)written >= len - offset) {
+			hm_free_keys(headers, (void **)keys, keys_len);
 			return -1;
 		}
 		offset += (size_t)written;
 	}
+
+	hm_free_keys(headers, (void **)keys, keys_len);
 
 	return (int)offset;
 }
@@ -177,20 +184,26 @@ int cws_response_send(int sockfd, cws_response_s *response) {
 	offset += hdr_len;
 
 	/* Final CRLF to end header section */
-	offset += snprintf(headers + offset, sizeof(headers) - offset, "\r\n");
+	int crlf = snprintf(headers + offset, sizeof(headers) - offset, "\r\n");
+	if (crlf < 0 || offset + crlf >= (int)sizeof(headers)) {
+		return -1;
+	}
+	offset += crlf;
 
-	if (cws_socket_send(sockfd, headers, offset, 0) < 0) {
+	if (cws_socket_send(sockfd, headers, (size_t)offset, 0) != (ssize_t)offset) {
 		return -1;
 	}
 
 	if (response->body_type == RESPONSE_BODY_STRING && response->body_string) {
 		const char *body = string_cstr(response->body_string);
-		cws_socket_send(sockfd, body, response->content_length, 0);
+		if (cws_socket_send(sockfd, body, response->content_length, 0) != (ssize_t)response->content_length) {
+			return -1;
+		}
 	} else if (response->body_type == RESPONSE_BODY_FILE && response->body_file) {
 		char buffer[CHUNK_SIZE];
 		size_t bytes_read;
 		while ((bytes_read = fread(buffer, 1, sizeof(buffer), response->body_file)) > 0) {
-			if (cws_socket_send(sockfd, buffer, bytes_read, 0) < 0) {
+			if (cws_socket_send(sockfd, buffer, bytes_read, 0) != (ssize_t)bytes_read) {
 				return -1;
 			}
 		}

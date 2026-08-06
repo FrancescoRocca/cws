@@ -23,7 +23,8 @@ extern volatile sig_atomic_t cws_server_run;
 
 typedef struct cws_server {
 	int epfd;				/* epoll instance for incoming connections */
-	int sockfd;				/* listening socket */
+	int *sockfds;			/* listening sockets (one per resolved address) */
+	size_t sockfd_count;	/* number of listening sockets */
 	cws_worker_s **workers; /* worker thread pool */
 	cws_config_s *config;	/* config pointer */
 } cws_server_s;

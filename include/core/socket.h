@@ -6,6 +6,6 @@
 
 int cws_socket_read(int sockfd, string_s *str);
 
-int cws_socket_send(int sockfd, const char *buffer, size_t len, int flags);
+ssize_t cws_socket_send(int sockfd, const char *buffer, size_t len, int flags);
 
 #endif

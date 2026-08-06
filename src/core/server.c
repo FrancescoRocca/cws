@@ -3,15 +3,16 @@
 #include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/epoll.h>
+#include <unistd.h>
 
 #include "core/epoll.h"
 #include "core/worker.h"
 #include "utils/debug.h"
 #include "utils/error.h"
 #include "utils/net.h"
-#include <unistd.h>
 
 static void cws_server_setup_hints(struct addrinfo *hints, const char *hostname) {
 	memset(hints, 0, sizeof *hints);
@@ -24,19 +25,65 @@ static void cws_server_setup_hints(struct addrinfo *hints, const char *hostname)
 	}
 }
 
-static cws_return cws_server_setup_epoll(int server_fd, int *epfd_out) {
-	int epfd = epoll_create1(0);
-	if (epfd < 0) {
-		return CWS_EPOLL_CREATE_ERROR;
+static bool cws_server_is_listening(const cws_server_s *server, int fd) {
+	for (size_t i = 0; i < server->sockfd_count; ++i) {
+		if (server->sockfds[i] == fd) {
+			return true;
+		}
 	}
 
-	cws_return ret = cws_fd_set_nonblocking(server_fd);
-	if (ret != CWS_OK) {
-		return ret;
+	return false;
+}
+
+static cws_return cws_server_setup_sockets(cws_server_s *server, struct addrinfo *res) {
+	const int opt = 1;
+
+	size_t count = 0;
+	for (struct addrinfo *rp = res; rp; rp = rp->ai_next) {
+		++count;
 	}
 
-	cws_epoll_add(epfd, server_fd);
-	*epfd_out = epfd;
+	server->sockfds = malloc(count * sizeof *server->sockfds);
+	if (!server->sockfds) {
+		return CWS_SOCKET_ERROR;
+	}
+
+	for (size_t i = 0; i < count; ++i) {
+		server->sockfds[i] = -1;
+	}
+
+	/* Try every resolved address and keep the ones that bind and listen */
+	for (struct addrinfo *rp = res; rp; rp = rp->ai_next) {
+		int fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+		if (fd < 0) {
+			cws_log_warning("socket(): %s", strerror(errno));
+			continue;
+		}
+
+		if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt) != 0) {
+			cws_log_warning("setsockopt(): %s", strerror(errno));
+			close(fd);
+			continue;
+		}
+
+		if (bind(fd, rp->ai_addr, rp->ai_addrlen) != 0) {
+			cws_log_warning("bind(): %s", strerror(errno));
+			close(fd);
+			continue;
+		}
+
+		if (listen(fd, CWS_SERVER_BACKLOG) != 0) {
+			cws_log_warning("listen(): %s", strerror(errno));
+			close(fd);
+			continue;
+		}
+
+		server->sockfds[server->sockfd_count++] = fd;
+	}
+
+	if (server->sockfd_count == 0) {
+		return CWS_BIND_ERROR;
+	}
 
 	return CWS_OK;
 }
@@ -46,10 +93,14 @@ cws_return cws_server_setup(cws_server_s *server, cws_config_s *config) {
 		return CWS_CONFIG_ERROR;
 	}
 
+	server->epfd = -1;
+	server->sockfds = NULL;
+	server->sockfd_count = 0;
+
 	cws_return returncode = CWS_OK;
 
 	struct addrinfo hints = {0};
-	struct addrinfo *res = {0};
+	struct addrinfo *res = NULL;
 	cws_server_setup_hints(&hints, config->host);
 
 	int status = getaddrinfo(config->host, config->port, &hints, &res);
@@ -59,41 +110,28 @@ cws_return cws_server_setup(cws_server_s *server, cws_config_s *config) {
 		goto cleanup;
 	}
 
-	server->sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-	if (server->sockfd < 0) {
-		cws_log_error("socket(): %s", strerror(errno));
-		returncode = CWS_SOCKET_ERROR;
+	returncode = cws_server_setup_sockets(server, res);
+	if (returncode != CWS_OK) {
 		goto cleanup;
 	}
 
-	const int opt = 1;
-	status = setsockopt(server->sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
-	if (status != 0) {
-		cws_log_error("setsockopt(): %s", strerror(errno));
-		returncode = CWS_SETSOCKOPT_ERROR;
+	server->epfd = epoll_create1(0);
+	if (server->epfd < 0) {
+		returncode = CWS_EPOLL_CREATE_ERROR;
 		goto cleanup;
 	}
 
-	status = bind(server->sockfd, res->ai_addr, res->ai_addrlen);
-	if (status != 0) {
-		cws_log_error("bind(): %s", strerror(errno));
-		returncode = CWS_BIND_ERROR;
-		goto cleanup;
-	}
+	for (size_t i = 0; i < server->sockfd_count; ++i) {
+		cws_return ret = cws_fd_set_nonblocking(server->sockfds[i]);
+		if (ret != CWS_OK) {
+			returncode = ret;
+			goto cleanup;
+		}
 
-	status = listen(server->sockfd, CWS_SERVER_BACKLOG);
-	if (status != 0) {
-		cws_log_error("listen(): %s", strerror(errno));
-		returncode = CWS_LISTEN_ERROR;
-		goto cleanup;
-	}
-
-	freeaddrinfo(res);
-
-	cws_return ret = cws_server_setup_epoll(server->sockfd, &server->epfd);
-	if (ret != CWS_OK) {
-		returncode = ret;
-		goto cleanup;
+		if (cws_epoll_add(server->epfd, server->sockfds[i]) != 0) {
+			returncode = CWS_EPOLL_CREATE_ERROR;
+			goto cleanup;
+		}
 	}
 
 	server->workers = cws_worker_new(config->workers, config);
@@ -109,8 +147,20 @@ cleanup:
 		freeaddrinfo(res);
 	}
 
-	if (server->sockfd >= 0) {
-		close(server->sockfd);
+	if (server->sockfds) {
+		for (size_t i = 0; i < server->sockfd_count; ++i) {
+			if (server->sockfds[i] >= 0) {
+				close(server->sockfds[i]);
+			}
+		}
+		free(server->sockfds);
+		server->sockfds = NULL;
+		server->sockfd_count = 0;
+	}
+
+	if (server->epfd >= 0) {
+		close(server->epfd);
+		server->epfd = -1;
 	}
 
 	return returncode;
@@ -125,26 +175,29 @@ cws_return cws_server_start(cws_server_s *server) {
 	while (cws_server_run) {
 		int nfds = epoll_wait(server->epfd, events, CWS_SERVER_EPOLL_MAXEVENTS, CWS_SERVER_EPOLL_TIMEOUT);
 
-		if (nfds < 0) {
-			continue;
-		}
-
-		if (nfds == 0) {
+		if (nfds <= 0) {
 			continue;
 		}
 
 		for (int i = 0; i < nfds; ++i) {
-			if (events[i].data.fd != server->sockfd) {
+			if (!cws_server_is_listening(server, events[i].data.fd)) {
 				continue;
 			}
 
-			int client_fd = cws_server_handle_new_client(server->sockfd);
+			int client_fd = cws_server_handle_new_client(events[i].data.fd);
 			if (client_fd < 0) {
 				continue;
 			}
 
-			cws_fd_set_nonblocking(client_fd);
-			cws_epoll_add(server->workers[workers_index]->epfd, client_fd);
+			if (cws_fd_set_nonblocking(client_fd) != CWS_OK) {
+				close(client_fd);
+				continue;
+			}
+
+			if (cws_epoll_add(server->workers[workers_index]->epfd, client_fd) != 0) {
+				close(client_fd);
+				continue;
+			}
 			workers_index = (workers_index + 1) % server->config->workers;
 		}
 	}
@@ -154,7 +207,7 @@ cws_return cws_server_start(cws_server_s *server) {
 
 int cws_server_handle_new_client(int server_fd) {
 	struct sockaddr_storage their_sa;
-	char ip[INET_ADDRSTRLEN];
+	char ip[INET6_ADDRSTRLEN];
 
 	int client_fd = cws_server_accept_client(server_fd, &their_sa);
 	if (client_fd < 0) {
@@ -186,8 +239,14 @@ void cws_server_shutdown(cws_server_s *server) {
 		return;
 	}
 
-	if (server->sockfd >= 0) {
-		close(server->sockfd);
+	if (server->sockfds) {
+		for (size_t i = 0; i < server->sockfd_count; ++i) {
+			if (server->sockfds[i] >= 0) {
+				close(server->sockfds[i]);
+			}
+		}
+		free(server->sockfds);
+		server->sockfds = NULL;
 	}
 
 	if (server->epfd >= 0) {

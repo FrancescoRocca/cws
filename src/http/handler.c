@@ -1,12 +1,13 @@
 #include "http/handler.h"
 #include "utils/debug.h"
 #include <myclib/mystring.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
 /* Sanitize and resolve file path */
 static string_s *resolve_file_path(const char *url_path, cws_handler_config_s *config) {
-	string_s *full_path = string_new(config->root, 256);
+	string_s *full_path = string_new(config->root, 0);
 	if (!full_path) {
 		return NULL;
 	}
@@ -25,7 +26,7 @@ static string_s *resolve_file_path(const char *url_path, cws_handler_config_s *c
 	}
 
 	/* Block directory traversal attempts */
-	if (string_find(url_path_string, "..")) {
+	if (string_find(url_path_string, "..") >= 0) {
 		string_free(url_path_string);
 		string_free(full_path);
 		return NULL;
@@ -55,7 +56,7 @@ cws_response_s *cws_handler_static_file(cws_request_s *request, cws_handler_conf
 		return cws_response_error(HTTP_INTERNAL_ERROR, "Invalid request or configuration");
 	}
 
-	if (request->method != HTTP_GET) {
+	if (request->method != HTTP_GET && request->method != HTTP_HEAD) {
 		return cws_handler_not_implemented();
 	}
 
@@ -81,10 +82,23 @@ cws_response_s *cws_handler_static_file(cws_request_s *request, cws_handler_conf
 	}
 
 	/* Retrieve Connection header and set it in the response */
-	const char *conn = cws_request_get_header(request, "Connection");
-	cws_response_set_header(response, "Connection", conn);
+	char *conn = cws_request_get_header(request, "Connection");
+	if (conn[0] != '\0') {
+		cws_response_set_header(response, "Connection", conn);
+	}
+	free(conn);
 
 	cws_response_set_body_file(response, path);
+
+	/* HEAD: send headers only, release the file descriptor */
+	if (request->method == HTTP_HEAD) {
+		if (response->body_file) {
+			fclose(response->body_file);
+			response->body_file = NULL;
+		}
+		response->body_type = RESPONSE_BODY_NONE;
+	}
+
 	cws_log_debug("Serving file: %s (%zu bytes)", path, response->content_length);
 	string_free(filepath);
 
