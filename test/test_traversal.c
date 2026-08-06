@@ -12,11 +12,10 @@ static int test_traversal_blocked(void) {
 		return 1;
 	}
 
-	fprintf(stdout, "[TEST] traversal blocked -> GET %s => %ld (expected 404 or 500)\n", url, result.code);
+	fprintf(stdout, "[TEST] traversal blocked -> GET %s => %ld (expected 404)\n", url, result.code);
 
-	/* Accept either 404 (ideal) or 500 (still blocked but internal error path). */
-	if (result.code != 404 && result.code != 500) {
-		fprintf(stderr, "[FAIL] traversal blocked: expected 404/500, got %ld\n", result.code);
+	if (result.code != 404) {
+		fprintf(stderr, "[FAIL] traversal blocked: expected 404, got %ld\n", result.code);
 		return 1;
 	}
 

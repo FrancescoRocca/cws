@@ -3,8 +3,21 @@
 
 static int test_get_index_ok(void) {
 	char url[256];
+	int failures = 0;
+
 	snprintf(url, sizeof(url), "%s/", BASE_URL);
-	return assert_status("GET / returns 200", url, "GET", 200);
+	failures += assert_status("GET / returns 200", url, "GET", 200);
+
+	snprintf(url, sizeof(url), "%s/index.html", BASE_URL);
+	failures += assert_status("GET /index.html returns 200", url, "GET", 200);
+
+	snprintf(url, sizeof(url), "%s/?v=1", BASE_URL);
+	failures += assert_status("GET /?v=1 returns 200", url, "GET", 200);
+
+	snprintf(url, sizeof(url), "%s/", BASE_URL);
+	failures += assert_status("HEAD / returns 200", url, "HEAD", 200);
+
+	return failures;
 }
 
 int main(int argc, char **argv) {

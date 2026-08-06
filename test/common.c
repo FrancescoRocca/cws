@@ -47,7 +47,8 @@ bool perform_request(const char *url, const char *method, http_result_s *out) {
 
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, method);
-	curl_easy_setopt(curl, CURLOPT_NOBODY, 0L);
+	/* HEAD responses carry no body: do not wait for one */
+	curl_easy_setopt(curl, CURLOPT_NOBODY, strcmp(method, "HEAD") == 0 ? 1L : 0L);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 3L);
 	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 1L);
 	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, out->error);
