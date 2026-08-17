@@ -1,6 +1,7 @@
 #include "http/handler.h"
 #include "utils/debug.h"
 #include <myclib/mystring.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -42,39 +43,74 @@ static bool file_exists(const char *filepath) {
 	return stat(filepath, &st) == 0 && S_ISREG(st.st_mode);
 }
 
-static cws_response_s *cws_handler_not_found(void) {
-	return cws_response_error(HTTP_NOT_FOUND, "The requested resource was not found.");
+static cws_response_s *cws_handler_error_page(cws_handler_config_s *config, cws_http_status_e status) {
+	char status_str[16];
+	snprintf(status_str, sizeof status_str, "%d", (int)status);
+
+	for (unsigned i = 0; i < config->error_pages_count; ++i) {
+		if (strcmp(config->error_pages[i].status, status_str) != 0) {
+			continue;
+		}
+
+		const char *path = config->error_pages[i].path;
+		if (!file_exists(path)) {
+			return NULL;
+		}
+
+		cws_response_s *resp = cws_response_new(status);
+		if (!resp) {
+			return NULL;
+		}
+		cws_response_set_body_file(resp, path);
+		return resp;
+	}
+
+	return NULL;
 }
 
-static cws_response_s *cws_handler_not_implemented(void) {
-	return cws_response_error(HTTP_NOT_IMPLEMENTED, "Method not implemented.");
+static cws_response_s *cws_handler_error(cws_handler_config_s *config, cws_http_status_e status, const char *message) {
+	if (config) {
+		cws_response_s *custom = cws_handler_error_page(config, status);
+		if (custom) {
+			return custom;
+		}
+	}
+	return cws_response_error(status, message);
+}
+
+static cws_response_s *cws_handler_not_found(cws_handler_config_s *config) {
+	return cws_handler_error(config, HTTP_NOT_FOUND, "The requested resource was not found.");
+}
+
+static cws_response_s *cws_handler_not_implemented(cws_handler_config_s *config) {
+	return cws_handler_error(config, HTTP_NOT_IMPLEMENTED, "Method not implemented.");
 }
 
 cws_response_s *cws_handler_static_file(cws_request_s *request, cws_handler_config_s *config) {
 	if (!request || !config) {
-		return cws_response_error(HTTP_INTERNAL_ERROR, "Invalid request or configuration");
+		return cws_handler_error(config, HTTP_INTERNAL_ERROR, "Invalid request or configuration");
 	}
 
 	if (request->method != HTTP_GET && request->method != HTTP_HEAD) {
-		return cws_handler_not_implemented();
+		return cws_handler_not_implemented(config);
 	}
 
 	string_s *filepath = resolve_file_path(string_cstr(request->path), config);
 	if (!filepath) {
-		return cws_handler_not_found();
+		return cws_handler_not_found(config);
 	}
 
 	const char *path = string_cstr(filepath);
 	if (!file_exists(path)) {
 		string_free(filepath);
-		return cws_handler_not_found();
+		return cws_handler_not_found(config);
 	}
 
 	/* Allocate a response object */
 	cws_response_s *response = cws_response_new(HTTP_OK);
 	if (!response) {
 		string_free(filepath);
-		return cws_response_error(HTTP_INTERNAL_ERROR, "Failed to create response");
+		return cws_handler_error(config, HTTP_INTERNAL_ERROR, "Failed to create response");
 	}
 
 	/* Retrieve Connection header and set it in the response */

@@ -8,7 +8,6 @@
 
 typedef struct cws_request {
 	cws_http_method_e method;
-	string_s *host;
 	string_s *path;
 	string_s *query_string;
 	string_s *http_version;

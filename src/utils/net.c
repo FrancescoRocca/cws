@@ -22,9 +22,12 @@ void cws_utils_get_client_ip(struct sockaddr_storage *sa, char *ip) {
 }
 
 cws_return cws_fd_set_nonblocking(int sockfd) {
-	const int status = fcntl(sockfd, F_SETFL, O_NONBLOCK);
+	const int flags = fcntl(sockfd, F_GETFL, 0);
+	if (flags == -1) {
+		return CWS_FD_NONBLOCKING_ERROR;
+	}
 
-	if (status == -1) {
+	if (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1) {
 		return CWS_FD_NONBLOCKING_ERROR;
 	}
 

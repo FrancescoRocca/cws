@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <tomlc17.h>
 
 #include "utils/debug.h"
@@ -118,7 +119,7 @@ static bool parse_vhosts(cws_config_s *config, toml_result_t result) {
 			vh->error_pages_count = pages.u.arr.size;
 
 			/* Allocate error pages array */
-			vh->error_pages = malloc(sizeof *vh->error_pages * vh->error_pages_count);
+			vh->error_pages = calloc(vh->error_pages_count, sizeof *vh->error_pages);
 			if (!vh->error_pages) {
 				return false;
 			}
@@ -229,10 +230,10 @@ void cws_config_free(cws_config_s *config) {
 	free(config);
 }
 
-cws_vhost_s *config_get_vhost(cws_config_s *config, char *host) {
+cws_vhost_s *config_get_vhost(cws_config_s *config, const char *host) {
 	for (unsigned i = 0; i < config->virtual_hosts_count; ++i) {
 		cws_vhost_s *vh = config->virtual_hosts;
-		if (!strcmp(vh[i].domain, host)) {
+		if (!strcasecmp(vh[i].domain, host)) {
 			return &vh[i];
 		}
 	}

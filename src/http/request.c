@@ -1,5 +1,6 @@
 #include "http/request.h"
 
+#include <ctype.h>
 #include <myclib/myhashmap.h>
 #include <myclib/mystring.h>
 #include <stdio.h>
@@ -128,6 +129,9 @@ static bool parse_headers(cws_request_s *req, char **cursor) {
 
 		strncpy(hk, header_key, sizeof(hk) - 1);
 		hk[sizeof(hk) - 1] = '\0';
+		for (char *p = hk; *p; ++p) {
+			*p = (char)tolower((unsigned char)*p);
+		}
 
 		strncpy(hv, header_value, sizeof(hv) - 1);
 		hv[sizeof(hv) - 1] = '\0';
@@ -198,7 +202,14 @@ char *cws_request_get_header(cws_request_s *request, const char *header) {
 		return strdup("");
 	}
 
-	bucket_s *bucket = hm_get(request->headers, (void *)header);
+	char key[HEADER_KEY_MAX];
+	size_t i = 0;
+	for (; header[i] && i < sizeof(key) - 1; ++i) {
+		key[i] = (char)tolower((unsigned char)header[i]);
+	}
+	key[i] = '\0';
+
+	bucket_s *bucket = hm_get(request->headers, (void *)key);
 	if (!bucket) {
 		return strdup("");
 	}

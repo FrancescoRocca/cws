@@ -25,7 +25,7 @@ int cws_mime_get_ct(const char *location_path, char *content_type) {
 		}
 	}
 
-	snprintf(content_type, CONTENT_TYPE_MAX - 1, "%s", "Content-Type not supported");
+	snprintf(content_type, CONTENT_TYPE_MAX - 1, "%s", "application/octet-stream");
 
 	return CWS_OK;
 }

@@ -18,8 +18,8 @@ status = "404"
 path = "www/pages/404.html"
 
 [[virtual_hosts.pages]]
-status = "505"
-path = "www/pages/505.html"
+status = "500"
+path = "www/pages/500.html"
 
 [[virtual_hosts]]
 domain = "example.com"

@@ -80,6 +80,21 @@ static void worker_close_client(cws_worker_s *worker, int client_fd) {
 	worker_remove_client(worker, client_fd);
 }
 
+/* Strip the :port suffix from a Host header value (in place). */
+static void host_strip_port(char *host) {
+	char *close_bracket = strchr(host, ']');
+	if (close_bracket) {
+		/* "[::1]:3030" -> "[::1]" */
+		close_bracket[1] = '\0';
+		return;
+	}
+
+	char *colon = strchr(host, ':');
+	if (colon) {
+		*colon = '\0';
+	}
+}
+
 static cws_return worker_handle_request(cws_worker_s *worker, int client_fd, string_s *buffer, size_t request_len,
 										bool *close_connection) {
 	*close_connection = false;
@@ -103,12 +118,25 @@ static cws_return worker_handle_request(cws_worker_s *worker, int client_fd, str
 
 	/* Configure handler virtual host */
 	char *host = cws_request_get_header(request, "host");
+	host_strip_port(host);
 	cws_vhost_s *vh = config_get_vhost(worker->config, host);
 	cws_handler_config_s conf;
 	if (vh) {
-		conf = (cws_handler_config_s){.domain = vh->domain, .root = vh->root, .index = vh->index};
+		conf = (cws_handler_config_s){
+			.domain = vh->domain,
+			.root = vh->root,
+			.index = vh->index,
+			.error_pages = vh->error_pages,
+			.error_pages_count = vh->error_pages_count,
+		};
 	} else {
-		conf = (cws_handler_config_s){.domain = "default", .root = worker->config->root, .index = NULL};
+		conf = (cws_handler_config_s){
+			.domain = "default",
+			.root = worker->config->root,
+			.index = NULL,
+			.error_pages = NULL,
+			.error_pages_count = 0,
+		};
 	}
 	free(host);
 

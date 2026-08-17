@@ -17,16 +17,3 @@ int cws_epoll_del(int epfd, int sockfd) {
 
 	return status;
 }
-
-int cws_epoll_create_with_fd(int fd) {
-	int epfd = epoll_create1(0);
-	if (epfd == -1) {
-		return -1;
-	}
-
-	if (cws_epoll_add(epfd, fd) != 0) {
-		return -1;
-	}
-
-	return epfd;
-}
