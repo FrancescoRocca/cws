@@ -6,3 +6,5 @@ IndentCaseLabels: true
 ColumnLimit: 120
 PointerAlignment: Right
 AllowShortFunctionsOnASingleLine: None
+InsertBraces: true
+AllowShortBlocksOnASingleLine: Empty
